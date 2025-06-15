@@ -1,0 +1,1079 @@
+[2025-05-27 15:15:00] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, bright, luminous, smooth texture, muted tones, desaturated feel, warm color palette, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, with elements of person, solo voice, high quality audio, clear mix, professionally mastered","duration":40,"steps":30}
+[2025-05-27 15:15:00] Input validato. Prompt: 'Bright, luminous, muted, bright, luminous, smooth texture, muted tones, desaturated feel, warm color...', Duration: 40, Steps: 30
+[2025-05-27 15:15:00] Controllo crediti superato. User ID: guest, Crediti necessari: 0
+[2025-05-27 15:15:00] Inizio generazione musica con Stability AI...
+[2025-05-27 15:15:00] Inizio chiamata a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-05-27 15:15:00] Campi inviati (prima della costruzione multipart): Array
+(
+    [prompt] => Bright, luminous, muted, bright, luminous, smooth texture, muted tones, desaturated feel, warm color palette, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, with elements of person, solo voice, high quality audio, clear mix, professionally mastered
+    [output_format] => mp3
+    [duration] => 40
+)
+
+[2025-05-27 15:15:12] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::6812:22e0, 2606:4700:4400::ac40:9920
+* IPv4: 172.64.153.32, 104.18.34.224
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying 172.64.153.32:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Apr 16 07:27:01 2025 GMT
+*  expire date: Jul 15 07:27:00 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E5
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (172.64.153.32) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6835d6f4e33aa
+Content-Length: 603
+
+* upload completely sent off: 603 bytes
+< HTTP/1.1 200 OK
+< Date: Tue, 27 May 2025 15:15:11 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 3505791244
+< x-request-id: 38b2df8f5017658bc68884137f6145d5
+< Server: cloudflare
+< CF-RAY: 9466771b3826ea54-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-05-27 15:15:12] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-05-27 15:15:12] Header della risposta da Stability API: Array
+(
+    [date] => Array
+        (
+            [0] => Tue, 27 May 2025 15:15:11 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 3505791244
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => 38b2df8f5017658bc68884137f6145d5
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 9466771b3826ea54-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-05-27 15:15:12] Corpo della risposta da Stability API (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE]
+[2025-05-27 15:15:12] Successo API: Ricevuti dati audio (Content-Type: audio/mpeg).
+[2025-05-27 15:15:12] Generazione musica completata, ricevuti 640984 bytes di dati audio.
+[2025-05-27 15:15:12] Directory creata: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/
+[2025-05-27 15:15:12] Tentativo salvataggio audio in: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748358912_6fa77c2e.mp3
+[2025-05-27 15:15:12] File audio salvato con successo: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748358912_6fa77c2e.mp3 (640984 bytes)
+[2025-05-27 15:15:12] File audio salvato. URL: https://pictosound.com/wp-content/uploads/pictosound/pictosound_guest_40s_1748358912_6fa77c2e.mp3
+[2025-05-27 15:15:22] Input JSON grezzo ricevuto: {"prompt":"Atmospheric, contemplative, bright, luminous, high contrast sound, muted tones, desaturated feel, warm color palette, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, with elements of person, solo voice, high quality audio, clear mix, professionally mastered","duration":60,"steps":30}
+[2025-05-27 15:15:22] Input validato. Prompt: 'Atmospheric, contemplative, bright, luminous, high contrast sound, muted tones, desaturated feel, wa...', Duration: 60, Steps: 30
+[2025-05-27 15:20:48] Input JSON grezzo ricevuto: {"prompt":"Atmospheric, contemplative, bright, luminous, high contrast sound, muted tones, desaturated feel, warm color palette, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, with elements of person, solo voice, high quality audio, clear mix, professionally mastered","duration":60,"steps":30}
+[2025-05-27 15:20:48] Input validato. Prompt: 'Atmospheric, contemplative, bright, luminous, high contrast sound, muted tones, desaturated feel, wa...', Duration: 60, Steps: 30
+[2025-05-27 15:21:46] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, bright, luminous, smooth texture, muted tones, desaturated feel, warm color palette, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, with elements of person, solo voice, high quality audio, clear mix, professionally mastered","duration":60,"steps":30}
+[2025-05-27 15:21:46] Input validato. Prompt: 'Bright, luminous, muted, bright, luminous, smooth texture, muted tones, desaturated feel, warm color...', Duration: 60, Steps: 30
+[2025-05-27 15:28:53] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, bright, luminous, smooth texture, muted tones, desaturated feel, warm color palette, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, with elements of person, solo voice, high quality audio, clear mix, professionally mastered","duration":60,"steps":30}
+[2025-05-27 15:28:53] Input validato. Prompt: 'Bright, luminous, muted, bright, luminous, smooth texture, muted tones, desaturated feel, warm color...', Duration: 60, Steps: 30
+[2025-05-28 10:07:41] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":40,"steps":30}
+[2025-05-28 10:07:41] Input validato. Prompt: 'Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instru...', Duration: 40, Steps: 30
+[2025-05-28 10:07:41] Controllo crediti superato. User ID: guest, Crediti necessari: 0
+[2025-05-28 10:07:41] Inizio generazione musica con Stability AI...
+[2025-05-28 10:07:41] Inizio chiamata a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-05-28 10:07:41] Campi inviati (prima della costruzione multipart): Array
+(
+    [prompt] => Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.
+    [output_format] => mp3
+    [duration] => 40
+)
+
+[2025-05-28 10:07:51] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::6812:22e0, 2606:4700:4400::ac40:9920
+* IPv4: 172.64.153.32, 104.18.34.224
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying 172.64.153.32:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Apr 16 07:27:01 2025 GMT
+*  expire date: Jul 15 07:27:00 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E5
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (172.64.153.32) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6836e06d22372
+Content-Length: 471
+
+* upload completely sent off: 471 bytes
+< HTTP/1.1 200 OK
+< Date: Wed, 28 May 2025 10:07:51 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 1583497153
+< x-request-id: fedf4639b6fa61cac9baa401911f1c73
+< Server: cloudflare
+< CF-RAY: 946cf24a8b86ea6b-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-05-28 10:07:51] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-05-28 10:07:51] Header della risposta da Stability API: Array
+(
+    [date] => Array
+        (
+            [0] => Wed, 28 May 2025 10:07:51 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 1583497153
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => fedf4639b6fa61cac9baa401911f1c73
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 946cf24a8b86ea6b-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-05-28 10:07:51] Corpo della risposta da Stability API (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE]
+[2025-05-28 10:07:51] Successo API: Ricevuti dati audio (Content-Type: audio/mpeg).
+[2025-05-28 10:07:51] Generazione musica completata, ricevuti 640984 bytes di dati audio.
+[2025-05-28 10:07:51] Tentativo salvataggio audio in: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748426871_58007539.mp3
+[2025-05-28 10:07:51] File audio salvato con successo: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748426871_58007539.mp3 (640984 bytes)
+[2025-05-28 10:07:51] File audio salvato. URL: https://pictosound.com/wp-content/uploads/pictosound/pictosound_guest_40s_1748426871_58007539.mp3
+[2025-05-28 10:07:58] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":60,"steps":30}
+[2025-05-28 10:07:58] Input validato. Prompt: 'Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instru...', Duration: 60, Steps: 30
+[2025-05-28 10:41:38] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":40,"steps":30}
+[2025-05-28 10:41:38] Input validato. Prompt: 'Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instru...', Duration: 40, Steps: 30
+[2025-05-28 10:41:38] Controllo crediti superato. User ID: guest, Crediti necessari: 0
+[2025-05-28 10:41:38] Inizio generazione musica con Stability AI...
+[2025-05-28 10:41:38] Inizio chiamata a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-05-28 10:41:38] Campi inviati (prima della costruzione multipart): Array
+(
+    [prompt] => Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.
+    [output_format] => mp3
+    [duration] => 40
+)
+
+[2025-05-28 10:41:48] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::ac40:9920, 2606:4700:4400::6812:22e0
+* IPv4: 104.18.34.224, 172.64.153.32
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying 104.18.34.224:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Apr 16 07:27:01 2025 GMT
+*  expire date: Jul 15 07:27:00 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E5
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (104.18.34.224) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6836e862488e1
+Content-Length: 471
+
+* upload completely sent off: 471 bytes
+< HTTP/1.1 200 OK
+< Date: Wed, 28 May 2025 10:41:48 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 3708511282
+< x-request-id: 0792b420d0f6fa95ff5d0ba2db5ac126
+< Server: cloudflare
+< CF-RAY: 946d2406a951ea3f-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-05-28 10:41:48] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-05-28 10:41:48] Header della risposta da Stability API: Array
+(
+    [date] => Array
+        (
+            [0] => Wed, 28 May 2025 10:41:48 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 3708511282
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => 0792b420d0f6fa95ff5d0ba2db5ac126
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 946d2406a951ea3f-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-05-28 10:41:48] Corpo della risposta da Stability API (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE]
+[2025-05-28 10:41:48] Successo API: Ricevuti dati audio (Content-Type: audio/mpeg).
+[2025-05-28 10:41:48] Generazione musica completata, ricevuti 640984 bytes di dati audio.
+[2025-05-28 10:41:48] Tentativo salvataggio audio in: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748428908_c4c26e5f.mp3
+[2025-05-28 10:41:48] File audio salvato con successo: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748428908_c4c26e5f.mp3 (640984 bytes)
+[2025-05-28 10:41:48] File audio salvato. URL: https://pictosound.com/wp-content/uploads/pictosound/pictosound_guest_40s_1748428908_c4c26e5f.mp3
+[2025-05-28 10:52:11] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":60,"steps":30}
+[2025-05-28 10:52:11] Input validato. Prompt: 'Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instru...', Duration: 60, Steps: 30
+[2025-05-28 10:52:15] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":40,"steps":30}
+[2025-05-28 10:52:15] Input validato. Prompt: 'Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instru...', Duration: 40, Steps: 30
+[2025-05-28 10:52:15] Controllo crediti superato. User ID: guest, Crediti necessari: 0
+[2025-05-28 10:52:15] Inizio generazione musica con Stability AI...
+[2025-05-28 10:52:15] Inizio chiamata a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-05-28 10:52:15] Campi inviati (prima della costruzione multipart): Array
+(
+    [prompt] => Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.
+    [output_format] => mp3
+    [duration] => 40
+)
+
+[2025-05-28 10:52:25] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::ac40:9920, 2606:4700:4400::6812:22e0
+* IPv4: 172.64.153.32, 104.18.34.224
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying 172.64.153.32:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Apr 16 07:27:01 2025 GMT
+*  expire date: Jul 15 07:27:00 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E5
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (172.64.153.32) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6836eadf94f05
+Content-Length: 471
+
+* upload completely sent off: 471 bytes
+< HTTP/1.1 200 OK
+< Date: Wed, 28 May 2025 10:52:24 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 3240411506
+< x-request-id: 3b3eb703bb1a57daca2131fcf2a24030
+< Server: cloudflare
+< CF-RAY: 946d3395dfe4ea73-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-05-28 10:52:25] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-05-28 10:52:25] Header della risposta da Stability API: Array
+(
+    [date] => Array
+        (
+            [0] => Wed, 28 May 2025 10:52:24 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 3240411506
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => 3b3eb703bb1a57daca2131fcf2a24030
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 946d3395dfe4ea73-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-05-28 10:52:25] Corpo della risposta da Stability API (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE]
+[2025-05-28 10:52:25] Successo API: Ricevuti dati audio (Content-Type: audio/mpeg).
+[2025-05-28 10:52:25] Generazione musica completata, ricevuti 640984 bytes di dati audio.
+[2025-05-28 10:52:25] Tentativo salvataggio audio in: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748429545_56eea474.mp3
+[2025-05-28 10:52:25] File audio salvato con successo: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748429545_56eea474.mp3 (640984 bytes)
+[2025-05-28 10:52:25] File audio salvato. URL: https://pictosound.com/wp-content/uploads/pictosound/pictosound_guest_40s_1748429545_56eea474.mp3
+[2025-05-28 10:53:48] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":40,"steps":30}
+[2025-05-28 10:53:48] Input validato. Prompt: 'Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instru...', Duration: 40, Steps: 30
+[2025-05-28 10:53:48] Controllo crediti superato. User ID: guest, Crediti necessari: 0
+[2025-05-28 10:53:48] Inizio generazione musica con Stability AI...
+[2025-05-28 10:53:48] Inizio chiamata a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-05-28 10:53:48] Campi inviati (prima della costruzione multipart): Array
+(
+    [prompt] => Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.
+    [output_format] => mp3
+    [duration] => 40
+)
+
+[2025-05-28 10:53:49] Input JSON grezzo ricevuto: {"prompt":"Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":40,"steps":30}
+[2025-05-28 10:53:49] Input validato. Prompt: 'Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instru...', Duration: 40, Steps: 30
+[2025-05-28 10:53:49] Controllo crediti superato. User ID: guest, Crediti necessari: 0
+[2025-05-28 10:53:49] Inizio generazione musica con Stability AI...
+[2025-05-28 10:53:49] Inizio chiamata a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-05-28 10:53:49] Campi inviati (prima della costruzione multipart): Array
+(
+    [prompt] => Bright, luminous, muted, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.
+    [output_format] => mp3
+    [duration] => 40
+)
+
+[2025-05-28 10:53:58] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::6812:22e0, 2606:4700:4400::ac40:9920
+* IPv4: 104.18.34.224, 172.64.153.32
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying 104.18.34.224:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Apr 16 07:27:01 2025 GMT
+*  expire date: Jul 15 07:27:00 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E5
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (104.18.34.224) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6836eb3d00040
+Content-Length: 471
+
+* upload completely sent off: 471 bytes
+< HTTP/1.1 200 OK
+< Date: Wed, 28 May 2025 10:53:57 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 1146360739
+< x-request-id: 657df80577eaba2282fce8bf27674bcf
+< Server: cloudflare
+< CF-RAY: 946d35dd6cfbea67-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-05-28 10:53:58] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-05-28 10:53:58] Header della risposta da Stability API: Array
+(
+    [date] => Array
+        (
+            [0] => Wed, 28 May 2025 10:53:57 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 1146360739
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => 657df80577eaba2282fce8bf27674bcf
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 946d35dd6cfbea67-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-05-28 10:53:58] Corpo della risposta da Stability API (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE]
+[2025-05-28 10:53:58] Successo API: Ricevuti dati audio (Content-Type: audio/mpeg).
+[2025-05-28 10:53:58] Generazione musica completata, ricevuti 640984 bytes di dati audio.
+[2025-05-28 10:53:58] Tentativo salvataggio audio in: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748429638_84c20dec.mp3
+[2025-05-28 10:53:58] File audio salvato con successo: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748429638_84c20dec.mp3 (640984 bytes)
+[2025-05-28 10:53:58] File audio salvato. URL: https://pictosound.com/wp-content/uploads/pictosound/pictosound_guest_40s_1748429638_84c20dec.mp3
+[2025-05-28 10:53:58] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::ac40:9920, 2606:4700:4400::6812:22e0
+* IPv4: 172.64.153.32, 104.18.34.224
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying 172.64.153.32:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Apr 16 07:27:01 2025 GMT
+*  expire date: Jul 15 07:27:00 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E5
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (172.64.153.32) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6836eb3d042a7
+Content-Length: 471
+
+* upload completely sent off: 471 bytes
+< HTTP/1.1 200 OK
+< Date: Wed, 28 May 2025 10:53:57 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 1328887964
+< x-request-id: c05c3c7c4ee33b6e371a44dc4b8481c9
+< Server: cloudflare
+< CF-RAY: 946d35dd7bebea3d-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-05-28 10:53:58] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-05-28 10:53:58] Header della risposta da Stability API: Array
+(
+    [date] => Array
+        (
+            [0] => Wed, 28 May 2025 10:53:57 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 1328887964
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => c05c3c7c4ee33b6e371a44dc4b8481c9
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 946d35dd7bebea3d-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-05-28 10:53:58] Corpo della risposta da Stability API (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE]
+[2025-05-28 10:53:58] Successo API: Ricevuti dati audio (Content-Type: audio/mpeg).
+[2025-05-28 10:53:58] Generazione musica completata, ricevuti 640984 bytes di dati audio.
+[2025-05-28 10:53:58] Tentativo salvataggio audio in: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748429638_94594cf9.mp3
+[2025-05-28 10:53:58] File audio salvato con successo: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748429638_94594cf9.mp3 (640984 bytes)
+[2025-05-28 10:53:58] File audio salvato. URL: https://pictosound.com/wp-content/uploads/pictosound/pictosound_guest_40s_1748429638_94594cf9.mp3
+[2025-05-28 11:03:20] Input JSON grezzo ricevuto: {"prompt":"Muted, desaturated, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":40,"steps":30}
+[2025-05-28 11:03:20] Input validato. Prompt: 'Muted, desaturated, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumenta...', Duration: 40, Steps: 30
+[2025-05-28 11:03:20] Controllo crediti superato. User ID: guest, Crediti necessari: 0
+[2025-05-28 11:03:20] Inizio generazione musica con Stability AI...
+[2025-05-28 11:03:20] Inizio chiamata a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-05-28 11:03:20] Campi inviati (prima della costruzione multipart): Array
+(
+    [prompt] => Muted, desaturated, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.
+    [output_format] => mp3
+    [duration] => 40
+)
+
+[2025-05-28 11:03:31] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::ac40:9920, 2606:4700:4400::6812:22e0
+* IPv4: 172.64.153.32, 104.18.34.224
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying 172.64.153.32:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Apr 16 07:27:01 2025 GMT
+*  expire date: Jul 15 07:27:00 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E5
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (172.64.153.32) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6836ed7874a9e
+Content-Length: 466
+
+* upload completely sent off: 466 bytes
+< HTTP/1.1 200 OK
+< Date: Wed, 28 May 2025 11:03:30 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 2033535268
+< x-request-id: a1023d9a449d951aea15ec2913d18e26
+< Server: cloudflare
+< CF-RAY: 946d43d129affc3e-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-05-28 11:03:31] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-05-28 11:03:31] Header della risposta da Stability API: Array
+(
+    [date] => Array
+        (
+            [0] => Wed, 28 May 2025 11:03:30 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 2033535268
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => a1023d9a449d951aea15ec2913d18e26
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 946d43d129affc3e-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-05-28 11:03:31] Corpo della risposta da Stability API (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE]
+[2025-05-28 11:03:31] Successo API: Ricevuti dati audio (Content-Type: audio/mpeg).
+[2025-05-28 11:03:31] Generazione musica completata, ricevuti 640984 bytes di dati audio.
+[2025-05-28 11:03:31] Tentativo salvataggio audio in: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748430211_ddc15efe.mp3
+[2025-05-28 11:03:31] File audio salvato con successo: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748430211_ddc15efe.mp3 (640984 bytes)
+[2025-05-28 11:03:31] File audio salvato. URL: https://pictosound.com/wp-content/uploads/pictosound/pictosound_guest_40s_1748430211_ddc15efe.mp3
+[2025-05-28 11:03:34] Input JSON grezzo ricevuto: {"prompt":"Muted, desaturated, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":60,"steps":30}
+[2025-05-28 11:03:34] Input validato. Prompt: 'Muted, desaturated, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumenta...', Duration: 60, Steps: 30
+[2025-05-28 11:37:10] Input JSON grezzo ricevuto: {"prompt":"Muted, desaturated, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.","duration":40,"steps":30}
+[2025-05-28 11:37:10] Input validato. Prompt: 'Muted, desaturated, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumenta...', Duration: 40, Steps: 30
+[2025-05-28 11:37:10] Controllo crediti superato. User ID: guest, Crediti necessari: 0
+[2025-05-28 11:37:10] Inizio generazione musica con Stability AI...
+[2025-05-28 11:37:10] Inizio chiamata a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-05-28 11:37:10] Campi inviati (prima della costruzione multipart): Array
+(
+    [prompt] => Muted, desaturated, 120 bpm, medium energy, featuring ethereal pads, guitar with reverb, instrumental, high quality audio, clear mix.
+    [output_format] => mp3
+    [duration] => 40
+)
+
+[2025-05-28 11:37:21] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::6812:22e0, 2606:4700:4400::ac40:9920
+* IPv4: 172.64.153.32, 104.18.34.224
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying 172.64.153.32:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Apr 16 07:27:01 2025 GMT
+*  expire date: Jul 15 07:27:00 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E5
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (172.64.153.32) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6836f566b0020
+Content-Length: 466
+
+* upload completely sent off: 466 bytes
+< HTTP/1.1 200 OK
+< Date: Wed, 28 May 2025 11:37:21 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 3408755604
+< x-request-id: fca9bfbd3c88d544d821472e1823ca88
+< Server: cloudflare
+< CF-RAY: 946d75628b57a268-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-05-28 11:37:21] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-05-28 11:37:21] Header della risposta da Stability API: Array
+(
+    [date] => Array
+        (
+            [0] => Wed, 28 May 2025 11:37:21 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 3408755604
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => fca9bfbd3c88d544d821472e1823ca88
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 946d75628b57a268-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-05-28 11:37:21] Corpo della risposta da Stability API (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE]
+[2025-05-28 11:37:21] Successo API: Ricevuti dati audio (Content-Type: audio/mpeg).
+[2025-05-28 11:37:21] Generazione musica completata, ricevuti 640984 bytes di dati audio.
+[2025-05-28 11:37:21] Tentativo salvataggio audio in: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748432241_a884d631.mp3
+[2025-05-28 11:37:21] File audio salvato con successo: /var/www/vhosts/pictosound.com/httpdocs/wp-content/uploads/pictosound/pictosound_guest_40s_1748432241_a884d631.mp3 (640984 bytes)
+[2025-05-28 11:37:21] File audio salvato. URL: https://pictosound.com/wp-content/uploads/pictosound/pictosound_guest_40s_1748432241_a884d631.mp3
