@@ -1,4 +1,7 @@
 <?php
+// ⚡ AGGIUNTO: Carica WordPress per accesso database e funzioni utente
+require_once('../../../wp-load.php');
+
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
@@ -16,6 +19,59 @@ function write_log($message) {
     file_put_contents($log_dir . 'api_log.txt', date('[Y-m-d H:i:s] ') . $message . "\n", FILE_APPEND);
 }
 
+// ⚡ AGGIUNTO: Funzioni helper per la gallery
+function pictosound_save_user_creation($user_id, $creation_data) {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'pictosound_user_creations';
+    
+    // Genera token di condivisione unico
+    $share_token = wp_generate_password(32, false);
+    
+    $data = [
+        'user_id' => $user_id,
+        'title' => sanitize_text_field($creation_data['title'] ?? ''),
+        'description' => sanitize_textarea_field($creation_data['description'] ?? ''),
+        'original_image_path' => sanitize_text_field($creation_data['image_path'] ?? ''),
+        'audio_file_path' => sanitize_text_field($creation_data['audio_path'] ?? ''),
+        'audio_file_url' => esc_url_raw($creation_data['audio_url'] ?? ''),
+        'prompt_text' => sanitize_textarea_field($creation_data['prompt'] ?? ''),
+        'duration' => intval($creation_data['duration'] ?? 40),
+        'audio_format' => sanitize_text_field($creation_data['format'] ?? 'mp3'),
+        'file_size' => intval($creation_data['file_size'] ?? 0),
+        'image_analysis_data' => wp_json_encode($creation_data['analysis_data'] ?? []),
+        'detected_objects' => sanitize_text_field($creation_data['objects'] ?? ''),
+        'detected_emotions' => sanitize_text_field($creation_data['emotions'] ?? ''),
+        'musical_settings' => wp_json_encode($creation_data['musical_settings'] ?? []),
+        'share_token' => $share_token,
+        'is_public' => boolval($creation_data['is_public'] ?? false)
+    ];
+    
+    $result = $wpdb->insert($table_name, $data);
+    
+    if ($result !== false) {
+        $creation_id = $wpdb->insert_id;
+        write_log("GALLERY: Creazione salvata con ID: $creation_id per user: $user_id");
+        return $creation_id;
+    }
+    
+    write_log("GALLERY: Errore nel salvare creazione per user: $user_id - " . $wpdb->last_error);
+    return false;
+}
+
+function pictosound_get_creation_share_token($creation_id) {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'pictosound_user_creations';
+    
+    $token = $wpdb->get_var($wpdb->prepare(
+        "SELECT share_token FROM {$table_name} WHERE id = %d",
+        $creation_id
+    ));
+    
+    return $token;
+}
+
 // Download audio
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download'])) {
     $filename = basename($_GET['download']);
@@ -24,6 +80,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download'])) {
     $filepath = $audio_dir . $filename;
 
     if (file_exists($filepath)) {
+        // ⚡ AGGIUNTO: Aggiorna contatore download se c'è un creation_id
+        if (isset($_GET['creation_id']) && is_user_logged_in()) {
+            $creation_id = intval($_GET['creation_id']);
+            $user_id = get_current_user_id();
+            
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'pictosound_user_creations';
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$table_name} SET downloads_count = downloads_count + 1 WHERE id = %d AND user_id = %d",
+                $creation_id, $user_id
+            ));
+        }
+        
         // Determina il content type in base all'estensione per sicurezza
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         $content_type = 'application/octet-stream'; // Default
@@ -76,8 +145,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $prompt_text_from_frontend = trim($input['prompt'] ?? '');
     write_log("Prompt ricevuto dal frontend: '" . $prompt_text_from_frontend . "' (Lunghezza UTF-8: " . mb_strlen($prompt_text_from_frontend, 'UTF-8') . ")");
     
-    // DISATTIVIAMO IL TEST HARDCODED PER USARE IL PROMPT DAL FRONTEND
-    // $USE_HARDCODED_PROMPT_FOR_TESTING = true; 
+    // ⚡ AGGIUNTO: Estrai dati per la gallery
+    $gallery_data = $input['gallery_data'] ?? [];
+    write_log("GALLERY: Dati gallery ricevuti: " . print_r($gallery_data, true));
 
     if ($prompt_text_from_frontend === '') { 
         header('Content-Type: application/json');
@@ -217,10 +287,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (file_put_contents($filepath, $response_body_raw) !== false) {
                 write_log("Audio salvato con successo: $filename");
+                
                 $scheme   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ? 'https' : 'http';
                 $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
                 $script_download_url = $_SERVER['PHP_SELF'] . '?download=' . urlencode($filename);
                 $full_download_url = "$scheme://$host" . $script_download_url;
+                
+                // ⚡ NUOVO: INTEGRAZIONE GALLERY
+                $gallery_info = ['error' => 'User not logged in'];
+                
+                if (is_user_logged_in()) {
+                    $user_id = get_current_user_id();
+                    write_log("GALLERY: Utente loggato (ID: $user_id), inizio salvataggio creazione");
+                    
+                    // Prepara i dati per la gallery
+                    $creation_data = [
+                        'title' => 'Creazione del ' . date('d/m/Y H:i'),
+                        'description' => 'Generata automaticamente da immagine',
+                        'image_path' => '', // Sarà popolato se disponibile nei gallery_data
+                        'audio_path' => $filepath,
+                        'audio_url' => $script_download_url,
+                        'prompt' => $prompt_to_send_to_api,
+                        'duration' => $duration_seconds,
+                        'format' => $file_extension,
+                        'file_size' => filesize($filepath),
+                        'analysis_data' => [],
+                        'objects' => '',
+                        'emotions' => '',
+                        'musical_settings' => [],
+                        'is_public' => false // Default privato
+                    ];
+                    
+                    // Popola con i dati dalla richiesta se disponibili
+                    if (!empty($gallery_data)) {
+                        if (isset($gallery_data['analysis_data'])) {
+                            $analysis = $gallery_data['analysis_data'];
+                            $creation_data['analysis_data'] = $analysis;
+                            $creation_data['objects'] = isset($analysis['objects']) ? implode(', ', $analysis['objects']) : '';
+                            $creation_data['emotions'] = isset($analysis['emotions']) ? implode(', ', $analysis['emotions']) : '';
+                            $creation_data['image_path'] = $analysis['image_path'] ?? '';
+                        }
+                        
+                        if (isset($gallery_data['musical_settings'])) {
+                            $creation_data['musical_settings'] = $gallery_data['musical_settings'];
+                        }
+                        
+                        // Titolo più descrittivo se abbiamo dati di analisi
+                        if (!empty($creation_data['objects']) || !empty($creation_data['emotions'])) {
+                            $title_parts = [];
+                            if (!empty($creation_data['emotions'])) {
+                                $title_parts[] = "Mood: " . $creation_data['emotions'];
+                            }
+                            if (!empty($creation_data['objects'])) {
+                                $objects_short = explode(', ', $creation_data['objects']);
+                                $title_parts[] = "da: " . $objects_short[0] . (count($objects_short) > 1 ? ' e altro' : '');
+                            }
+                            if (!empty($title_parts)) {
+                                $creation_data['title'] = implode(' - ', $title_parts) . ' (' . date('d/m H:i') . ')';
+                            }
+                        }
+                    }
+                    
+                    write_log("GALLERY: Dati creazione preparati: " . print_r($creation_data, true));
+                    
+                    // Salva nella gallery
+                    $creation_id = pictosound_save_user_creation($user_id, $creation_data);
+                    
+                    if ($creation_id) {
+                        $share_token = pictosound_get_creation_share_token($creation_id);
+                        
+                        $gallery_info = [
+                            'creation_id' => $creation_id,
+                            'gallery_url' => home_url('/my-gallery/'),
+                            'share_url' => $share_token ? home_url('/condividi/' . $share_token) : null,
+                            'share_token' => $share_token
+                        ];
+                        
+                        // Aggiorna l'URL di download per includere il creation_id
+                        $script_download_url .= '&creation_id=' . $creation_id;
+                        $full_download_url .= '&creation_id=' . $creation_id;
+                        
+                        write_log("GALLERY: Creazione salvata con successo - ID: $creation_id, Token: $share_token");
+                    } else {
+                        write_log("GALLERY: Errore nel salvare creazione per user: $user_id");
+                        $gallery_info = ['error' => 'Gallery save failed'];
+                    }
+                } else {
+                    write_log("GALLERY: Utente non loggato, skip salvataggio gallery");
+                }
                 
                 header('Content-Type: application/json'); // Assicurati che la risposta al client sia JSON
                 echo json_encode([
@@ -228,7 +382,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'audioUrl'    => $script_download_url, 
                     'downloadUrl' => $full_download_url,
                     'fileName'    => $filename,
-                    'message'     => 'Audio generato e salvato con successo.'
+                    'message'     => 'Audio generato e salvato con successo.',
+                    'gallery'     => $gallery_info // ⚡ AGGIUNTO: Info gallery
                 ], JSON_UNESCAPED_SLASHES);
                 exit;
             } else {
