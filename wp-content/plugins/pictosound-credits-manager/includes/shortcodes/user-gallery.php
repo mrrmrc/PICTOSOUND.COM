@@ -19,6 +19,7 @@ function pictosound_cm_user_gallery_shortcode($atts) {
     ], $atts);
 
     $user_id = get_current_user_id();
+<<<<<<< HEAD
     $paged = get_query_var('paged') ? get_query_var('paged') : 1;
 
     // Query per le creazioni dell'utente
@@ -46,6 +47,23 @@ function pictosound_cm_user_gallery_shortcode($atts) {
 
     $creations = new WP_Query($query_args);
     $total_creations = $creations->found_posts;
+=======
+    $images = get_posts([
+        'post_type'      => 'attachment',
+        'post_mime_type' => 'image',
+        'post_status'    => 'inherit',
+        'posts_per_page' => -1,
+        'author'         => $user_id,
+        'meta_query'     => [
+            [
+                'key'     => '_pictosound_audio_id',
+                'compare' => 'EXISTS',
+            ],
+        ],
+        'orderby'        => 'date',
+        'order'          => 'DESC'
+    ]);
+>>>>>>> 3d1f10e2be49bd007057676990093a0c1f8dbba0
 
     ob_start();
     ?>
