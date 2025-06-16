@@ -45,7 +45,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         fullscreenImage: document.getElementById('fullscreenImage'),
         closeFullscreenButton: document.getElementById('closeFullscreenButton')
     };
+    // Funzione per caricare e mostrare la galleria
+    function loadUserGallery() {
+        const galleryContainer = document.getElementById('gallery-container');
+        if (!galleryContainer) {
+            return; // Esce se non trova il contenitore della galleria
+        }
 
+        // Chiama il file PHP che abbiamo creato per prendere i dati
+        fetch('wp-content/pictosound/gallery_api.php')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    galleryContainer.innerHTML = ''; // Svuota il contenitore
+
+                    if (data.gallery.length === 0) {
+                        galleryContainer.innerHTML = '<p>La tua galleria è vuota. Crea qualcosa!</p>';
+                    } else {
+                        // Per ogni elemento ricevuto, crea un riquadro con immagine e audio
+                        data.gallery.forEach(item => {
+                            const galleryItemDiv = document.createElement('div');
+                            galleryItemDiv.className = 'gallery-item';
+
+                            galleryItemDiv.innerHTML = `
+                            <img src="${item.image_path}" alt="Immagine salvata" />
+                            <audio controls src="${item.sound_path}"></audio>
+                        `;
+                            galleryContainer.appendChild(galleryItemDiv);
+                        });
+                    }
+                } else {
+                    // Mostra un messaggio se c'è un errore (es. utente non loggato)
+                    galleryContainer.innerHTML = `<p>${data.message}</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Errore nel caricamento della galleria:', error);
+                galleryContainer.innerHTML = '<p>C\'è stato un problema nel caricare la galleria. Assicurati di aver effettuato il login.</p>';
+            });
+    }
+
+    // Esegui la funzione per caricare la galleria appena la pagina è pronta
+    document.addEventListener('DOMContentLoaded', function () {
+        loadUserGallery();
+    });
     // --- SISTEMA AUTO-RECOVERY PER NONCE SCADUTI ---
     function handleNonceExpiredError(originalAjaxCall, originalData) {
         console.log('Pictosound: Nonce scaduto rilevato, aggiornamento automatico...');
