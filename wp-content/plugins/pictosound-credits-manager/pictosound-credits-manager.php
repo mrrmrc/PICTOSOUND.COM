@@ -1732,8 +1732,9 @@ foreach (glob(plugin_dir_path(__FILE__) . 'includes/shortcodes/*.php') as $file)
 }
 
 
-* Carica il text domain per le traduzioni.
-*/
+/*
+ * Carica il text domain per le traduzioni.
+ */
 function pictosound_ms_load_textdomain() {
    load_plugin_textdomain( 'pictosound-mostra-saldo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' ); 
 }
