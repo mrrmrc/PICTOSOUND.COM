@@ -45,50 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fullscreenImage: document.getElementById('fullscreenImage'),
         closeFullscreenButton: document.getElementById('closeFullscreenButton')
     };
-    // Funzione per caricare e mostrare la galleria
-    function loadUserGallery() {
-        const galleryContainer = document.getElementById('gallery-container');
-        if (!galleryContainer) {
-            return; // Esce se non trova il contenitore della galleria
-        }
 
-        // Chiama il file PHP che abbiamo creato per prendere i dati
-        fetch('wp-content/pictosound/gallery_api.php')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    galleryContainer.innerHTML = ''; // Svuota il contenitore
-
-                    if (data.gallery.length === 0) {
-                        galleryContainer.innerHTML = '<p>La tua galleria è vuota. Crea qualcosa!</p>';
-                    } else {
-                        // Per ogni elemento ricevuto, crea un riquadro con immagine e audio
-                        data.gallery.forEach(item => {
-                            const galleryItemDiv = document.createElement('div');
-                            galleryItemDiv.className = 'gallery-item';
-
-                            galleryItemDiv.innerHTML = `
-                            <img src="${item.image_path}" alt="Immagine salvata" />
-                            <audio controls src="${item.sound_path}"></audio>
-                        `;
-                            galleryContainer.appendChild(galleryItemDiv);
-                        });
-                    }
-                } else {
-                    // Mostra un messaggio se c'è un errore (es. utente non loggato)
-                    galleryContainer.innerHTML = `<p>${data.message}</p>`;
-                }
-            })
-            .catch(error => {
-                console.error('Errore nel caricamento della galleria:', error);
-                galleryContainer.innerHTML = '<p>C\'è stato un problema nel caricare la galleria. Assicurati di aver effettuato il login.</p>';
-            });
-    }
-
-    // Esegui la funzione per caricare la galleria appena la pagina è pronta
-    document.addEventListener('DOMContentLoaded', function () {
-        loadUserGallery();
-    });
     // --- SISTEMA AUTO-RECOVERY PER NONCE SCADUTI ---
     function handleNonceExpiredError(originalAjaxCall, originalData) {
         console.log('Pictosound: Nonce scaduto rilevato, aggiornamento automatico...');
@@ -775,120 +732,80 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         cues.keywords.push(...userInputs.selectedMoods, ...userInputs.selectedGenres, ...userInputs.selectedInstruments, ...userInputs.selectedRhythms);
 
-        // ✅ SISTEMA SEMPLIFICATO - AI-driven suggestions if no user input for a category AND initial preselection hasn't happened
+        // AI-driven suggestions if no user input for a category AND initial preselection hasn't happened
         if (!initialPreselectionDoneForCurrentImage) {
-            console.log("🔍 Auto-suggestion attiva - Oggetti:", detectedObjects, "Emozioni:", detectedEmotions);
+            let primaryEmotion = detectedEmotions.length > 0 ? detectedEmotions.filter(e => e !== "neutrale")[0] || "neutrale" : "neutrale";
 
-            // MOOD: Suggerimenti semplificati basati su emozioni
+            // Suggest moods based on detected emotions if user hasn't selected any
             if (cues.moods.length === 0 && detectedEmotions && detectedEmotions.length > 0) {
-                const primaryEmotion = detectedEmotions.find(e => e !== "neutrale") || detectedEmotions[0];
-                console.log("🎭 Emozione primaria rilevata:", primaryEmotion);
-
-                if (primaryEmotion) {
+                let significantEmotions = detectedEmotions.filter(e => e !== "neutrale");
+                if (significantEmotions.length === 0 && detectedEmotions.includes("neutrale")) significantEmotions = ["neutrale"];
+                if (significantEmotions.length > 0) {
+                    primaryEmotion = significantEmotions[0];
+                    const aiMoodSuggestions = [];
                     switch (primaryEmotion) {
-                        case "felice":
-                            cues.moods.push("energico");
-                            console.log("➡️ Aggiunto mood: energico");
-                            break;
-                        case "triste":
-                            cues.moods.push("malinconico");
-                            console.log("➡️ Aggiunto mood: malinconico");
-                            break;
-                        case "arrabbiato/a":
-                            cues.moods.push("drammatico");
-                            console.log("➡️ Aggiunto mood: drammatico");
-                            break;
-                        case "sorpreso/a":
-                            cues.moods.push("energico");
-                            console.log("➡️ Aggiunto mood: energico");
-                            break;
-                        case "impaurito/a":
-                            cues.moods.push("misterioso");
-                            console.log("➡️ Aggiunto mood: misterioso");
-                            break;
-                        default:
-                            cues.moods.push("rilassante");
-                            console.log("➡️ Aggiunto mood default: rilassante");
-                            break;
+                        case "felice": aiMoodSuggestions.push("gioioso", "ottimista"); break;
+                        case "triste": aiMoodSuggestions.push("malinconico", "riflessivo"); break;
+                        case "arrabbiato/a": aiMoodSuggestions.push("intenso", "potente"); break;
+                        case "sorpreso/a": aiMoodSuggestions.push("meravigliato", "anticipatorio"); break;
+                        case "impaurito/a": aiMoodSuggestions.push("inquietante", "sospeso"); break;
+                        default: aiMoodSuggestions.push("atmosferico", "contemplativo"); break;
                     }
+                    aiMoodSuggestions.forEach(m => { if (!cues.moods.includes(m)) cues.moods.push(m); });
                 }
             }
 
-            // MOOD ALTERNATIVO: Basato su luminosità se ancora vuoto
+            // Suggest moods based on image properties (brightness, saturation) if still no moods
             if (cues.moods.length === 0 && analysis) {
-                if (analysis.averageBrightness < 80) {
-                    cues.moods.push("misterioso");
-                    console.log("➡️ Aggiunto mood da luminosità bassa: misterioso");
-                } else if (analysis.averageBrightness > 170) {
-                    cues.moods.push("energico");
-                    console.log("➡️ Aggiunto mood da luminosità alta: energico");
-                } else {
-                    cues.moods.push("rilassante");
-                    console.log("➡️ Aggiunto mood da luminosità media: rilassante");
+                if (analysis.averageBrightness < 70) {
+                    if (!cues.moods.includes("oscuro")) cues.moods.push("oscuro");
+                    if (!cues.moods.includes("profondo")) cues.moods.push("profondo");
+                }
+                else if (analysis.averageBrightness > 180) {
+                    if (!cues.moods.includes("brillante")) cues.moods.push("brillante");
+                    if (!cues.moods.includes("luminoso")) cues.moods.push("luminoso");
+                }
+                if (analysis.averageSaturation < 30) {
+                    if (!cues.moods.includes("tenue")) cues.moods.push("tenue");
+                    if (!cues.moods.includes("desaturato")) cues.moods.push("desaturato");
+                }
+                else if (analysis.averageSaturation > 70) {
+                    if (!cues.moods.includes("vibrante")) cues.moods.push("vibrante");
+                    if (!cues.moods.includes("saturo")) cues.moods.push("saturo");
                 }
             }
 
-            // GENERI: Suggerimenti semplificati basati su oggetti
+            // Suggest genres based on detected objects if user hasn't selected any
             if (cues.genres.length === 0 && detectedObjects && detectedObjects.length > 0) {
-                console.log("🎼 Determinazione genere da oggetti...");
-
-                if (detectedObjects.includes("persona")) {
-                    cues.genres.push("folk");
-                    console.log("➡️ Rilevata persona → genere: folk");
-                } else if (detectedObjects.some(o => ["natura", "albero", "montagna", "fiore", "foresta", "lago", "animale", "uccello"].includes(o))) {
-                    cues.genres.push("ambient");
-                    console.log("➡️ Rilevata natura → genere: ambient");
-                } else if (detectedObjects.some(o => ["auto", "città", "strada", "edificio", "semaforo", "autobus"].includes(o))) {
-                    cues.genres.push("elettronica");
-                    console.log("➡️ Rilevato urbano → genere: elettronica");
-                } else if (detectedObjects.some(o => ["libro", "sedia", "tavolo", "divano", "letto"].includes(o))) {
-                    cues.genres.push("classica");
-                    console.log("➡️ Rilevato ambiente domestico → genere: classica");
-                } else {
-                    cues.genres.push("ambient");
-                    console.log("➡️ Genere default: ambient");
+                if (detectedObjects.some(o => ["natura", "albero", "montagna", "fiore", "foresta", "lago"].includes(o))) {
+                    if (!cues.genres.includes("Folk Acustico")) cues.genres.push("Folk Acustico");
+                    if (!cues.genres.includes("Ambient Naturale")) cues.genres.push("Ambient Naturale");
+                }
+                if (detectedObjects.some(o => ["città", "strada", "auto"].includes(o))) {
+                    if (!cues.genres.includes("Urban Jazz")) cues.genres.push("Urban Jazz");
+                    if (!cues.genres.includes("Lo-fi Hip Hop")) cues.genres.push("Lo-fi Hip Hop");
                 }
             }
 
-            // STRUMENTI: Suggerimenti semplificati basati su genere
-            if (cues.instruments.length === 0) {
-                console.log("🎸 Determinazione strumenti da genere...");
-
-                if (cues.genres.includes("folk")) {
-                    cues.instruments.push("chitarra acustica");
-                    console.log("➡️ Folk → strumento: chitarra acustica");
-                } else if (cues.genres.includes("elettronica")) {
-                    cues.instruments.push("sintetizzatore");
-                    console.log("➡️ Elettronica → strumento: sintetizzatore");
-                } else if (cues.genres.includes("classica")) {
-                    cues.instruments.push("archi");
-                    console.log("➡️ Classica → strumento: archi");
-                } else {
-                    cues.instruments.push("pianoforte");
-                    console.log("➡️ Default → strumento: pianoforte");
+            // Suggest instruments based on dominant colors if user selected few/none
+            if (cues.instruments.length < 2 && analysis && analysis.dominantColors && analysis.dominantColors.length > 0) {
+                const mainColor = analysis.dominantColors[0];
+                const H = mainColor.hue;
+                const S = mainColor.saturation;
+                const L = mainColor.lightness;
+                if (L < 40 && S > 30) {
+                    if (!cues.instruments.includes("basso profondo")) cues.instruments.push("basso profondo");
+                    if (!cues.instruments.includes("violoncello")) cues.instruments.push("violoncello");
+                }
+                else if (L > 70 && S > 40) {
+                    if (!cues.instruments.includes("flauto brillante")) cues.instruments.push("flauto brillante");
+                    if (!cues.instruments.includes("glockenspiel")) cues.instruments.push("glockenspiel");
+                }
+                if (S < 25) {
+                    if (!cues.instruments.includes("pad eterei")) cues.instruments.push("pad eterei");
+                    if (!cues.instruments.includes("chitarra con riverbero")) cues.instruments.push("chitarra con riverbero");
                 }
             }
-
-            // RITMO: Suggerimento semplificato basato su mood
-            if (cues.rhythms.length === 0) {
-                if (cues.moods.includes("energico")) {
-                    cues.rhythms.push("upbeat_energetic");
-                    console.log("➡️ Energico → ritmo: upbeat_energetic");
-                } else if (cues.moods.includes("rilassante")) {
-                    cues.rhythms.push("slow_rhythm");
-                    console.log("➡️ Rilassante → ritmo: slow_rhythm");
-                } else {
-                    cues.rhythms.push("moderate_groove");
-                    console.log("➡️ Default → ritmo: moderate_groove");
-                }
-            }
-
-            console.log("✅ Auto-suggestion completata:", {
-                moods: cues.moods,
-                genres: cues.genres,
-                instruments: cues.instruments,
-                rhythms: cues.rhythms
-            });
         }
 
         // Determine overall energy and tonality based on selected/suggested moods
@@ -922,14 +839,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         cues.instruments = [...new Set(cues.instruments)];
         cues.rhythms = [...new Set(cues.rhythms)];
         if (cues.moods.length === 0) cues.moods.push("descrittivo");
-        console.log("🔍 getMusicalCues RISULTATO FINALE:", {
-            moods: cues.moods,
-            genres: cues.genres,
-            instruments: cues.instruments,
-            detectedObjects: detectedObjects,
-            detectedEmotions: detectedEmotions,
-            initialPreselectionDone: initialPreselectionDoneForCurrentImage
-        });
+
         return cues;
     }
 
@@ -1002,102 +912,118 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Generates the final English prompt for the music generation API
-    // ✅ NUOVA FUNZIONE SEMPLIFICATA
     function generateStableAudioPrompt(parsedData) {
-        console.log("🎵 generateStableAudioPrompt chiamata con:", parsedData);
+        if (!parsedData) return "Data analysis not available.";
+        let p = [];
+        const creativity = parsedData.creativityLevel || 50;
 
-        // Fallback se parsedData non è valido
-        if (!parsedData) {
-            console.log("⚠️ parsedData non valido, uso fallback");
-            return "acoustic upbeat with guitar, 120 BPM, high quality";
+        // Translate user/AI selected cues to English
+        let moodsEN = parsedData.moods.map(m => translateCueToEnglish(m, 'mood')).filter(Boolean);
+        let genresEN = parsedData.genres.map(g => translateCueToEnglish(g, 'genre')).filter(Boolean);
+        let instrumentsEN = parsedData.instruments.map(i => translateCueToEnglish(i, 'instrument')).filter(Boolean);
+        let rhythmsEN = parsedData.rhythms.map(r => translateCueToEnglish(r, 'rhythm')).filter(Boolean);
+
+        // Main description: combination of moods and genres
+        let mainDescriptionParts = [...new Set([...moodsEN, ...genresEN])];
+        if (mainDescriptionParts.length > 0) {
+            p.push(mainDescriptionParts.slice(0, creativity > 60 ? 4 : 3).join(", "));
+        } else {
+            p.push("evocative soundscape");
         }
 
-        // Estrai dati dall'analisi immagine GLOBALE
-        const detectedObjects = imageAnalysisResults?.objects || [];
-        const detectedEmotions = imageAnalysisResults?.emotions || [];
+        // Add cues based on image color analysis (if available)
+        if (imageAnalysisResults && imageAnalysisResults.colors) {
+            const { averageBrightness, averageSaturation, contrast, dominantColors } = imageAnalysisResults.colors;
+            if (averageBrightness < 80 && !p.includes("dark atmosphere")) p.push("dark atmosphere");
+            else if (averageBrightness > 170 && !p.includes("bright") && !p.includes("luminous")) p.push("bright", "luminous");
 
-        console.log("🎯 Oggetti rilevati:", detectedObjects);
-        console.log("😊 Emozioni rilevate:", detectedEmotions);
-        console.log("🎭 Mood parsedData:", parsedData.moods);
-        console.log("🎼 Generi parsedData:", parsedData.genres);
+            if (contrast < 30 && !p.includes("smooth texture")) p.push("smooth texture");
+            else if (contrast > 70 && !p.includes("high contrast sound")) p.push("high contrast sound");
 
-        // 1. DETERMINA GENERE PRINCIPALE
-        let genre = "atmospheric"; // Default
+            if (averageSaturation < 30 && !p.includes("muted tones") && !p.includes("desaturated feel")) p.push("muted tones", "desaturated feel");
+            else if (averageSaturation > 70 && !p.includes("vibrant colors") && !p.includes("rich sound")) p.push("vibrant colors", "rich sound");
 
-        if (detectedObjects.includes("persona")) {
-            genre = "acoustic";
-            console.log("👤 Persona rilevata → genere: acoustic");
-        } else if (detectedObjects.includes("cane") && detectedObjects.includes("persona")) {
-            genre = "acoustic";
-            console.log("👤🐕 Persona + cane → genere: acoustic");
-        } else if (detectedObjects.some(obj => ["auto", "città", "strada"].includes(obj))) {
-            genre = "electronic";
-            console.log("🏙️ Urbano rilevato → genere: electronic");
-        } else if (detectedObjects.some(obj => ["natura", "albero", "montagna"].includes(obj))) {
-            genre = "ambient";
-            console.log("🌲 Natura rilevata → genere: ambient");
+            if (dominantColors && dominantColors.length > 0) {
+                const H = dominantColors[0].hue;
+                if ((H >= 0 && H < 60 || H >= 330) && !p.includes("warm color palette")) p.push("warm color palette");
+                else if (H >= 120 && H < 270 && !p.includes("cool color palette")) p.push("cool color palette");
+            }
         }
 
-        // 2. DETERMINA MOOD
-        let mood = "";
-
-        // Prima controlla emozioni rilevate DIRETTAMENTE
-        if (detectedEmotions.includes("felice")) {
-            mood = "upbeat";
-            console.log("😊 Emozione felice → mood: upbeat");
-        } else if (detectedEmotions.includes("triste")) {
-            mood = "melancholic";
-            console.log("😢 Emozione triste → mood: melancholic");
-        } else if (parsedData.moods && parsedData.moods.length > 0 && parsedData.moods[0] !== "descrittivo") {
-            // Usa mood dall'analisi se non è il fallback
-            const firstMood = parsedData.moods[0];
-            if (firstMood === "energico") mood = "upbeat";
-            else if (firstMood === "malinconico") mood = "melancholic";
-            else if (firstMood === "rilassante") mood = "calm";
-            console.log("🎭 Mood da parsedData:", firstMood, "→", mood);
+        // Add rhythm cues
+        if (rhythmsEN.length > 0) {
+            if (rhythmsEN.includes("no distinct rhythm")) {
+                if (!p.some(term => term.includes("ambient"))) p.push("ambient");
+                if (!p.some(term => term.includes("atmospheric"))) p.push("atmospheric");
+            } else {
+                p.push(...[...new Set(rhythmsEN)]);
+            }
         }
 
-        // 3. DETERMINA STRUMENTO
-        let instrument = "guitar"; // Default per acoustic
+        // Add BPM, energy, and tonality
+        p.push(parsedData.tempoBPM + " BPM");
+        let energyEN = translateCueToEnglish(parsedData.energy, 'general');
+        if (energyEN && !p.some(term => term.includes(energyEN))) p.push(energyEN + " energy");
 
-        if (genre === "acoustic") instrument = "guitar";
-        else if (genre === "electronic") instrument = "synthesizer";
-        else if (genre === "ambient") instrument = "piano";
-
-        console.log("🎸 Strumento scelto:", instrument);
-
-        // 4. DETERMINA BPM
-        let bpm = "120"; // Default
-        if (mood === "upbeat") bpm = "130";
-        else if (mood === "melancholic" || mood === "calm") bpm = "80";
-
-        console.log("⏱️ BPM scelto:", bpm);
-
-        // 5. COSTRUISCI PROMPT SEMPLICE
-        const parts = [];
-
-        // Aggiungi genere
-        parts.push(genre);
-
-        // Aggiungi mood se significativo
-        if (mood && mood !== genre) {
-            parts.push(mood);
+        if (parsedData.tonality && parsedData.tonality.toLowerCase() !== "misto") {
+            let tonalityEN = translateCueToEnglish(parsedData.tonality, 'tonality');
+            if (tonalityEN && !p.some(term => term.includes(tonalityEN))) p.push(tonalityEN + " tonality");
         }
 
-        // Aggiungi strumento
-        parts.push("with " + instrument);
+        // Add instruments, limiting the number
+        if (instrumentsEN.length > 0) {
+            const uniqueInstruments = [...new Set(instrumentsEN)].filter(i => i.trim() !== "");
+            if (uniqueInstruments.length > 0) {
+                p.push("featuring " + uniqueInstruments.slice(0, creativity > 60 ? 4 : 3).join(", "));
+            }
+        }
 
-        // Aggiungi BPM
-        parts.push(bpm + " BPM");
+        // Add keywords from detected objects (if any, and not already covered)
+        let additionalKeywordsEN = [];
+        if (imageAnalysisResults && imageAnalysisResults.objects && imageAnalysisResults.objects.length > 0) {
+            const translatedObjectsForPrompt = imageAnalysisResults.objects
+                .map(objIT => translateCueToEnglish(objIT, 'object'))
+                .filter(Boolean);
 
-        // Aggiungi qualità
-        parts.push("high quality");
+            const filteredKeywords = translatedObjectsForPrompt.filter(k =>
+                k.length > 2 &&
+                !mainDescriptionParts.some(mainPart => mainPart.toLowerCase().includes(k.toLowerCase())) &&
+                !p.some(promptPart => promptPart.toLowerCase().includes(k.toLowerCase()))
+            );
+            additionalKeywordsEN.push(...[...new Set(filteredKeywords)].slice(0, 2));
+        }
+        if (additionalKeywordsEN.length > 0) {
+            p.push("with elements of " + additionalKeywordsEN.join(", "));
+        }
 
-        const finalPrompt = parts.join(", ");
+        // Add vocal presence
+        if (parsedData.vocalPresence) {
+            let vocalPresenceEN = "";
+            const lowerVocalPresence = parsedData.vocalPresence.toLowerCase();
+            if (lowerVocalPresence.includes("strumentale")) {
+                vocalPresenceEN = "instrumental, no vocals";
+            } else if (lowerVocalPresence.includes("voce solista")) {
+                vocalPresenceEN = "solo voice";
+            } else {
+                let translatedVocal = translateCueToEnglish(parsedData.vocalPresence, 'instrument');
+                if (translatedVocal && translatedVocal.toLowerCase() !== lowerVocalPresence) {
+                    vocalPresenceEN = translatedVocal;
+                } else {
+                    vocalPresenceEN = "vocal presence";
+                }
+            }
+            if (vocalPresenceEN && !p.includes(vocalPresenceEN) && !(vocalPresenceEN === "instrumental, no vocals" && p.includes("instrumental"))) {
+                p.push(vocalPresenceEN);
+            }
+        }
 
-        console.log("🎵 PROMPT FINALE SEMPLIFICATO:", finalPrompt);
+        // Add quality descriptors
+        p.push("high quality audio", "clear mix", "professionally mastered");
+        if (creativity > 70) p.push("unique sound design", "experimental");
 
-        return finalPrompt;
+        // Join all parts, ensure uniqueness, and format
+        let finalPrompt = [...new Set(p.map(s => String(s).trim().toLowerCase()).filter(s => s))].join(", ");
+        return finalPrompt.charAt(0).toUpperCase() + finalPrompt.slice(1);
     }
 
     // UI Update Functions
@@ -1723,7 +1649,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateProgressMessage(pictosound_vars.text_checking_credits || "Verifica crediti...", true);
 
             const selectedDurationRadio = document.querySelector('input[name="musicDuration"]:checked');
-            const duration = selectedDurationRadio ? Math.max(30, Math.min(180, parseInt(selectedDurationRadio.value))) : 45; // Default 45s
+            const duration = selectedDurationRadio ? parseInt(selectedDurationRadio.value) : 40;
 
             // Usa checkCredits con auto-recovery
             checkCredits(duration);
@@ -1888,10 +1814,3 @@ document.addEventListener('DOMContentLoaded', async () => {
                 domElements.fullscreenImageModal.style.display = 'none';
             }
         };
-        document.addEventListener('keydown', function (event) {
-            if (event.key === "Escape") {
-                domElements.fullscreenImageModal.style.display = 'none';
-            }
-        });
-    }
-});

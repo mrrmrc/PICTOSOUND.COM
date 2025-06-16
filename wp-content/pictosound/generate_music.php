@@ -1,225 +1,289 @@
 <?php
-// ===== PASSO 1: INTEGRAZIONE CON WORDPRESS =====
-// Carichiamo l'ambiente di WordPress per accedere alle sue funzioni (login, database, etc.).
-// Il percorso potrebbe variare, ma se lo script è in 'wp-content/pictosound/', questo dovrebbe essere corretto.
-require_once('../../../wp-load.php');
-
-
-// Impostazioni degli header per le richieste cross-origin (CORS)
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+// Non impostare Content-Type: application/json qui di default, lo faremo dopo se necessario
 
-// Funzione di logging per il debug
+// Logging per debugging
 function write_log($message) {
     $log_dir = __DIR__ . '/logs/';
     if (!file_exists($log_dir)) {
-        mkdir($log_dir, 0775, true);
+        if (!mkdir($log_dir, 0775, true) && !is_dir($log_dir)) {
+            error_log("Impossibile creare la directory di log: " . $log_dir);
+            return;
+        }
     }
     file_put_contents($log_dir . 'api_log.txt', date('[Y-m-d H:i:s] ') . $message . "\n", FILE_APPEND);
 }
 
-// Gestione richiesta OPTIONS per preflight CORS
+// Download audio
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download'])) {
+    $filename = basename($_GET['download']);
+    $filename = preg_replace('/[^a-zA-Z0-9_.-]/', '', $filename);
+    $audio_dir = __DIR__ . '/audio/'; // Assicurati che audio_dir sia definito
+    $filepath = $audio_dir . $filename;
+
+    if (file_exists($filepath)) {
+        // Determina il content type in base all'estensione per sicurezza
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        $content_type = 'application/octet-stream'; // Default
+        if ($extension === 'wav') {
+            $content_type = 'audio/wav';
+        } elseif ($extension === 'mp3') {
+            $content_type = 'audio/mpeg';
+        }
+        
+        header('Content-Type: ' . $content_type);
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($filepath));
+        header('X-Content-Type-Options: nosniff');
+        readfile($filepath);
+        exit;
+    }
+    // Se il file non esiste, invia una risposta JSON di errore
+    header('Content-Type: application/json');
+    http_response_code(404);
+    echo json_encode(['error' => 'File non trovato']);
+    exit;
+}
+
+// Preflight CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
+    http_response_code(204); // No Content
     exit;
 }
 
-// Rispondiamo solo a richieste POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Content-Type: application/json');
-    write_log("Richiesta con metodo non supportato: " . $_SERVER['REQUEST_METHOD']);
-    http_response_code(405);
-    echo json_encode(['error' => 'Metodo non supportato.']);
-    exit;
-}
+// Generazione audio
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
 
-// ===== PASSO 2: CONTROLLO AUTENTICAZIONE UTENTE =====
-if (!is_user_logged_in()) {
-    header('Content-Type: application/json');
-    write_log("Tentativo di accesso non autorizzato.");
-    http_response_code(401);
-    echo json_encode(['error' => 'Devi essere loggato per generare un suono.']);
-    exit;
-}
-// Otteniamo l'ID dell'utente corrente
-$user_id = get_current_user_id();
-write_log("Richiesta ricevuta dall'utente con ID: " . $user_id);
+    $raw_input = file_get_contents('php://input');
+    write_log("Raw input ricevuto: " . $raw_input);
+    $input = json_decode($raw_input, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE) { 
+        header('Content-Type: application/json');
+        write_log("Errore decodifica JSON: " . json_last_error_msg());
+        http_response_code(400); echo json_encode(['error' => 'JSON malformato.']); exit;
+    }
+    if (!is_array($input)) { 
+        header('Content-Type: application/json');
+        write_log("Input non è array.");
+        http_response_code(400); echo json_encode(['error' => 'JSON non valido.']); exit;
+    }
+
+    $prompt_text_from_frontend = trim($input['prompt'] ?? '');
+    write_log("Prompt ricevuto dal frontend: '" . $prompt_text_from_frontend . "' (Lunghezza UTF-8: " . mb_strlen($prompt_text_from_frontend, 'UTF-8') . ")");
+    
+    // DISATTIVIAMO IL TEST HARDCODED PER USARE IL PROMPT DAL FRONTEND
+    // $USE_HARDCODED_PROMPT_FOR_TESTING = true; 
+
+    if ($prompt_text_from_frontend === '') { 
+        header('Content-Type: application/json');
+        write_log("Prompt dal frontend è vuoto.");
+        http_response_code(400); echo json_encode(['error' => 'Prompt mancante inviato dal frontend.']); exit;
+    }
+
+    $audio_dir = __DIR__ . '/audio/';
+    if (!file_exists($audio_dir)) { 
+        if(!mkdir($audio_dir, 0775, true) && !is_dir($audio_dir)){
+            header('Content-Type: application/json');
+            write_log("Impossibile creare dir audio.");
+            http_response_code(500); echo json_encode(['error' => 'Errore server creazione directory.']); exit;
+        }
+    }
+
+    $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // USA LA TUA CHIAVE API VALIDA
+    if (empty($api_key)) { 
+        header('Content-Type: application/json');
+        write_log("API Key mancante nello script.");
+        http_response_code(500); echo json_encode(['error' => 'Config API Key mancante (server).']); exit;
+    }
+
+    $api_url = 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio';
+    $fields_to_send = [];
+
+    // Usiamo il prompt dal frontend
+    $prompt_to_send_to_api = $prompt_text_from_frontend;
+    
+    // Parametri come da esempio curl di Stability AI
+    $output_format = 'mp3'; // o 'wav'
+    $duration_seconds = isset($input['duration']) ? intval($input['duration']) : 20; // Default a 20s, o prendi da input
+    if ($duration_seconds <=0) $duration_seconds = 20; // Fallback
+    $steps = 30; // Valore di esempio, puoi renderlo configurabile
+
+    $fields_to_send = [
+        'prompt'         => $prompt_to_send_to_api, 
+        'output_format'  => $output_format,
+        'duration'       => $duration_seconds, // La documentazione a volte usa 'duration', a volte 'length_seconds'
+                                              // L'esempio curl usa 'duration'
+        'steps'          => $steps
+        // Altri parametri come cfg_scale, sample_rate potrebbero essere aggiunti se supportati con questo stile di chiamata
+        // Per ora, ci atteniamo all'esempio curl che ha funzionato
+    ];
+    write_log("Usando prompt da frontend con formato API stile esempio: '" . substr($prompt_to_send_to_api,0,100) . "...'");
 
 
-// Inizializziamo la risposta JSON
-header('Content-Type: application/json');
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+    write_log("Invio richiesta multipart a Stability API: $api_url");
+    write_log("Struttura dei campi da inviare: " . print_r($fields_to_send, true));
 
-// ===== PASSO 3: GESTIONE UPLOAD IMMAGINE E PROMPT =====
-// Ora ci aspettiamo dati 'multipart/form-data' invece di JSON
-$prompt_text_from_frontend = trim($_POST['prompt'] ?? '');
+    $boundary = "------------------------" . uniqid();
+    $request_body = "";
+    foreach ($fields_to_send as $name => $value) {
+        $request_body .= "--" . $boundary . "\r\n";
+        $request_body .= "Content-Disposition: form-data; name=\"" . $name . "\"\r\n\r\n";
+        $request_body .= $value . "\r\n";
+    }
+    $request_body .= "--" . $boundary . "--\r\n";
 
-if (empty($prompt_text_from_frontend)) {
-    write_log("Errore: Prompt mancante.");
-    http_response_code(400);
-    echo json_encode(['error' => 'Il prompt è obbligatorio.']);
-    exit;
-}
+    write_log("Corpo della richiesta multipart costruito manualmente (prime 500 char): " . substr($request_body, 0, 500) . "...");
+    write_log("Lunghezza corpo richiesta: " . strlen($request_body));
 
-if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
-    write_log("Errore: Immagine mancante o errore di caricamento. Codice errore: " . ($_FILES['image']['error'] ?? 'N/D'));
-    http_response_code(400);
-    echo json_encode(['error' => 'L\'immagine è obbligatoria e deve essere caricata correttamente.']);
-    exit;
-}
+    $ch = curl_init($api_url);
+    
+    curl_setopt($ch, CURLOPT_VERBOSE, true);
+    $verbose_log_stream = fopen('php://temp', 'w+');
+    curl_setopt($ch, CURLOPT_STDERR, $verbose_log_stream);
 
-// Creiamo la directory per gli upload se non esiste
-$uploads_dir_absolute = __DIR__ . '/uploads/';
-$uploads_dir_relative_base = 'wp-content/pictosound/uploads/'; // Percorso relativo da salvare nel DB
+    $response_headers = [];
+    curl_setopt($ch, CURLOPT_HEADERFUNCTION,
+      function($curl, $header) use (&$response_headers) {
+        $len = strlen($header);
+        $header_parts = explode(':', $header, 2);
+        if (count($header_parts) < 2) { return $len; }
+        $response_headers[strtolower(trim($header_parts[0]))][] = trim($header_parts[1]);
+        return $len;
+      }
+    );
 
-if (!file_exists($uploads_dir_absolute)) {
-    if (!mkdir($uploads_dir_absolute, 0775, true) && !is_dir($uploads_dir_absolute)) {
-        write_log("Impossibile creare la directory di upload.");
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $request_body,
+        CURLOPT_HTTPHEADER     => [
+            "Authorization: Bearer $api_key",
+            "Accept: audio/*", // Richiediamo audio direttamente
+            "Content-Type: multipart/form-data; boundary=" . $boundary,
+            "Content-Length: " . strlen($request_body),
+            "Expect:" 
+        ],
+        CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+        CURLOPT_TIMEOUT        => 180,
+        CURLOPT_CONNECTTIMEOUT => 30,
+    ]);
+
+    $response_body_raw = curl_exec($ch);
+    $http_code     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error    = curl_error($ch);
+    
+    rewind($verbose_log_stream);
+    $verbose_output = stream_get_contents($verbose_log_stream);
+    fclose($verbose_log_stream);
+    write_log("===== INIZIO OUTPUT VERBOSO cURL =====" . "\n" . trim($verbose_output) . "\n" . "===== FINE OUTPUT VERBOSO cURL =====");
+
+    curl_close($ch);
+
+    write_log("Risposta da Stability API - HTTP Code: $http_code, Curl Error: " . ($curl_error ?: 'None'));
+    write_log("Header della risposta ricevuti: " . print_r($response_headers, true));
+    // Log più esteso del corpo se non è chiaramente audio lungo
+    $response_content_type_log = isset($response_headers['content-type'][0]) ? $response_headers['content-type'][0] : 'N/D';
+    if (strlen($response_body_raw) < 5000 || stripos($response_content_type_log, 'text') !== false || stripos($response_content_type_log, 'json') !== false) {
+        write_log("Corpo della risposta grezza (lunghezza: " . strlen($response_body_raw) . "):\n" . $response_body_raw);
+    } else {
+        write_log("Corpo della risposta grezza (lunghezza: " . strlen($response_body_raw) . ", Content-Type: " . $response_content_type_log . "): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]");
+    }
+
+
+    if ($curl_error) {
+        header('Content-Type: application/json');
         http_response_code(500);
-        echo json_encode(['error' => 'Errore server: impossibile creare la directory di upload.']);
+        echo json_encode(['error' => "Errore cURL: $curl_error"]);
+        exit;
+    }
+    
+    $response_content_type = isset($response_headers['content-type'][0]) ? $response_headers['content-type'][0] : '';
+
+    if ($http_code >= 200 && $http_code < 300) {
+        if (stripos($response_content_type, 'audio/') !== false && strlen($response_body_raw) > 0) {
+            write_log("Content-Type della risposta è audio ($response_content_type). Tento salvataggio diretto.");
+            $file_extension = 'tmp';
+            if (stripos($response_content_type, 'mpeg') !== false) $file_extension = 'mp3';
+            elseif (stripos($response_content_type, 'wav') !== false) $file_extension = 'wav';
+            elseif (stripos($response_content_type, 'ogg') !== false) $file_extension = 'ogg';
+            
+            $filename = 'audio_gen_' . time() . '.' . $file_extension;
+            $filepath = $audio_dir . $filename;
+
+            if (file_put_contents($filepath, $response_body_raw) !== false) {
+                write_log("Audio salvato con successo: $filename");
+                $scheme   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ? 'https' : 'http';
+                $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $script_download_url = $_SERVER['PHP_SELF'] . '?download=' . urlencode($filename);
+                $full_download_url = "$scheme://$host" . $script_download_url;
+                
+                header('Content-Type: application/json'); // Assicurati che la risposta al client sia JSON
+                echo json_encode([
+                    'success'     => true,
+                    'audioUrl'    => $script_download_url, 
+                    'downloadUrl' => $full_download_url,
+                    'fileName'    => $filename,
+                    'message'     => 'Audio generato e salvato con successo.'
+                ], JSON_UNESCAPED_SLASHES);
+                exit;
+            } else {
+                header('Content-Type: application/json');
+                write_log("Errore salvataggio file audio diretto: " . $filepath);
+                http_response_code(500);
+                echo json_encode(['error' => "Errore interno del server: impossibile salvare il file audio."]);
+                exit;
+            }
+        } else {
+            // HTTP 200 ma non è audio e non è il JSON che ci aspettavamo prima
+            header('Content-Type: application/json');
+            $error_msg = "Risposta API OK (HTTP 200) ma il Content-Type non è audio come atteso, oppure il corpo è vuoto. Content-Type: $response_content_type";
+            write_log($error_msg . ". Corpo risposta: " . $response_body_raw);
+            http_response_code(502); // Bad Gateway - risposta inattesa dal server upstream
+            echo json_encode(['error' => "API Error (502): $error_msg"]);
+            exit;
+        }
+
+    } else { // Gestione errori HTTP non 2xx
+        header('Content-Type: application/json');
+        $error_msg = 'Errore API sconosciuto.';
+        $resp_json = null;
+        if (stripos($response_content_type, 'application/json') !== false) {
+            $resp_json = json_decode($response_body_raw, true);
+        }
+
+        if ($resp_json !== null && isset($resp_json['errors']) && is_array($resp_json['errors'])) {
+            $error_msg = implode('; ', $resp_json['errors']);
+        } elseif ($resp_json !== null && isset($resp_json['message'])) {
+            $error_msg = $resp_json['message'];
+        } elseif (!empty($response_body_raw) && $resp_json === null && stripos($response_content_type, 'application/json') !== false ) {
+             $error_msg = "L'API ha restituito 'application/json' ma il corpo non era JSON valido (HTTP $http_code). Errore JSON: " . json_last_error_msg();
+        } elseif (!empty($response_body_raw)) {
+             $error_msg = "L'API ha restituito una risposta non JSON (HTTP $http_code).";
+        } else if (empty($response_body_raw)) {
+            $error_msg = "L'API ha restituito HTTP $http_code senza corpo.";
+        }
+        
+        // Specifico per l'errore "prompt: required" se dovesse riapparire
+        if ($resp_json !== null && isset($resp_json['errors']) && in_array("prompt: required", $resp_json['errors'])) {
+            $error_msg = "prompt: required (da API)";
+        }
+
+
+        write_log("Errore API Stability (HTTP $http_code): $error_msg. Risposta grezza: " . $response_body_raw);
+        http_response_code($http_code); // Usa il codice HTTP originale dell'API
+        echo json_encode(['error' => "API Error ($http_code): $error_msg"]);
         exit;
     }
 }
 
-// Salviamo l'immagine caricata con un nome unico
-$image_extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-$image_filename = 'img_' . $user_id . '_' . time() . '.' . $image_extension;
-$image_path_absolute = $uploads_dir_absolute . $image_filename;
-$image_path_relative = $uploads_dir_relative_base . $image_filename;
-
-if (!move_uploaded_file($_FILES['image']['tmp_name'], $image_path_absolute)) {
-    write_log("Errore critico nel salvare l'immagine caricata in: " . $image_path_absolute);
-    http_response_code(500);
-    echo json_encode(['error' => 'Errore server: impossibile salvare l\'immagine.']);
-    exit;
-}
-
-write_log("Immagine salvata con successo in: " . $image_path_absolute);
-write_log("Prompt ricevuto: '" . $prompt_text_from_frontend . "'");
-
-// ===== PASSO 4: CHIAMATA ALL'API DI STABILITY.AI (logica esistente adattata) =====
-$api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // SOSTITUISCI CON LA TUA CHIAVE API
-if (empty($api_key)) {
-    write_log("API Key mancante nello script.");
-    http_response_code(500);
-    echo json_encode(['error' => 'Configurazione API Key mancante (server).']);
-    exit;
-}
-
-$api_url = 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio';
-$duration_seconds = isset($_POST['duration']) ? max(30, min(180, intval($_POST['duration']))) : 45;
-
-$fields_to_send = [
-    'prompt'        => $prompt_text_from_frontend,
-    'output_format' => 'mp3',
-    'duration'      => $duration_seconds,
-    'steps'         => 30
-];
-
-write_log("Invio richiesta a Stability API. Dati: " . print_r($fields_to_send, true));
-
-$boundary = "------------------------" . uniqid();
-$request_body = "";
-foreach ($fields_to_send as $name => $value) {
-    $request_body .= "--" . $boundary . "\r\n";
-    $request_body .= "Content-Disposition: form-data; name=\"" . $name . "\"\r\n\r\n";
-    $request_body .= $value . "\r\n";
-}
-$request_body .= "--" . $boundary . "--\r\n";
-
-$ch = curl_init($api_url);
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => $request_body,
-    CURLOPT_HTTPHEADER     => [
-        "Authorization: Bearer $api_key",
-        "Accept: audio/*",
-        "Content-Type: multipart/form-data; boundary=" . $boundary,
-        "Content-Length: " . strlen($request_body),
-        "Expect:"
-    ],
-    CURLOPT_TIMEOUT        => 180,
-    CURLOPT_CONNECTTIMEOUT => 30,
-]);
-
-$response_body_raw = curl_exec($ch);
-$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$curl_error = curl_error($ch);
-curl_close($ch);
-
-write_log("Risposta da Stability API - HTTP Code: $http_code");
-
-if ($curl_error || $http_code !== 200 || empty($response_body_raw)) {
-    // Se la chiamata API fallisce, cancelliamo l'immagine che avevamo salvato per non lasciare file orfani
-    unlink($image_path_absolute);
-    write_log("Errore API o cURL. L'immagine temporanea '$image_filename' è stata cancellata.");
-    http_response_code(502); // Bad Gateway
-    echo json_encode(['error' => "Errore durante la comunicazione con l'API di generazione audio (Code: $http_code). Curl Error: " . $curl_error]);
-    exit;
-}
-
-// Salviamo il file audio ricevuto
-$sound_filename = 'sound_' . $user_id . '_' . time() . '.mp3';
-$sound_path_absolute = $uploads_dir_absolute . $sound_filename;
-$sound_path_relative = $uploads_dir_relative_base . $sound_filename;
-
-if (file_put_contents($sound_path_absolute, $response_body_raw) === false) {
-    unlink($image_path_absolute); // Cancelliamo anche l'immagine se il salvataggio audio fallisce
-    write_log("Errore nel salvare il file audio. L'immagine '$image_filename' è stata cancellata.");
-    http_response_code(500);
-    echo json_encode(['error' => 'Errore server: impossibile salvare il file audio generato.']);
-    exit;
-}
-
-write_log("Audio salvato con successo: " . $sound_path_absolute);
-
-// ===== PASSO 5: SALVATAGGIO NEL DATABASE =====
-global $wpdb;
-$table_name = 'user_gallery'; // Il nome della nostra nuova tabella
-
-$result = $wpdb->insert(
-    $table_name,
-    [
-        'user_id' => $user_id,
-        'image_path' => $image_path_relative,
-        'sound_path' => $sound_path_relative,
-    ],
-    [
-        '%d', // user_id è un intero
-        '%s', // image_path è una stringa
-        '%s', // sound_path è una stringa
-    ]
-);
-
-if ($result === false) {
-    // Se il salvataggio nel DB fallisce, cancelliamo i file per non lasciare orfani
-    unlink($image_path_absolute);
-    unlink($sound_path_absolute);
-    write_log("ERRORE CRITICO: Impossibile salvare nel database. File '$image_filename' e '$sound_filename' cancellati. Errore DB: " . $wpdb->last_error);
-    http_response_code(500);
-    echo json_encode(['error' => 'Errore server: impossibile salvare la creazione nella galleria.']);
-    exit;
-}
-
-write_log("Creazione salvata nel database con successo per l'utente ID: " . $user_id);
-
-
-// ===== PASSO 6: RISPOSTA DI SUCCESSO AL FRONTEND =====
-// Costruiamo gli URL completi da restituire
-$site_url = site_url();
-$full_image_url = $site_url . '/' . $image_path_relative;
-$full_sound_url = $site_url . '/' . $sound_path_relative;
-
-echo json_encode([
-    'success'    => true,
-    'message'    => 'Creazione salvata nella galleria con successo!',
-    'imageUrl'   => $full_image_url,
-    'audioUrl'   => $full_sound_url
-], JSON_UNESCAPED_SLASHES);
-
-exit;
-
+// Se non è POST, GET con download, o OPTIONS
+header('Content-Type: application/json');
+write_log("Richiesta con metodo non supportato: " . $_SERVER['REQUEST_METHOD']);
+http_response_code(405);
+echo json_encode(['error' => 'Metodo non supportato.']);
 ?>
