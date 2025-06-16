@@ -1,5 +1,6 @@
 <?php
 // ⚡ API GALLERY PICTOSOUND COMPLETA - Tutto in un file
+// ⚡ CARICA WORDPRESS 
 require_once('../../../wp-load.php');
 
 header("Access-Control-Allow-Origin: *");
