@@ -36,9 +36,18 @@ if (!defined('PICTOSOUND_STRIPE_WEBHOOK_SECRET')) {
 define( 'PICTOSOUND_CREDITS_USER_META_KEY', '_pictosound_user_credits' );
 define( 'PICTOSOUND_PRIVACY_OPTIN_META_KEY', '_pictosound_privacy_optin' );
 
+
+
+
+
+
 /**
  * ⚡ RATE LIMITING SYSTEM - Hosting-Friendly
  */
+
+
+
+
 function pictosound_cm_check_rate_limit($action, $user_id = null, $limit = 10, $period = HOUR_IN_SECONDS) {
     if (!$user_id) {
         $user_id = get_current_user_id();

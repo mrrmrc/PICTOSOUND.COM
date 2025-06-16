@@ -2006,4 +2006,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (event.target === domElements.fullscreenImageModal) {
                 domElements.fullscreenImageModal.style.display = 'none';
             }
-        }; // Verifica se in questo file c'è un errore di sintassi
+        };
+    }
+}
+);
