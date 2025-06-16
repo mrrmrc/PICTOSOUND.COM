@@ -15,6 +15,12 @@ function pictosound_cm_user_gallery_shortcode() {
         'post_status'    => 'inherit',
         'posts_per_page' => -1,
         'author'         => $user_id,
+        'meta_query'     => [
+            [
+                'key'     => '_pictosound_audio_id',
+                'compare' => 'EXISTS',
+            ],
+        ],
         'orderby'        => 'date',
         'order'          => 'DESC'
     ]);
