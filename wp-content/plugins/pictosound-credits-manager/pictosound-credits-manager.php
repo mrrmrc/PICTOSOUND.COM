@@ -3582,5 +3582,955 @@ function pictosound_ms_load_textdomain() {
    load_plugin_textdomain( 'pictosound-mostra-saldo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' ); 
 }
 add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
+/**
+ * AGGIUNTO PLUGIN GALLERY
+ * 
+ * 
+ */
+function pictosound_user_gallery_shortcode($atts) {
+    // Se l'utente non è loggato
+    if (!is_user_logged_in()) {
+        return '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 15px; text-align: center; margin: 20px 0;">
+            <h3 style="margin: 0 0 15px 0;">🔒 Accesso Richiesto</h3>
+            <p style="margin: 0 0 20px 0;">Effettua il login per vedere la tua gallery personale</p>
+            <a href="/wp-login.php" style="background: white; color: #667eea; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">🚀 ACCEDI ORA</a>
+        </div>';
+    }
+    
+    $atts = shortcode_atts([
+        'layout' => 'grid', // grid, list, carousel
+        'columns' => '3',
+        'show_stats' => 'true',
+        'show_controls' => 'true',
+        'items_per_page' => '12',
+        'show_empty_message' => 'true'
+    ], $atts);
+    
+    // Enqueue degli script necessari
+    wp_enqueue_script('pictosound-gallery-script', '/wp-content/pictosound/js/gallery.js', ['jquery'], '1.0.0', true);
+    
+    // Localizza script per AJAX
+    wp_localize_script('pictosound-gallery-script', 'pictosoundGallery', [
+        'ajaxUrl' => '/wp-content/pictosound/gallery.php',
+        'nonce' => wp_create_nonce('pictosound_gallery_nonce'),
+        'userId' => get_current_user_id(),
+        'settings' => $atts
+    ]);
+    
+    ob_start();
+    ?>
+    
+    <div class="pictosound-user-gallery" data-layout="<?php echo esc_attr($atts['layout']); ?>" data-columns="<?php echo esc_attr($atts['columns']); ?>">
+        
+        <?php if ($atts['show_stats'] === 'true'): ?>
+        <!-- STATISTICHE -->
+        <div class="gallery-stats-bar" id="galleryStatsBar">
+            <div class="stat-item">
+                <div class="stat-icon">🎵</div>
+                <div class="stat-number" id="totalCreations">0</div>
+                <div class="stat-label">Creazioni</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon">▶️</div>
+                <div class="stat-number" id="totalPlays">0</div>
+                <div class="stat-label">Riproduzioni</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon">❤️</div>
+                <div class="stat-number" id="favoritesCount">0</div>
+                <div class="stat-label">Preferiti</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon">🔗</div>
+                <div class="stat-number" id="totalShares">0</div>
+                <div class="stat-label">Condivisioni</div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <?php if ($atts['show_controls'] === 'true'): ?>
+        <!-- CONTROLLI -->
+        <div class="gallery-controls">
+            <div class="controls-row">
+                <div class="search-container">
+                    <input type="text" id="gallerySearch" placeholder="Cerca nelle tue creazioni..." class="gallery-search-input">
+                    <span class="search-icon">🔍</span>
+                </div>
+                
+                <div class="filter-container">
+                    <button class="filter-btn active" data-filter="all">Tutte</button>
+                    <button class="filter-btn" data-filter="favorites">Preferiti</button>
+                    <button class="filter-btn" data-filter="public">Pubbliche</button>
+                    <button class="filter-btn" data-filter="recent">Recenti</button>
+                </div>
+                
+                <div class="sort-container">
+                    <select id="gallerySort" class="gallery-sort-select">
+                        <option value="created_at DESC">Più Recenti</option>
+                        <option value="created_at ASC">Più Vecchie</option>
+                        <option value="plays_count DESC">Più Ascoltate</option>
+                        <option value="title ASC">Titolo A-Z</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <!-- LOADING STATE -->
+        <div class="gallery-loading" id="galleryLoading">
+            <div class="loading-spinner"></div>
+            <p>Caricamento delle tue creazioni...</p>
+        </div>
+        
+        <!-- GRIGLIA CONTENUTI -->
+        <div class="gallery-content" id="galleryContent">
+            <!-- Le creazioni verranno caricate qui via JavaScript -->
+        </div>
+        
+        <!-- EMPTY STATE -->
+        <?php if ($atts['show_empty_message'] === 'true'): ?>
+        <div class="gallery-empty" id="galleryEmpty" style="display: none;">
+            <div class="empty-icon">🎵</div>
+            <h3>Nessuna creazione trovata</h3>
+            <p>Inizia creando la tua prima composizione musicale da un'immagine!</p>
+            <a href="/" class="btn-create-first">✨ Crea la Tua Prima Musica</a>
+        </div>
+        <?php endif; ?>
+        
+        <!-- PAGINAZIONE -->
+        <div class="gallery-pagination" id="galleryPagination"></div>
+        
+    </div>
+    
+    <!-- CSS INLINE per la gallery -->
+    <style>
+    .pictosound-user-gallery {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    /* STATS BAR */
+    .gallery-stats-bar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-item {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+    
+    .stat-item:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    
+    /* CONTROLS */
+    .gallery-controls {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .controls-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .search-container {
+        flex: 1;
+        min-width: 250px;
+        position: relative;
+    }
+    
+    .gallery-search-input {
+        width: 100%;
+        padding: 12px 40px 12px 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+    }
+    
+    .gallery-search-input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .search-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #666;
+    }
+    
+    .filter-container {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-btn {
+        padding: 10px 20px;
+        border: 2px solid #e9ecef;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 500;
+    }
+    
+    .filter-btn:hover,
+    .filter-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+    
+    .gallery-sort-select {
+        padding: 10px 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+    }
+    
+    /* LOADING */
+    .gallery-loading {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* CONTENT GRID */
+    .gallery-content {
+        display: grid;
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+    
+    .pictosound-user-gallery[data-layout="grid"] .gallery-content {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+    
+    .pictosound-user-gallery[data-columns="2"] .gallery-content {
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    }
+    
+    .pictosound-user-gallery[data-columns="4"] .gallery-content {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+    
+    .pictosound-user-gallery[data-layout="list"] .gallery-content {
+        grid-template-columns: 1fr;
+    }
+    
+    /* CREATION CARD */
+    .creation-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .creation-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .creation-header {
+        position: relative;
+        height: 200px;
+        background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    
+    .creation-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .creation-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .creation-card:hover .creation-overlay {
+        opacity: 1;
+    }
+    
+    .play-button {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.9);
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #667eea;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .play-button:hover {
+        background: white;
+        transform: scale(1.1);
+    }
+    
+    .favorite-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255,255,255,0.9);
+        color: #ccc;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .favorite-btn.active {
+        color: #ff6b6b;
+    }
+    
+    .creation-info {
+        padding: 20px;
+    }
+    
+    .creation-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #333;
+    }
+    
+    .creation-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .creation-stats {
+        display: flex;
+        gap: 15px;
+        font-size: 0.85rem;
+        color: #888;
+        margin-bottom: 15px;
+    }
+    
+    .creation-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+    }
+    
+    .action-btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .btn-primary {
+        background: #667eea;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #5a6fd8;
+    }
+    
+    .btn-secondary {
+        background: #f8f9fa;
+        color: #333;
+        border: 1px solid #e9ecef;
+    }
+    
+    .btn-secondary:hover {
+        background: #e9ecef;
+    }
+    
+    /* EMPTY STATE */
+    .gallery-empty {
+        text-align: center;
+        padding: 80px 20px;
+        background: white;
+        border-radius: 20px;
+        margin: 40px 0;
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+    
+    .gallery-empty h3 {
+        font-size: 1.5rem;
+        color: #666;
+        margin-bottom: 10px;
+    }
+    
+    .gallery-empty p {
+        color: #888;
+        margin-bottom: 30px;
+    }
+    
+    .btn-create-first {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        padding: 15px 30px;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: bold;
+        display: inline-block;
+        transition: all 0.3s;
+    }
+    
+    .btn-create-first:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102,126,234,0.3);
+    }
+    
+    /* PAGINATION */
+    .gallery-pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 40px;
+    }
+    
+    .page-btn {
+        padding: 12px 20px;
+        border: 2px solid #e9ecef;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 500;
+    }
+    
+    .page-btn:hover,
+    .page-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        .pictosound-user-gallery {
+            padding: 15px;
+        }
+        
+        .controls-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .filter-container {
+            justify-content: center;
+        }
+        
+        .gallery-content {
+            grid-template-columns: 1fr !important;
+            gap: 20px;
+        }
+        
+        .gallery-stats-bar {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .gallery-stats-bar {
+            grid-template-columns: 1fr;
+        }
+        
+        .creation-actions {
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            text-align: center;
+            justify-content: center;
+        }
+    }
+    </style>
+    
+    <!-- JavaScript per la gallery -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof PictosoundGallery === 'undefined') {
+            // Carica la gallery se lo script non è già stato caricato
+            loadPictosoundGallery();
+        }
+    });
+    
+    function loadPictosoundGallery() {
+        // Variabili gallery
+        let currentPage = 1;
+        let currentFilter = 'all';
+        let currentSort = 'created_at DESC';
+        let currentSearch = '';
+        
+        // Carica statistiche
+        loadGalleryStats();
+        
+        // Carica creazioni iniziali
+        loadGalleryCreations();
+        
+        // Setup event listeners
+        setupGalleryListeners();
+        
+        function loadGalleryStats() {
+            fetch('/wp-content/pictosound/gallery.php?stats=1')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const stats = data.stats;
+                        document.getElementById('totalCreations').textContent = stats.total_creations || 0;
+                        document.getElementById('totalPlays').textContent = stats.total_plays || 0;
+                        document.getElementById('favoritesCount').textContent = stats.favorites_count || 0;
+                        document.getElementById('totalShares').textContent = stats.total_shares || 0;
+                    }
+                })
+                .catch(error => console.error('Errore caricamento stats:', error));
+        }
+        
+        function loadGalleryCreations() {
+            const loading = document.getElementById('galleryLoading');
+            const content = document.getElementById('galleryContent');
+            const empty = document.getElementById('galleryEmpty');
+            
+            loading.style.display = 'block';
+            if (content) content.innerHTML = '';
+            if (empty) empty.style.display = 'none';
+            
+            const filter = {};
+            if (currentSearch) filter.search = currentSearch;
+            if (currentFilter === 'favorites') filter.is_favorite = true;
+            if (currentFilter === 'recent') {
+                filter.date_from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            }
+            filter.order_by = currentSort;
+            
+            fetch('/wp-content/pictosound/gallery.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'get_creations',
+                    limit: 12,
+                    offset: (currentPage - 1) * 12,
+                    filter: filter
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                
+                if (data.success) {
+                    const { creations, total } = data.data;
+                    
+                    if (creations.length === 0) {
+                        if (empty) empty.style.display = 'block';
+                    } else {
+                        renderGalleryCreations(creations);
+                    }
+                } else {
+                    console.error('Errore caricamento creazioni:', data);
+                }
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                console.error('Errore:', error);
+            });
+        }
+        
+        function renderGalleryCreations(creations) {
+            const content = document.getElementById('galleryContent');
+            if (!content) return;
+            
+            content.innerHTML = '';
+            
+            creations.forEach(creation => {
+                const card = createGalleryCreationCard(creation);
+                content.appendChild(card);
+            });
+        }
+        
+        function createGalleryCreationCard(creation) {
+            const card = document.createElement('div');
+            card.className = 'creation-card';
+            card.dataset.creationId = creation.id;
+            
+            const imageUrl = creation.original_image_path ? 
+                `/wp-content/pictosound/uploads/${creation.original_image_path}` : 
+                'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><rect width="400" height="200" fill="%23f0f0f0"/><text x="200" y="100" text-anchor="middle" fill="%23666" font-family="Arial" font-size="16">🎵 Audio</text></svg>';
+            
+            const createdDate = new Date(creation.created_at).toLocaleDateString('it-IT', {
+                day: '2-digit',
+                month: '2-digit', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            card.innerHTML = `
+                <div class="creation-header">
+                    <img src="${imageUrl}" alt="${creation.title || 'Creazione'}" class="creation-image" 
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 400 200\\"><rect width=\\"400\\" height=\\"200\\" fill=\\"%23f0f0f0\\"/><text x=\\"200\\" y=\\"100\\" text-anchor=\\"middle\\" fill=\\"%23666\\" font-family=\\"Arial\\" font-size=\\"16\\">🎵 Audio</text></svg>'">
+                    <button class="favorite-btn ${creation.is_favorite ? 'active' : ''}" onclick="toggleGalleryFavorite(${creation.id})">
+                        ❤️
+                    </button>
+                    <div class="creation-overlay">
+                        <button class="play-button" onclick="playGalleryCreation(${creation.id}, '${creation.audio_file_url}')">
+                            ▶️
+                        </button>
+                    </div>
+                </div>
+                <div class="creation-info">
+                    <div class="creation-title">${creation.title || 'Senza titolo'}</div>
+                    <div class="creation-meta">
+                        <span>⏱️ ${creation.duration}s</span>
+                        <span>📅 ${createdDate}</span>
+                    </div>
+                    <div class="creation-stats">
+                        <span>▶️ ${creation.plays_count || 0}</span>
+                        <span>📥 ${creation.downloads_count || 0}</span>
+                        <span>🔗 ${creation.shared_count || 0}</span>
+                    </div>
+                    <div class="creation-actions">
+                        <button class="action-btn btn-primary" onclick="downloadGalleryCreation('${creation.audio_file_url}', '${creation.title}')">
+                            📥
+                        </button>
+                        <button class="action-btn btn-secondary" onclick="shareGalleryCreation(${creation.id})">
+                            🔗
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        function setupGalleryListeners() {
+            // Search
+            const searchInput = document.getElementById('gallerySearch');
+            if (searchInput) {
+                let searchTimeout;
+                searchInput.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        currentSearch = this.value;
+                        currentPage = 1;
+                        loadGalleryCreations();
+                    }, 500);
+                });
+            }
+            
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentFilter = this.dataset.filter;
+                    currentPage = 1;
+                    loadGalleryCreations();
+                });
+            });
+            
+            // Sort select
+            const sortSelect = document.getElementById('gallerySort');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', function() {
+                    currentSort = this.value;
+                    currentPage = 1;
+                    loadGalleryCreations();
+                });
+            }
+        }
+        
+        // Funzioni globali per interazioni
+        window.playGalleryCreation = function(creationId, audioUrl) {
+            // Incrementa play count
+            fetch('/wp-content/pictosound/gallery.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'play',
+                    creation_id: creationId
+                })
+            });
+            
+            // Play audio
+            const audio = new Audio(audioUrl);
+            audio.play().catch(error => {
+                console.error('Errore riproduzione:', error);
+            });
+        };
+        
+        window.toggleGalleryFavorite = function(creationId) {
+            fetch('/wp-content/pictosound/gallery.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'toggle_favorite',
+                    creation_id: creationId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const card = document.querySelector(`[data-creation-id="${creationId}"]`);
+                    const favoriteBtn = card.querySelector('.favorite-btn');
+                    favoriteBtn.classList.toggle('active');
+                    loadGalleryStats();
+                }
+            });
+        };
+        
+        window.downloadGalleryCreation = function(audioUrl, title) {
+            const link = document.createElement('a');
+            link.href = audioUrl;
+            link.download = `${title || 'creazione-pictosound'}.mp3`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+        
+        window.shareGalleryCreation = function(creationId) {
+            // Implementazione condivisione semplificata
+            if (navigator.share) {
+                navigator.share({
+                    title: 'La mia creazione Pictosound',
+                    text: 'Ascolta questa musica che ho creato con Pictosound!',
+                    url: window.location.href
+                });
+            } else {
+                // Fallback per browser senza Web Share API
+                const url = window.location.href;
+                navigator.clipboard.writeText(url).then(() => {
+                    alert('Link copiato negli appunti!');
+                });
+            }
+        };
+    }
+    </script>
+    
+    <?php
+    return ob_get_clean();
+}
 
+// Registra lo shortcode
+add_shortcode('pictosound_gallery', 'pictosound_user_gallery_shortcode');
+
+/**
+ * Shortcode per mostrare una singola creazione condivisa
+ */
+function pictosound_shared_creation_shortcode($atts) {
+    $atts = shortcode_atts([
+        'token' => '',
+        'show_creator' => 'true'
+    ], $atts);
+    
+    if (empty($atts['token'])) {
+        return '<div style="background: #f8d7da; color: #721c24; padding: 20px; border-radius: 10px; text-align: center;">
+            <h3>❌ Link non valido</h3>
+            <p>Il link di condivisione non è valido o è scaduto.</p>
+        </div>';
+    }
+    
+    // Carica la creazione tramite token
+    $creation_data = null;
+    
+    // Simula caricamento (dovresti implementare una chiamata AJAX qui)
+    ob_start();
+    ?>
+    
+    <div class="pictosound-shared-creation" data-token="<?php echo esc_attr($atts['token']); ?>">
+        <div id="sharedCreationLoading">
+            <div class="loading-spinner"></div>
+            <p>Caricamento creazione condivisa...</p>
+        </div>
+        
+        <div id="sharedCreationContent" style="display: none;">
+            <!-- Il contenuto verrà caricato via JavaScript -->
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadSharedCreation('<?php echo esc_js($atts['token']); ?>');
+    });
+    
+    function loadSharedCreation(token) {
+        fetch('/wp-content/pictosound/gallery.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'get_shared_creation',
+                share_token: token
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const loading = document.getElementById('sharedCreationLoading');
+            const content = document.getElementById('sharedCreationContent');
+            
+            loading.style.display = 'none';
+            
+            if (data.success) {
+                const creation = data.creation;
+                content.innerHTML = createSharedCreationHTML(creation);
+                content.style.display = 'block';
+            } else {
+                content.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 20px; border-radius: 10px; text-align: center;"><h3>❌ Creazione non trovata</h3><p>Il link di condivisione non è valido o è scaduto.</p></div>';
+                content.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Errore:', error);
+            document.getElementById('sharedCreationLoading').innerHTML = '<div style="color: #dc3545; text-align: center;">Errore nel caricamento della creazione.</div>';
+        });
+    }
+    
+    function createSharedCreationHTML(creation) {
+        const imageUrl = creation.original_image_path ? 
+            `/wp-content/pictosound/uploads/${creation.original_image_path}` : 
+            'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><rect width="400" height="200" fill="%23f0f0f0"/><text x="200" y="100" text-anchor="middle" fill="%23666" font-family="Arial" font-size="16">🎵 Audio</text></svg>';
+        
+        return `
+            <div style="background: white; padding: 30px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; max-width: 600px; margin: 0 auto;">
+                <div style="position: relative; margin-bottom: 20px; border-radius: 15px; overflow: hidden;">
+                    <img src="${imageUrl}" alt="${creation.title || 'Creazione condivisa'}" style="width: 100%; height: 300px; object-fit: cover;">
+                    <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">
+                        <button onclick="playSharedCreation('${creation.audio_file_url}')" style="width: 80px; height: 80px; border-radius: 50%; background: white; border: none; font-size: 30px; color: #667eea; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                            ▶️
+                        </button>
+                    </div>
+                </div>
+                <h2 style="margin: 0 0 10px 0; color: #333;">${creation.title || 'Creazione Pictosound'}</h2>
+                <p style="color: #666; margin-bottom: 20px;">Creato da: <strong>${creation.creator_name || 'Utente Pictosound'}</strong></p>
+                <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; font-size: 0.9rem; color: #888;">
+                    <span>⏱️ ${creation.duration}s</span>
+                    <span>▶️ ${creation.plays_count || 0} riproduzioni</span>
+                    <span>📅 ${new Date(creation.created_at).toLocaleDateString('it-IT')}</span>
+                </div>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button onclick="downloadSharedCreation('${creation.audio_file_url}', '${creation.title}')" style="background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        📥 Scarica Audio
+                    </button>
+                    <button onclick="window.open('/', '_blank')" style="background: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        ✨ Crea la Tua Musica
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    function playSharedCreation(audioUrl) {
+        const audio = new Audio(audioUrl);
+        audio.play().catch(error => {
+            console.error('Errore riproduzione:', error);
+            alert('Errore nella riproduzione dell\'audio');
+        });
+    }
+    
+    function downloadSharedCreation(audioUrl, title) {
+        const link = document.createElement('a');
+        link.href = audioUrl;
+        link.download = `${title || 'creazione-pictosound'}.mp3`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    </script>
+    
+    <?php
+    return ob_get_clean();
+}
+
+// Registra lo shortcode per creazioni condivise
+add_shortcode('pictosound_shared_creation', 'pictosound_shared_creation_shortcode');
 ?>
