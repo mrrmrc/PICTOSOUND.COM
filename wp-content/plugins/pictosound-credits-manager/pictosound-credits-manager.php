@@ -36,18 +36,9 @@ if (!defined('PICTOSOUND_STRIPE_WEBHOOK_SECRET')) {
 define( 'PICTOSOUND_CREDITS_USER_META_KEY', '_pictosound_user_credits' );
 define( 'PICTOSOUND_PRIVACY_OPTIN_META_KEY', '_pictosound_privacy_optin' );
 
-
-
-
-
-
 /**
  * ⚡ RATE LIMITING SYSTEM - Hosting-Friendly
  */
-
-
-
-
 function pictosound_cm_check_rate_limit($action, $user_id = null, $limit = 10, $period = HOUR_IN_SECONDS) {
     if (!$user_id) {
         $user_id = get_current_user_id();
@@ -495,34 +486,29 @@ function pictosound_cm_modern_credit_packages_shortcode($atts) {
         </div>
         
         <!-- SECURITY & TRUST SECTION -->
-        <div class="trust-section">
-            <div class="trust-icons">
-                <div class="trust-item">
-                    <div class="trust-icon">🔒</div>
-                    <div class="trust-text">Pagamenti Sicuri</div>
-                </div>
-                <div class="trust-item">
-                    <div class="trust-icon">⚡</div>
-                    <div class="trust-text">Attivazione Immediata</div>
-                </div>
-                <div class="trust-item">
-                    <div class="trust-icon">💳</div>
-                    <div class="trust-text">Stripe Secure</div>
-                </div>
-                <div class="trust-item">
-                    <div class="trust-icon">🎯</div>
-                    <div class="trust-text">Nessun Abbonamento</div>
-                </div>
-            </div>
-            <div class="trust-description">
-                I crediti non scadono mai e vengono attivati immediatamente dopo il pagamento
-            </div>
+<div class="trust-section">
+    <div class="trust-icons">
+        <div class="trust-item">
+            <div class="trust-icon">🔒</div>
+            <div class="trust-text">Pagamenti Sicuri</div>
         </div>
-        
-        <!-- STATUS MESSAGES -->
-        <div id="package-status-message" class="status-message" style="display: none;"></div>
-        
+        <div class="trust-item">
+            <div class="trust-icon">⚡</div>
+            <div class="trust-text">Attivazione Immediata</div>
+        </div>
+        <div class="trust-item">
+            <div class="trust-icon">💳</div>
+            <div class="trust-text">Carte + PayPal</div>
+        </div>
+        <div class="trust-item">
+            <div class="trust-icon">🎯</div>
+            <div class="trust-text">Nessun Abbonamento</div>
+        </div>
     </div>
+    <div class="trust-description">
+        Paga con carta di credito o PayPal tramite Stripe. I crediti non scadono mai e vengono attivati immediatamente dopo il pagamento.
+    </div>
+</div>
     
     <?php
     return ob_get_clean();
@@ -564,6 +550,9 @@ function write_log_cm($message) {
 /**
  * ⚡ Crea sessione di pagamento Stripe - Ottimizzata
  */
+/**
+ * ⚡ Crea sessione di pagamento Stripe con PayPal - Ottimizzata
+ */
 function pictosound_cm_create_stripe_session($package_key, $user_id) {
     // Rate limiting per creazione sessioni
     if (!pictosound_cm_check_rate_limit('create_session', $user_id, 5, 10 * MINUTE_IN_SECONDS)) {
@@ -586,13 +575,17 @@ function pictosound_cm_create_stripe_session($package_key, $user_id) {
         \Stripe\Stripe::setApiKey(PICTOSOUND_STRIPE_SECRET_KEY);
         
         $session = \Stripe\Checkout\Session::create([
-            'payment_method_types' => ['card'],
+            // ⚡ AGGIUNTO PAYPAL AI METODI DI PAGAMENTO
+            'payment_method_types' => ['card', 'paypal'],
             'line_items' => [[
                 'price_data' => [
                     'currency' => 'eur',
                     'product_data' => [
                         'name' => sprintf('Ricarica %d Crediti Pictosound', $package['credits']),
                         'description' => sprintf('Pacchetto di %d crediti per Pictosound', $package['credits']),
+                        'images' => [
+                            'https://pictosound.com/wp-content/uploads/2024/pictosound-logo.png' // Opzionale: logo del prodotto
+                        ],
                     ],
                     'unit_amount' => $amount_cents,
                 ],
@@ -601,6 +594,19 @@ function pictosound_cm_create_stripe_session($package_key, $user_id) {
             'mode' => 'payment',
             'success_url' => home_url('/pagamento-completato/?status=success&session_id={CHECKOUT_SESSION_ID}'),
             'cancel_url' => home_url('/pagamento-completato/?status=cancelled'),
+            
+            // ⚡ CONFIGURAZIONI AGGIUNTIVE PER PAYPAL
+            'payment_intent_data' => [
+                'setup_future_usage' => null, // Non salvare metodi di pagamento per futuri acquisti
+            ],
+            
+            // ⚡ PERSONALIZZAZIONI UI
+            'custom_text' => [
+                'submit' => [
+                    'message' => 'I tuoi crediti verranno attivati immediatamente dopo il pagamento.'
+                ]
+            ],
+            
             'metadata' => [
                 'user_id' => $user_id,
                 'package_key' => $package_key,
@@ -608,10 +614,22 @@ function pictosound_cm_create_stripe_session($package_key, $user_id) {
                 'plugin' => 'pictosound-credits-manager',
                 'timestamp' => time()
             ],
+            
+            // ⚡ MIGLIORAMENTI UX
             'customer_email' => wp_get_current_user()->user_email ?? null,
+            'billing_address_collection' => 'auto', // Raccoglie indirizzo automaticamente se necessario
+            'phone_number_collection' => [
+                'enabled' => false // Disabilita raccolta telefono per semplificare
+            ],
+            
+            // ⚡ CONFIGURAZIONI LOCALI
+            'locale' => 'it', // Interfaccia in italiano
+            'automatic_tax' => [
+                'enabled' => false // Disabilita calcolo automatico tasse per ora
+            ]
         ]);
         
-        write_log_cm("Stripe Session creata per user $user_id, package $package_key, amount $amount_euros EUR");
+        write_log_cm("Stripe Session (con PayPal) creata per user $user_id, package $package_key, amount $amount_euros EUR");
         
         return $session->url;
         
@@ -1798,7 +1816,8 @@ function pictosound_cm_frontend_scripts_and_data() {
                              has_shortcode(get_post()->post_content, 'pictosound_login_form') ||
                              has_shortcode(get_post()->post_content, 'pictosound_user_area') ||
                              has_shortcode(get_post()->post_content, 'pictosound_credits_balance') ||
-                             has_shortcode(get_post()->post_content, 'pictosound_credit_packages')
+                             has_shortcode(get_post()->post_content, 'pictosound_credit_packages') ||
+                             has_shortcode(get_post()->post_content, 'pictosound_edit_profile')
                          ));
 
     // ⚡ Carica script COMPLETI solo su homepage e ricarica crediti
@@ -1873,7 +1892,7 @@ function pictosound_cm_frontend_scripts_and_data() {
     } else {
         write_log_cm("Pictosound scripts NOT enqueued on this page (ID: " . get_the_ID() . "). Page title: " . get_the_title());
     }
-}
+} // ⚡ QUESTA PARENTESI GRAFFA MANCAVA!
 add_action( 'wp_enqueue_scripts', 'pictosound_cm_frontend_scripts_and_data' );
 
 /**
@@ -1884,6 +1903,14 @@ function pictosound_cm_modern_packages_script() {
     ?>
     <script>
     jQuery(document).ready(function($) {
+        
+        // ⚡ VERIFICA CHE GLI ELEMENTI ESISTANO PRIMA DI USARLI
+        if ($('.purchase-btn').length === 0) {
+            console.log('Pictosound: Elementi pacchetti non trovati, script non caricato');
+            return;
+        }
+        
+        console.log('Pictosound: Inizializzazione script pacchetti crediti');
         
         // Gestione click sui bottoni di acquisto
         $('.purchase-btn').on('click', function(e) {
@@ -1900,6 +1927,8 @@ function pictosound_cm_modern_packages_script() {
                 return;
             }
             
+            console.log('Pictosound: Acquisto pacchetto', packageKey, credits, 'crediti');
+            
             // Mostra stato di caricamento
             $btn.addClass('processing');
             $btn.find('.btn-text').hide();
@@ -1913,6 +1942,14 @@ function pictosound_cm_modern_packages_script() {
             setTimeout(() => {
                 $card.css('transform', '');
             }, 200);
+            
+            // ⚡ VERIFICA CHE pictosound_vars ESISTA
+            if (typeof pictosound_vars === 'undefined') {
+                console.error('Pictosound: pictosound_vars non definito');
+                showPackageMessage('❌ Errore di configurazione. Ricarica la pagina.', 'error');
+                resetButton($btn);
+                return;
+            }
             
             // Chiama la funzione di ricarica crediti esistente
             $.ajax({
@@ -1930,10 +1967,10 @@ function pictosound_cm_modern_packages_script() {
                     if (response.success) {
                         if (response.data.is_redirect && response.data.redirect_url) {
                             // Mostra messaggio di reindirizzamento
-                            showPackageMessage('🚀 Reindirizzamento a Stripe per il pagamento sicuro...', 'info');
+                            showPackageMessage('🚀 Reindirizzamento a Stripe per il pagamento sicuro (Carte + PayPal)...', 'info');
                             
                             // Effetto di reindirizzamento
-                            $('body').append('<div class="stripe-redirect-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(102, 126, 234, 0.95); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 1.5rem; font-weight: bold;"><div style="text-align: center;"><div style="font-size: 4rem; margin-bottom: 20px;">💳</div><div>Reindirizzamento a Stripe...</div><div style="margin-top: 15px; font-size: 1rem; opacity: 0.8;">Pagamento sicuro e crittografato</div></div></div>');
+                            $('body').append('<div class="stripe-redirect-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(102, 126, 234, 0.95); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 1.5rem; font-weight: bold;"><div style="text-align: center;"><div style="font-size: 4rem; margin-bottom: 20px;">💳</div><div>Reindirizzamento a Stripe...</div><div style="margin-top: 15px; font-size: 1rem; opacity: 0.8;">Accettiamo Carte di Credito e PayPal</div></div></div>');
                             
                             // Reindirizza dopo 1.5 secondi
                             setTimeout(function() {
@@ -1949,19 +1986,24 @@ function pictosound_cm_modern_packages_script() {
                         if (response.data && response.data.code === 'nonce_expired' && response.data.auto_refresh) {
                             showPackageMessage('🔄 Sessione scaduta. Rinnovo automatico in corso...', 'warning');
                             
-                            // Tenta il refresh automatico dei nonce
-                            window.pictosoundRefreshNonces().then(function(result) {
-                                if (!result.skip) {
-                                    showPackageMessage('✅ Sessione rinnovata. Riprova ora.', 'success');
+                            // ⚡ VERIFICA CHE LA FUNZIONE ESISTA
+                            if (typeof window.pictosoundRefreshNonces === 'function') {
+                                window.pictosoundRefreshNonces().then(function(result) {
+                                    if (!result.skip) {
+                                        showPackageMessage('✅ Sessione rinnovata. Riprova ora.', 'success');
+                                        resetButton($btn);
+                                    } else {
+                                        showPackageMessage('⚠️ Riprova tra qualche secondo.', 'warning');
+                                        resetButton($btn);
+                                    }
+                                }).catch(function() {
+                                    showPackageMessage('❌ Errore nel rinnovo sessione. Ricarica la pagina.', 'error');
                                     resetButton($btn);
-                                } else {
-                                    showPackageMessage('⚠️ Riprova tra qualche secondo.', 'warning');
-                                    resetButton($btn);
-                                }
-                            }).catch(function() {
-                                showPackageMessage('❌ Errore nel rinnovo sessione. Ricarica la pagina.', 'error');
+                                });
+                            } else {
+                                showPackageMessage('❌ Ricarica la pagina e riprova.', 'error');
                                 resetButton($btn);
-                            });
+                            }
                         } else {
                             const errorMsg = response.data ? response.data.message : 'Errore sconosciuto';
                             showPackageMessage('❌ ' + errorMsg, 'error');
@@ -1977,21 +2019,45 @@ function pictosound_cm_modern_packages_script() {
             });
         });
         
-        // Funzione per mostrare messaggi
+        // ⚡ FUNZIONE SICURA PER MOSTRARE MESSAGGI
         function showPackageMessage(message, type) {
             const $messageDiv = $('#package-status-message');
-            $messageDiv.removeClass('success error warning info').addClass(type);
-            $messageDiv.html(message).show();
             
-            // Scroll to message
-            $('html, body').animate({
-                scrollTop: $messageDiv.offset().top - 100
-            }, 500);
+            // ⚡ VERIFICA CHE L'ELEMENTO ESISTA
+            if ($messageDiv.length === 0) {
+                console.warn('Pictosound: Elemento #package-status-message non trovato, creo uno nuovo');
+                
+                // Crea l'elemento se non esiste
+                $('.pictosound-modern-packages').append('<div id="package-status-message" class="status-message" style="display: none;"></div>');
+                const $newMessageDiv = $('#package-status-message');
+                
+                if ($newMessageDiv.length === 0) {
+                    // Fallback: usa alert se non può creare l'elemento
+                    alert(message);
+                    return;
+                }
+            }
+            
+            const $finalMessageDiv = $('#package-status-message');
+            $finalMessageDiv.removeClass('success error warning info').addClass(type);
+            $finalMessageDiv.html(message).show();
+            
+            // ⚡ SCROLL SICURO
+            try {
+                const elementOffset = $finalMessageDiv.offset();
+                if (elementOffset && elementOffset.top) {
+                    $('html, body').animate({
+                        scrollTop: elementOffset.top - 100
+                    }, 500);
+                }
+            } catch (scrollError) {
+                console.warn('Pictosound: Errore scroll, ignorato:', scrollError);
+            }
             
             // Auto-hide success/info messages after 8 seconds
             if (type === 'success' || type === 'info') {
                 setTimeout(function() {
-                    $messageDiv.fadeOut();
+                    $finalMessageDiv.fadeOut();
                 }, 8000);
             }
         }
@@ -2004,19 +2070,28 @@ function pictosound_cm_modern_packages_script() {
             $btn.closest('.package-card').removeClass('processing-payment');
         }
         
-        // Effetti hover migliorati per le card
+        // ⚡ EFFETTI HOVER SICURI
         $('.package-card').hover(
             function() {
-                $(this).find('.package-icon').css('transform', 'scale(1.1) rotate(5deg)');
+                const $icon = $(this).find('.package-icon');
+                if ($icon.length > 0) {
+                    $icon.css('transform', 'scale(1.1) rotate(5deg)');
+                }
             },
             function() {
-                $(this).find('.package-icon').css('transform', '');
+                const $icon = $(this).find('.package-icon');
+                if ($icon.length > 0) {
+                    $icon.css('transform', '');
+                }
             }
         );
         
-        // Aggiorna saldo crediti in tempo reale se cambia
+        // ⚡ AGGIORNA CREDITI DISPLAY SICURO
         function updateCreditsDisplay(newCredits) {
-            $('#current-credits-display').text(newCredits);
+            const $currentCreditsDisplay = $('#current-credits-display');
+            if ($currentCreditsDisplay.length > 0) {
+                $currentCreditsDisplay.text(newCredits);
+            }
             
             // Aggiorna anche altri display di crediti nella pagina
             $('.balance-amount').text(newCredits);
@@ -2032,9 +2107,9 @@ function pictosound_cm_modern_packages_script() {
             }
         }
         
-        // Polling periodico per aggiornare i crediti (utile dopo pagamenti completati)
-        setInterval(function() {
-            if (typeof pictosound_vars !== 'undefined' && pictosound_vars.ajax_url) {
+        // ⚡ POLLING PERIODICO SICURO per aggiornare i crediti
+        if (typeof pictosound_vars !== 'undefined' && pictosound_vars.ajax_url) {
+            setInterval(function() {
                 $.ajax({
                     url: pictosound_vars.ajax_url,
                     type: 'POST',
@@ -2043,7 +2118,8 @@ function pictosound_cm_modern_packages_script() {
                     },
                     success: function(response) {
                         if (response.success && response.data.credits !== undefined) {
-                            const currentDisplayed = parseInt($('#current-credits-display').text()) || 0;
+                            const $currentCreditsDisplay = $('#current-credits-display');
+                            const currentDisplayed = $currentCreditsDisplay.length > 0 ? parseInt($currentCreditsDisplay.text()) || 0 : 0;
                             const actualCredits = parseInt(response.data.credits) || 0;
                             
                             if (actualCredits !== currentDisplayed) {
@@ -2056,13 +2132,15 @@ function pictosound_cm_modern_packages_script() {
                                 }
                             }
                         }
+                    },
+                    error: function() {
+                        // Ignora errori di polling silenziosamente
                     }
                 });
-            }
-        }, 10000); // Controlla ogni 10 secondi
+            }, 10000); // Controlla ogni 10 secondi
+        }
         
-        // ⚡ Sistema di auto-recovery OTTIMIZZATO per hosting
-        // Traccia l'attività dell'utente per ottimizzare i refresh
+        // ⚡ SISTEMA DI AUTO-RECOVERY SICURO
         let lastUserActivity = Date.now();
         
         // Aggiorna timestamp attività su ogni interazione
@@ -2070,7 +2148,7 @@ function pictosound_cm_modern_packages_script() {
             lastUserActivity = Date.now();
         });
         
-        // Funzione globale per aggiornare i nonce - CON RATE LIMITING CLIENT-SIDE
+        // ⚡ FUNZIONE GLOBALE SICURA per aggiornare i nonce
         let lastNonceRefresh = 0;
         const NONCE_REFRESH_COOLDOWN = 30000; // 30 secondi tra refresh
         
@@ -2084,13 +2162,19 @@ function pictosound_cm_modern_packages_script() {
             lastNonceRefresh = now;
             
             return new Promise(function(resolve, reject) {
+                // ⚡ VERIFICA CHE pictosound_vars ESISTA
+                if (typeof pictosound_vars === 'undefined' || !pictosound_vars.ajax_url) {
+                    reject('pictosound_vars non definito');
+                    return;
+                }
+                
                 $.ajax({
                     url: pictosound_vars.ajax_url,
                     type: 'POST',
                     data: {
                         action: 'pictosound_regenerate_nonce'
                     },
-                    timeout: 10000, // ⚡ Timeout di 10 secondi
+                    timeout: 10000,
                     success: function(response) {
                         if (response.success) {
                             console.log('Pictosound: Nonce aggiornati con successo');
@@ -2109,8 +2193,11 @@ function pictosound_cm_modern_packages_script() {
             });
         };
         
-        // ⚡ Auto-refresh INTELLIGENTE - Solo se utente attivo
-        if (pictosound_vars.auto_refresh_nonces && pictosound_vars.user_recently_active) {
+        // ⚡ AUTO-REFRESH INTELLIGENTE E SICURO
+        if (typeof pictosound_vars !== 'undefined' && 
+            pictosound_vars.auto_refresh_nonces && 
+            pictosound_vars.user_recently_active) {
+            
             setInterval(function() {
                 // Solo se l'utente è stato attivo negli ultimi 30 minuti
                 if (Date.now() - lastUserActivity < 1800000) { // 30 minuti
@@ -2122,15 +2209,48 @@ function pictosound_cm_modern_packages_script() {
                         console.warn('Pictosound: Errore nel refresh automatico:', error);
                     });
                 }
-            }, 1200000); // ⚡ Ridotto a 20 minuti invece di 10
+            }, 1200000); // 20 minuti
         }
         
+        console.log('Pictosound: Script pacchetti crediti inizializzato correttamente');
     });
     </script>
     <?php
 }
 add_action('wp_footer', 'pictosound_cm_modern_packages_script');
-
+function pictosound_cm_error_safe_styles() {
+    ?>
+    <style>
+    /* ⚡ STILI SICURI PER GESTIONE ERRORI */
+    .pictosound-error-fallback {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+        border: 1px solid #f5c6cb;
+        text-align: center;
+    }
+    
+    .stripe-redirect-overlay {
+        animation: fadeInOverlay 0.5s ease-in;
+        pointer-events: all;
+    }
+    
+    @keyframes fadeInOverlay {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    /* Nasconde elementi che potrebbero causare errori se non caricati */
+    .pictosound-modern-packages.loading .purchase-btn {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+    </style>
+    <?php
+}
+add_action('wp_head', 'pictosound_cm_error_safe_styles');
 /**
  * ⚡ AJAX Handler per VERIFICARE e DEDURRE crediti - Con rate limiting
  */
@@ -2822,6 +2942,432 @@ function pictosound_cm_user_email_shortcode() {
 }
 add_shortcode( 'pictosound_user_email', 'pictosound_cm_user_email_shortcode' );
 
+function pictosound_cm_edit_profile_shortcode() {
+    // Solo utenti loggati possono editare il profilo
+    if (!is_user_logged_in()) {
+        return '<div style="background: linear-gradient(135deg, #ff6b6b, #ee5a52); color: white; padding: 30px; border-radius: 15px; text-align: center; margin: 20px 0; box-shadow: 0 8px 25px rgba(255,107,107,0.3);">
+            <h3 style="margin: 0 0 15px 0;">🔒 Accesso Richiesto</h3>
+            <p style="margin: 0 0 20px 0;">Effettua il login per modificare il tuo profilo</p>
+            <a href="/wp-login.php" style="background: white; color: #ff6b6b; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">🚀 ACCEDI ORA</a>
+        </div>';
+    }
+    
+    $current_user = wp_get_current_user();
+    $user_id = $current_user->ID;
+    
+    $message = '';
+    $form_data = []; // Per mantenere i dati in caso di errore
+    
+    // ============================================
+    // CARICA DATI ESISTENTI DELL'UTENTE
+    // ============================================
+    $existing_data = [
+        'email' => $current_user->user_email,
+        'nome' => $current_user->first_name,
+        'cognome' => $current_user->last_name,
+        'company' => get_user_meta($user_id, 'billing_company', true),
+        'indirizzo' => get_user_meta($user_id, 'billing_address_1', true),
+        'cap' => get_user_meta($user_id, 'billing_postcode', true),
+        'citta' => get_user_meta($user_id, 'billing_city', true),
+        'cf_piva' => get_user_meta($user_id, 'codice_fiscale_piva', true),
+        'codice_dest' => get_user_meta($user_id, 'codice_destinatario', true),
+        'pec' => get_user_meta($user_id, 'pec', true)
+    ];
+    
+    // ⚡ DEBUG: Log dei dati esistenti
+    write_log_cm("DEBUG Edit Profile - Dati esistenti per user $user_id: " . print_r($existing_data, true));
+    
+    // ============================================
+    // ELABORAZIONE FORM QUANDO VIENE INVIATO
+    // ============================================
+    if (isset($_POST['pictosound_edit_submit'])) {
+        
+        // ⚡ DEBUG: Log del POST
+        write_log_cm("DEBUG Edit Profile - POST ricevuto per user $user_id");
+        write_log_cm("DEBUG Edit Profile - POST data: " . print_r($_POST, true));
+        
+        // Verifica nonce
+        if (!wp_verify_nonce($_POST['pictosound_edit_nonce_field'], 'pictosound_user_edit_profile_action')) {
+            write_log_cm("DEBUG Edit Profile - ERRORE: Nonce non valido");
+            $message = '<div style="background: #f8d7da; padding: 15px; border: 1px solid #dc3545; color: #721c24; margin: 20px 0; border-radius: 8px;">
+                <h4 style="margin-top: 0;">❌ Errore di sicurezza:</h4>
+                <p>Sessione scaduta. Ricarica la pagina e riprova.</p>
+            </div>';
+        } else {
+            
+            // Recupera e sanitizza i dati
+            $email = sanitize_email($_POST['edit_email'] ?? '');
+            $nome = sanitize_text_field($_POST['edit_firstname'] ?? '');
+            $cognome = sanitize_text_field($_POST['edit_lastname'] ?? '');
+            $company = sanitize_text_field($_POST['edit_company'] ?? '');
+            $indirizzo = sanitize_text_field($_POST['edit_address'] ?? '');
+            $cap = sanitize_text_field($_POST['edit_cap'] ?? '');
+            $citta = sanitize_text_field($_POST['edit_city'] ?? '');
+            $cf_piva = strtoupper(sanitize_text_field($_POST['edit_cf_piva'] ?? ''));
+            $codice_dest = sanitize_text_field($_POST['edit_codice_dest'] ?? '');
+            $pec = sanitize_email($_POST['edit_pec'] ?? '');
+            $new_password = $_POST['edit_password'] ?? '';
+            $new_password2 = $_POST['edit_password2'] ?? '';
+            
+            // ⚡ DEBUG: Log dei dati sanitizzati
+            $debug_data = compact('email', 'nome', 'cognome', 'company', 'indirizzo', 'cap', 'citta', 'cf_piva', 'codice_dest', 'pec');
+            write_log_cm("DEBUG Edit Profile - Dati sanitizzati: " . print_r($debug_data, true));
+            
+            // Salva i dati per ripopolare il form in caso di errore
+            $form_data = $debug_data;
+            
+            $errors = [];
+            
+            // ============================================
+            // VALIDAZIONI SEMPLIFICATE PER DEBUG
+            // ============================================
+            
+            // Email
+            if (empty($email)) {
+                $errors[] = __('Email è obbligatoria', 'pictosound-credits-manager');
+            } elseif (!is_email($email)) {
+                $errors[] = __('Email non valida', 'pictosound-credits-manager');
+            } elseif ($email !== $current_user->user_email && email_exists($email)) {
+                $errors[] = __('Email già in uso da un altro utente', 'pictosound-credits-manager');
+            }
+            
+            // Password (opzionale in editing)
+            if (!empty($new_password)) {
+                if (strlen($new_password) < 8) {
+                    $errors[] = __('Password deve essere di almeno 8 caratteri', 'pictosound-credits-manager');
+                } elseif ($new_password !== $new_password2) {
+                    $errors[] = __('Le password non coincidono', 'pictosound-credits-manager');
+                }
+            }
+            
+            // ⚡ VALIDAZIONE MINIMA per permettere il salvataggio
+            // Rimuovo per ora le validazioni strict per testare
+            
+            // ⚡ DEBUG: Log errori di validazione
+            if (!empty($errors)) {
+                write_log_cm("DEBUG Edit Profile - Errori validazione: " . print_r($errors, true));
+            }
+            
+            // ============================================
+            // SE CI SONO ERRORI, MOSTRALI
+            // ============================================
+            if (!empty($errors)) {
+                $message = '<div style="background: #f8d7da; padding: 15px; border: 1px solid #dc3545; color: #721c24; margin: 20px 0; border-radius: 8px;">
+                    <h4 style="margin-top: 0;">❌ Errori nell\'aggiornamento del profilo:</h4>
+                    <ul style="margin: 10px 0 0 20px; padding-left: 0;">';
+                foreach ($errors as $error) {
+                    $message .= '<li style="margin-bottom: 5px;">' . esc_html($error) . '</li>';
+                }
+                $message .= '</ul></div>';
+                
+            } else {
+                // ============================================
+                // AGGIORNA I DATI UTENTE SE TUTTO OK
+                // ============================================
+                write_log_cm("DEBUG Edit Profile - Inizio aggiornamento dati per user $user_id");
+                
+                // 1. AGGIORNA DATI PRINCIPALI UTENTE
+                $user_data = [
+                    'ID' => $user_id,
+                    'user_email' => $email,
+                    'first_name' => $nome,
+                    'last_name' => $cognome,
+                    'display_name' => !empty($company) ? $company : trim($nome . ' ' . $cognome)
+                ];
+                
+                // Aggiungi password se specificata
+                if (!empty($new_password)) {
+                    $user_data['user_pass'] = $new_password;
+                    write_log_cm("DEBUG Edit Profile - Password verrà aggiornata");
+                }
+                
+                write_log_cm("DEBUG Edit Profile - Dati utente da aggiornare: " . print_r($user_data, true));
+                
+                $update_result = wp_update_user($user_data);
+                
+                if (is_wp_error($update_result)) {
+                    write_log_cm("DEBUG Edit Profile - ERRORE wp_update_user: " . $update_result->get_error_message());
+                    $message = '<div style="background: #f8d7da; padding: 15px; border: 1px solid #dc3545; color: #721c24; margin: 20px 0; border-radius: 8px;">
+                        <h4 style="margin-top: 0;">❌ Errore durante l\'aggiornamento:</h4>
+                        <p>' . esc_html($update_result->get_error_message()) . '</p>
+                    </div>';
+                } else {
+                    write_log_cm("DEBUG Edit Profile - wp_update_user SUCCESS - Result: $update_result");
+                    
+                    // 2. AGGIORNA META DATI AGGIUNTIVI
+                    $meta_updates = [
+                        'billing_company' => $company,
+                        'billing_address_1' => $indirizzo,
+                        'billing_postcode' => $cap,
+                        'billing_city' => $citta,
+                        'billing_country' => 'IT',
+                        'codice_fiscale_piva' => $cf_piva,
+                        'codice_destinatario' => $codice_dest,
+                        'pec' => $pec
+                    ];
+                    
+                    $meta_success = 0;
+                    $meta_errors = [];
+                    
+                    foreach ($meta_updates as $meta_key => $meta_value) {
+                        $result = update_user_meta($user_id, $meta_key, $meta_value);
+                        write_log_cm("DEBUG Edit Profile - update_user_meta($user_id, '$meta_key', '$meta_value') = " . ($result ? 'SUCCESS' : 'FAILED'));
+                        
+                        if ($result !== false) {
+                            $meta_success++;
+                        } else {
+                            $meta_errors[] = $meta_key;
+                        }
+                    }
+                    
+                    write_log_cm("DEBUG Edit Profile - Meta aggiornati con successo: $meta_success/" . count($meta_updates));
+                    if (!empty($meta_errors)) {
+                        write_log_cm("DEBUG Edit Profile - Meta con errori: " . implode(', ', $meta_errors));
+                    }
+                    
+                    // 3. VERIFICA CHE I DATI SIANO STATI SALVATI
+                    $verification_data = [
+                        'first_name' => get_user_meta($user_id, 'first_name', true),
+                        'last_name' => get_user_meta($user_id, 'last_name', true),
+                        'billing_company' => get_user_meta($user_id, 'billing_company', true),
+                        'billing_address_1' => get_user_meta($user_id, 'billing_address_1', true),
+                        'billing_postcode' => get_user_meta($user_id, 'billing_postcode', true),
+                        'billing_city' => get_user_meta($user_id, 'billing_city', true),
+                        'codice_fiscale_piva' => get_user_meta($user_id, 'codice_fiscale_piva', true),
+                        'codice_destinatario' => get_user_meta($user_id, 'codice_destinatario', true),
+                        'pec' => get_user_meta($user_id, 'pec', true)
+                    ];
+                    
+                    write_log_cm("DEBUG Edit Profile - Verifica dati salvati: " . print_r($verification_data, true));
+                    
+                    // Messaggio di successo
+                    $display_name = !empty($nome) ? $nome : (!empty($company) ? $company : $current_user->user_login);
+                    $message = '<div style="background: #d4edda; padding: 25px; border: 1px solid #28a745; color: #155724; margin: 20px 0; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <h3 style="margin-top: 0; color: #155724;">✅ PROFILO AGGIORNATO!</h3>
+                        <p style="font-size: 18px; margin: 15px 0;"><strong>Ciao ' . esc_html($display_name) . '!</strong></p>
+                        <p style="margin: 15px 0;">Le tue informazioni sono state salvate con successo.</p>
+                        ' . (!empty($new_password) ? '<p style="margin: 15px 0; color: #155724;"><strong>Password aggiornata!</strong> Usa la nuova password al prossimo login.</p>' : '') . '
+                        <div style="margin-top: 25px;">
+                            <a href="/" style="background: linear-gradient(45deg, #28a745, #20c997); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px; box-shadow: 0 4px 8px rgba(40,167,69,0.3);">🏠 TORNA ALLA HOME</a>
+                        </div>
+                        <div style="margin-top: 15px; font-size: 12px; color: #666;">
+                            Debug: Meta aggiornati ' . $meta_success . '/' . count($meta_updates) . ' | User update: ' . ($update_result ? 'OK' : 'FAILED') . '
+                        </div>
+                    </div>';
+                    
+                    // Aggiorna i dati esistenti per il form con i nuovi valori
+                    $existing_data = [
+                        'email' => $email,
+                        'nome' => $nome,
+                        'cognome' => $cognome,
+                        'company' => $company,
+                        'indirizzo' => $indirizzo,
+                        'cap' => $cap,
+                        'citta' => $citta,
+                        'cf_piva' => $cf_piva,
+                        'codice_dest' => $codice_dest,
+                        'pec' => $pec
+                    ];
+                    
+                    // Reset form data dopo successo
+                    $form_data = [];
+                    
+                    write_log_cm("DEBUG Edit Profile - Processo completato con successo per user $user_id");
+                }
+            }
+        }
+    }
+    
+    // Usa existing_data se non ci sono errori, altrimenti form_data
+    $display_data = empty($form_data) ? $existing_data : array_merge($existing_data, $form_data);
+    
+    // ⚡ DEBUG: Log dei dati che verranno mostrati nel form
+    write_log_cm("DEBUG Edit Profile - Dati da mostrare nel form: " . print_r($display_data, true));
+    
+    // ============================================
+    // GENERA IL FORM HTML (identico alla versione precedente)
+    // ============================================
+    ob_start();
+    
+    if (!empty($message)) {
+        echo $message;
+    }
+    ?>
+    
+    <div style="max-width: 750px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <h2 style="text-align: center; color: #333; margin-bottom: 30px; font-size: 28px;">👤 Modifica il Tuo Profilo</h2>
+        
+            
+        <form method="post" action="<?php echo esc_url(get_permalink()); ?>" id="pictosoundEditProfileForm" class="pictosound-form" style="background: #f8f9fa; padding: 35px; border: 1px solid #dee2e6; border-radius: 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);">
+            
+            <!-- INFO ACCOUNT -->
+            <fieldset style="border: 2px solid #007cba; padding: 25px; margin: 25px 0; border-radius: 10px; background: white;">
+                <legend style="background: #007cba; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 16px;">📝 Informazioni Account</legend>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Username', 'pictosound-credits-manager'); ?></label>
+                        <input type="text" value="<?php echo esc_attr($current_user->user_login); ?>" disabled 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; background: #f1f1f1; color: #666;" />
+                        <small style="color: #666; font-size: 12px;">Username non modificabile</small>
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Email', 'pictosound-credits-manager'); ?> *</label>
+                        <input type="email" name="edit_email" value="<?php echo esc_attr($display_data['email']); ?>" required 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#007cba'" onblur="this.style.borderColor='#ddd'" />
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Nuova Password', 'pictosound-credits-manager'); ?> <small>(opzionale, min 8 caratteri)</small></label>
+                        <input type="password" name="edit_password" 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#007cba'" onblur="this.style.borderColor='#ddd'" 
+                               placeholder="Lascia vuoto per non modificare" />
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Ripeti Nuova Password', 'pictosound-credits-manager'); ?></label>
+                        <input type="password" name="edit_password2" 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#007cba'" onblur="this.style.borderColor='#ddd'" 
+                               placeholder="Ripeti la nuova password" />
+                    </div>
+                </div>
+            </fieldset>
+            
+            <!-- DATI ANAGRAFICI -->
+            <fieldset style="border: 2px solid #28a745; padding: 25px; margin: 25px 0; border-radius: 10px; background: white;">
+                <legend style="background: #28a745; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 16px;">👥 Dati Anagrafici</legend>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Nome', 'pictosound-credits-manager'); ?></label>
+                        <input type="text" name="edit_firstname" value="<?php echo esc_attr($display_data['nome']); ?>" 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#28a745'" onblur="this.style.borderColor='#ddd'" />
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Cognome', 'pictosound-credits-manager'); ?></label>
+                        <input type="text" name="edit_lastname" value="<?php echo esc_attr($display_data['cognome']); ?>" 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#28a745'" onblur="this.style.borderColor='#ddd'" />
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Ragione Sociale / Azienda', 'pictosound-credits-manager'); ?></label>
+                        <input type="text" name="edit_company" value="<?php echo esc_attr($display_data['company']); ?>" 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#28a745'" onblur="this.style.borderColor='#ddd'" />
+                    </div>
+                </div>
+            </fieldset>
+            
+            <!-- INDIRIZZO -->
+            <fieldset style="border: 2px solid #ffc107; padding: 25px; margin: 25px 0; border-radius: 10px; background: white;">
+                <legend style="background: #ffc107; color: #333; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 16px;">📍 Indirizzo</legend>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Indirizzo Completo', 'pictosound-credits-manager'); ?></label>
+                    <input type="text" name="edit_address" value="<?php echo esc_attr($display_data['indirizzo']); ?>" 
+                           style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                           onfocus="this.style.borderColor='#ffc107'" onblur="this.style.borderColor='#ddd'" 
+                           placeholder="Via/Piazza, numero civico" />
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('CAP', 'pictosound-credits-manager'); ?></label>
+                        <input type="text" name="edit_cap" value="<?php echo esc_attr($display_data['cap']); ?>" pattern="[0-9]{5}"
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#ffc107'" onblur="this.style.borderColor='#ddd'" 
+                               placeholder="00000" maxlength="5" />
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Città', 'pictosound-credits-manager'); ?></label>
+                        <input type="text" name="edit_city" value="<?php echo esc_attr($display_data['citta']); ?>" 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#ffc107'" onblur="this.style.borderColor='#ddd'" />
+                    </div>
+                </div>
+            </fieldset>
+            
+            <!-- DATI FISCALI -->
+            <fieldset style="border: 2px solid #dc3545; padding: 25px; margin: 25px 0; border-radius: 10px; background: white;">
+                <legend style="background: #dc3545; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 16px;">💼 Dati Fiscali e Fatturazione</legend>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Codice Fiscale o Partita IVA', 'pictosound-credits-manager'); ?></label>
+                    <input type="text" name="edit_cf_piva" value="<?php echo esc_attr($display_data['cf_piva']); ?>" 
+                           style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s; text-transform: uppercase;"
+                           onfocus="this.style.borderColor='#dc3545'" onblur="this.style.borderColor='#ddd'" 
+                           placeholder="RSSMRA80A01H501Z oppure 12345678901" />
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Codice Destinatario SDI', 'pictosound-credits-manager'); ?></label>
+                        <input type="text" name="edit_codice_dest" value="<?php echo esc_attr($display_data['codice_dest']); ?>" 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#dc3545'" onblur="this.style.borderColor='#ddd'" 
+                               placeholder="0000000" maxlength="7" />
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('PEC (Posta Elettronica Certificata)', 'pictosound-credits-manager'); ?></label>
+                        <input type="email" name="edit_pec" value="<?php echo esc_attr($display_data['pec']); ?>" 
+                               style="width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='#dc3545'" onblur="this.style.borderColor='#ddd'" 
+                               placeholder="fatture@pec.esempio.it" />
+                    </div>
+                </div>
+            </fieldset>
+            
+            <!-- BOTTONE SUBMIT -->
+            <div style="text-align: center; margin-top: 35px;">
+                <?php wp_nonce_field('pictosound_user_edit_profile_action', 'pictosound_edit_nonce_field'); ?>
+                <input type="submit" name="pictosound_edit_submit" value="<?php _e('💾 SALVA MODIFICHE', 'pictosound-credits-manager'); ?>" 
+                       style="background: linear-gradient(45deg, #007cba, #00a0d2); color: white; padding: 20px 45px; border: none; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 8px 20px rgba(0,124,186,0.3); transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px;"
+                       onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 12px 25px rgba(0,124,186,0.4)';" 
+                       onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 20px rgba(0,124,186,0.3)';" />
+            </div>
+        </form>
+    </div>
+    
+    <!-- CSS RESPONSIVE (identico alla versione precedente) -->
+    <style>
+    @media (max-width: 768px) {
+        #pictosoundEditProfileForm div[style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+            gap: 15px !important;
+        }
+        
+        #pictosoundEditProfileForm fieldset {
+            padding: 20px !important;
+            margin: 20px 0 !important;
+        }
+        
+        #pictosoundEditProfileForm input[type="submit"] {
+            padding: 15px 25px !important;
+            font-size: 16px !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        #pictosoundEditProfileForm {
+            padding: 25px 20px !important;
+        }
+        
+        #pictosoundEditProfileForm h2 {
+            font-size: 24px !important;
+        }
+    }
+    </style>
+    
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('pictosound_edit_profile', 'pictosound_cm_edit_profile_shortcode');
+
 /**
 * Funzione callback per lo shortcode [mio_saldo_crediti_pictosound].
 */
@@ -2864,292 +3410,5 @@ function pictosound_ms_load_textdomain() {
    load_plugin_textdomain( 'pictosound-mostra-saldo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' ); 
 }
 add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
-// ============================================
-// FUNZIONI GALLERY PICTOSOUND
-// ============================================
 
-function pictosound_cm_create_gallery_table() {
-    global $wpdb;
-    
-    $table_name = $wpdb->prefix . 'pictosound_user_creations';
-    
-    $charset_collate = $wpdb->get_charset_collate();
-    
-    $sql = "CREATE TABLE $table_name (
-        id mediumint(9) NOT NULL AUTO_INCREMENT,
-        user_id bigint(20) NOT NULL,
-        title varchar(255) NOT NULL DEFAULT '',
-        description text,
-        original_image_path varchar(500) DEFAULT '',
-        audio_file_path varchar(500) NOT NULL DEFAULT '',
-        audio_file_url varchar(500) NOT NULL DEFAULT '',
-        prompt_text text,
-        duration int(11) DEFAULT 40,
-        audio_format varchar(10) DEFAULT 'mp3',
-        file_size int(11) DEFAULT 0,
-        image_analysis_data longtext,
-        detected_objects varchar(1000) DEFAULT '',
-        detected_emotions varchar(500) DEFAULT '',
-        musical_settings longtext,
-        share_token varchar(64) NOT NULL DEFAULT '',
-        is_public tinyint(1) DEFAULT 0,
-        downloads_count int(11) DEFAULT 0,
-        created_at datetime DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        KEY user_id (user_id),
-        KEY share_token (share_token),
-        KEY created_at (created_at),
-        KEY is_public (is_public)
-    ) $charset_collate;";
-    
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
-    
-    write_log_cm("Tabella gallery creata/aggiornata");
-}
-register_activation_hook(__FILE__, 'pictosound_cm_create_gallery_table');
-
-function pictosound_cm_get_user_creations($user_id, $options = []) {
-    global $wpdb;
-    
-    $defaults = [
-        'limit' => 12,
-        'offset' => 0,
-        'order_by' => 'created_at',
-        'order' => 'DESC',
-        'search' => '',
-        'date_from' => '',
-        'date_to' => ''
-    ];
-    
-    $options = wp_parse_args($options, $defaults);
-    
-    $table_name = $wpdb->prefix . 'pictosound_user_creations';
-    
-    $where_conditions = ['user_id = %d'];
-    $where_values = [$user_id];
-    
-    if (!empty($options['search'])) {
-        $where_conditions[] = '(title LIKE %s OR description LIKE %s OR detected_objects LIKE %s)';
-        $search_term = '%' . $wpdb->esc_like($options['search']) . '%';
-        $where_values[] = $search_term;
-        $where_values[] = $search_term;
-        $where_values[] = $search_term;
-    }
-    
-    if (!empty($options['date_from'])) {
-        $where_conditions[] = 'created_at >= %s';
-        $where_values[] = $options['date_from'] . ' 00:00:00';
-    }
-    
-    if (!empty($options['date_to'])) {
-        $where_conditions[] = 'created_at <= %s';
-        $where_values[] = $options['date_to'] . ' 23:59:59';
-    }
-    
-    $where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
-    
-    $order_by = sanitize_sql_orderby($options['order_by'] . ' ' . $options['order']);
-    if (!$order_by) {
-        $order_by = 'created_at DESC';
-    }
-    
-    $limit = intval($options['limit']);
-    $offset = intval($options['offset']);
-    
-    $sql = $wpdb->prepare(
-        "SELECT * FROM {$table_name} {$where_clause} ORDER BY {$order_by} LIMIT %d OFFSET %d",
-        array_merge($where_values, [$limit, $offset])
-    );
-    
-    $results = $wpdb->get_results($sql, ARRAY_A);
-    
-    $count_sql = $wpdb->prepare(
-        "SELECT COUNT(*) FROM {$table_name} {$where_clause}",
-        $where_values
-    );
-    $total = $wpdb->get_var($count_sql);
-    
-    return [
-        'creations' => $results,
-        'total' => $total,
-        'has_more' => ($offset + $limit) < $total
-    ];
-}
-
-function pictosound_cm_my_gallery_shortcode($atts) {
-    if (!is_user_logged_in()) {
-        return '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 15px; text-align: center; margin: 20px 0;">
-            <h3>🔒 Accesso Richiesto</h3>
-            <p>Effettua il <a href="/wp-login.php" style="color: #ffd700; font-weight: bold;">login</a> per vedere la tua galleria personale.</p>
-        </div>';
-    }
-    
-    $atts = shortcode_atts([
-        'per_page' => 12,
-        'view' => 'grid'
-    ], $atts);
-    
-    $user_id = get_current_user_id();
-    
-    $current_page = max(1, intval($_GET['gallery_page'] ?? 1));
-    $search = sanitize_text_field($_GET['gallery_search'] ?? '');
-    $date_from = sanitize_text_field($_GET['date_from'] ?? '');
-    $date_to = sanitize_text_field($_GET['date_to'] ?? '');
-    
-    $offset = ($current_page - 1) * $atts['per_page'];
-    
-    $options = [
-        'limit' => $atts['per_page'],
-        'offset' => $offset,
-        'search' => $search,
-        'date_from' => $date_from,
-        'date_to' => $date_to
-    ];
-    
-    $data = pictosound_cm_get_user_creations($user_id, $options);
-    
-    ob_start();
-    ?>
-    
-    <div class="pictosound-my-gallery" data-user-id="<?php echo esc_attr($user_id); ?>">
-        
-        <!-- HEADER -->
-        <div style="text-align: center; margin-bottom: 40px; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; color: white;">
-            <h2 style="margin: 0 0 20px 0; font-size: 2.5rem; font-weight: 700;">🎵 La Mia Galleria Pictosound</h2>
-            <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
-                <div style="text-align: center; background: rgba(255,255,255,0.1); padding: 15px 20px; border-radius: 12px;">
-                    <div style="font-size: 2rem; font-weight: 800; color: #ffd700;"><?php echo count($data['creations']); ?></div>
-                    <div style="font-size: 0.9rem; opacity: 0.9;">Creazioni</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- FILTRI -->
-        <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 30px;">
-            <form method="GET" style="display: grid; grid-template-columns: 1fr auto auto; gap: 20px; align-items: end;">
-                <div>
-                    <input type="text" name="gallery_search" placeholder="🔍 Cerca nelle tue creazioni..." 
-                           value="<?php echo esc_attr($search); ?>" 
-                           style="width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 16px;" />
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="date" name="date_from" value="<?php echo esc_attr($date_from); ?>" 
-                           style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px;" />
-                    <span>-</span>
-                    <input type="date" name="date_to" value="<?php echo esc_attr($date_to); ?>" 
-                           style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px;" />
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button type="submit" style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;">
-                        Filtra
-                    </button>
-                    <a href="<?php echo remove_query_arg(['gallery_search', 'date_from', 'date_to', 'gallery_page']); ?>" 
-                       style="color: #64748b; text-decoration: none; padding: 12px 16px; border-radius: 8px;">Reset</a>
-                </div>
-            </form>
-        </div>
-        
-        <?php if (empty($data['creations'])): ?>
-            <!-- STATO VUOTO -->
-            <div style="text-align: center; padding: 80px 20px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 20px;">
-                <div style="font-size: 5rem; margin-bottom: 20px; opacity: 0.7;">🎨</div>
-                <h3 style="font-size: 1.8rem; color: #334155; margin: 0 0 10px 0;">La tua galleria è vuota</h3>
-                <p style="color: #64748b; font-size: 1.1rem; margin: 0 0 30px 0;">Inizia a creare la tua prima traccia musicale!</p>
-                <a href="/" style="display: inline-block; background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 15px 30px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 1.1rem;">
-                    🚀 Crea Ora
-                </a>
-            </div>
-        <?php else: ?>
-            <!-- GRID CREAZIONI -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 30px; margin-bottom: 40px;">
-                <?php foreach ($data['creations'] as $creation): ?>
-                    <div style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
-                        
-                        <!-- IMMAGINE PLACEHOLDER -->
-                        <div style="position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); display: flex; align-items: center; justify-content: center;">
-                            <div style="font-size: 4rem; color: #cbd5e0;">🎵</div>
-                            
-                            <!-- PLAY BUTTON -->
-                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s;" 
-                                 onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
-                                <button onclick="playAudio('<?php echo esc_js($creation['audio_file_url']); ?>')" 
-                                        style="background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 80px; height: 80px; font-size: 2rem; cursor: pointer;">
-                                    ▶️
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- INFO -->
-                        <div style="padding: 20px;">
-                            <h4 style="font-size: 1.25rem; font-weight: 700; color: #1a202c; margin: 0 0 10px 0;">
-                                <?php echo esc_html($creation['title'] ?: 'Senza titolo'); ?>
-                            </h4>
-                            <p style="display: flex; gap: 15px; font-size: 0.9rem; color: #64748b; margin: 0 0 15px 0;">
-                                <span>📅 <?php echo date('d/m/Y H:i', strtotime($creation['created_at'])); ?></span>
-                                <span>⏱️ <?php echo $creation['duration']; ?>s</span>
-                                <span>📥 <?php echo $creation['downloads_count']; ?></span>
-                            </p>
-                            
-                            <?php if (!empty($creation['detected_objects'])): ?>
-                                <p style="font-size: 0.85rem; color: #64748b; margin: 0;">
-                                    🏷️ <?php echo esc_html(substr($creation['detected_objects'], 0, 50)); ?>
-                                    <?php if (strlen($creation['detected_objects']) > 50) echo '...'; ?>
-                                </p>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <!-- AZIONI -->
-                        <div style="padding: 15px 20px 20px; display: flex; gap: 8px; flex-wrap: wrap;">
-                            <a href="<?php echo esc_url($creation['audio_file_url'] . '&creation_id=' . $creation['id']); ?>" 
-                               style="background: #22c55e; color: white; padding: 8px 12px; text-decoration: none; border-radius: 8px; font-size: 0.85rem;" download>
-                                📥 Download
-                            </a>
-                            <button onclick="shareCreation('<?php echo esc_js($creation['share_token']); ?>')" 
-                                    style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; cursor: pointer;">
-                                🔗 Condividi
-                            </button>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
-    
-    <!-- AUDIO PLAYER GLOBALE -->
-    <div id="gallery-audio-player" style="display: none; position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.15); z-index: 1000;">
-        <audio controls preload="none" style="width: 300px;"></audio>
-    </div>
-    
-    <script>
-    function playAudio(url) {
-        const player = document.getElementById('gallery-audio-player');
-        const audio = player.querySelector('audio');
-        
-        player.style.display = 'block';
-        audio.src = url;
-        audio.play();
-        
-        audio.addEventListener('ended', function() {
-            player.style.display = 'none';
-        });
-    }
-    
-    function shareCreation(token) {
-        const shareUrl = window.location.origin + '/condividi/' + token;
-        
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                alert('🔗 Link copiato negli appunti!');
-            });
-        } else {
-            prompt('Copia questo link:', shareUrl);
-        }
-    }
-    </script>
-    
-    <?php
-    return ob_get_clean();
-}
-add_shortcode('pictosound_my_gallery', 'pictosound_cm_my_gallery_shortcode')
 ?>
