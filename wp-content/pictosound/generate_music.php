@@ -1,8 +1,10 @@
 <?php
+// ⚡ AGGIUNTO: Carica WordPress per accesso database e funzioni utente
+require_once('../../../wp-load.php');
+
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
-// Non impostare Content-Type: application/json qui di default, lo faremo dopo se necessario
 
 // Logging per debugging
 function write_log($message) {
@@ -16,17 +18,82 @@ function write_log($message) {
     file_put_contents($log_dir . 'api_log.txt', date('[Y-m-d H:i:s] ') . $message . "\n", FILE_APPEND);
 }
 
+// ⚡ AGGIUNTO: Funzioni helper per la gallery
+function pictosound_save_user_creation($user_id, $creation_data) {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'pictosound_user_creations';
+    
+    // Genera token di condivisione unico
+    $share_token = wp_generate_password(32, false);
+    
+    $data = [
+        'user_id' => $user_id,
+        'title' => sanitize_text_field($creation_data['title'] ?? ''),
+        'description' => sanitize_textarea_field($creation_data['description'] ?? ''),
+        'original_image_path' => sanitize_text_field($creation_data['image_path'] ?? ''),
+        'audio_file_path' => sanitize_text_field($creation_data['audio_path'] ?? ''),
+        'audio_file_url' => esc_url_raw($creation_data['audio_url'] ?? ''),
+        'prompt_text' => sanitize_textarea_field($creation_data['prompt'] ?? ''),
+        'duration' => intval($creation_data['duration'] ?? 40),
+        'audio_format' => sanitize_text_field($creation_data['format'] ?? 'mp3'),
+        'file_size' => intval($creation_data['file_size'] ?? 0),
+        'image_analysis_data' => wp_json_encode($creation_data['analysis_data'] ?? []),
+        'detected_objects' => sanitize_text_field($creation_data['objects'] ?? ''),
+        'detected_emotions' => sanitize_text_field($creation_data['emotions'] ?? ''),
+        'musical_settings' => wp_json_encode($creation_data['musical_settings'] ?? []),
+        'share_token' => $share_token,
+        'is_public' => boolval($creation_data['is_public'] ?? false)
+    ];
+    
+    $result = $wpdb->insert($table_name, $data);
+    
+    if ($result !== false) {
+        $creation_id = $wpdb->insert_id;
+        write_log("GALLERY: Creazione salvata con ID: $creation_id per user: $user_id");
+        return $creation_id;
+    }
+    
+    write_log("GALLERY: Errore nel salvare creazione per user: $user_id - " . $wpdb->last_error);
+    return false;
+}
+
+function pictosound_get_creation_share_token($creation_id) {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'pictosound_user_creations';
+    
+    $token = $wpdb->get_var($wpdb->prepare(
+        "SELECT share_token FROM {$table_name} WHERE id = %d",
+        $creation_id
+    ));
+    
+    return $token;
+}
+
 // Download audio
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download'])) {
     $filename = basename($_GET['download']);
     $filename = preg_replace('/[^a-zA-Z0-9_.-]/', '', $filename);
-    $audio_dir = __DIR__ . '/audio/'; // Assicurati che audio_dir sia definito
+    $audio_dir = __DIR__ . '/audio/';
     $filepath = $audio_dir . $filename;
 
     if (file_exists($filepath)) {
-        // Determina il content type in base all'estensione per sicurezza
+        // ⚡ AGGIUNTO: Aggiorna contatore download se c'è un creation_id
+        if (isset($_GET['creation_id']) && is_user_logged_in()) {
+            $creation_id = intval($_GET['creation_id']);
+            $user_id = get_current_user_id();
+            
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'pictosound_user_creations';
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$table_name} SET downloads_count = downloads_count + 1 WHERE id = %d AND user_id = %d",
+                $creation_id, $user_id
+            ));
+        }
+        
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        $content_type = 'application/octet-stream'; // Default
+        $content_type = 'application/octet-stream';
         if ($extension === 'wav') {
             $content_type = 'audio/wav';
         } elseif ($extension === 'mp3') {
@@ -40,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download'])) {
         readfile($filepath);
         exit;
     }
-    // Se il file non esiste, invia una risposta JSON di errore
+    
     header('Content-Type: application/json');
     http_response_code(404);
     echo json_encode(['error' => 'File non trovato']);
@@ -49,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download'])) {
 
 // Preflight CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204); // No Content
+    http_response_code(204);
     exit;
 }
 
@@ -76,8 +143,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $prompt_text_from_frontend = trim($input['prompt'] ?? '');
     write_log("Prompt ricevuto dal frontend: '" . $prompt_text_from_frontend . "' (Lunghezza UTF-8: " . mb_strlen($prompt_text_from_frontend, 'UTF-8') . ")");
     
-    // DISATTIVIAMO IL TEST HARDCODED PER USARE IL PROMPT DAL FRONTEND
-    // $USE_HARDCODED_PROMPT_FOR_TESTING = true; 
+    // ⚡ AGGIUNTO: Estrai dati per la gallery
+    $gallery_data = $input['gallery_data'] ?? [];
+    write_log("GALLERY: Dati gallery ricevuti: " . print_r($gallery_data, true));
 
     if ($prompt_text_from_frontend === '') { 
         header('Content-Type: application/json');
@@ -94,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // USA LA TUA CHIAVE API VALIDA
+    $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA';
     if (empty($api_key)) { 
         header('Content-Type: application/json');
         write_log("API Key mancante nello script.");
@@ -102,28 +170,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $api_url = 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio';
-    $fields_to_send = [];
-
-    // Usiamo il prompt dal frontend
     $prompt_to_send_to_api = $prompt_text_from_frontend;
-    
-    // Parametri come da esempio curl di Stability AI
-    $output_format = 'mp3'; // o 'wav'
-    $duration_seconds = isset($input['duration']) ? intval($input['duration']) : 20; // Default a 20s, o prendi da input
-    if ($duration_seconds <=0) $duration_seconds = 20; // Fallback
-    $steps = 30; // Valore di esempio, puoi renderlo configurabile
+    $output_format = 'mp3';
+    $duration_seconds = isset($input['duration']) ? max(30, min(180, intval($input['duration']))) : 45;
+    if ($duration_seconds <=0) $duration_seconds = 20;
+    $steps = 30;
 
     $fields_to_send = [
         'prompt'         => $prompt_to_send_to_api, 
         'output_format'  => $output_format,
-        'duration'       => $duration_seconds, // La documentazione a volte usa 'duration', a volte 'length_seconds'
-                                              // L'esempio curl usa 'duration'
+        'duration'       => $duration_seconds,
         'steps'          => $steps
-        // Altri parametri come cfg_scale, sample_rate potrebbero essere aggiunti se supportati con questo stile di chiamata
-        // Per ora, ci atteniamo all'esempio curl che ha funzionato
     ];
     write_log("Usando prompt da frontend con formato API stile esempio: '" . substr($prompt_to_send_to_api,0,100) . "...'");
-
 
     write_log("Invio richiesta multipart a Stability API: $api_url");
     write_log("Struttura dei campi da inviare: " . print_r($fields_to_send, true));
@@ -163,7 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         CURLOPT_POSTFIELDS     => $request_body,
         CURLOPT_HTTPHEADER     => [
             "Authorization: Bearer $api_key",
-            "Accept: audio/*", // Richiediamo audio direttamente
+            "Accept: audio/*",
             "Content-Type: multipart/form-data; boundary=" . $boundary,
             "Content-Length: " . strlen($request_body),
             "Expect:" 
@@ -186,14 +245,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     write_log("Risposta da Stability API - HTTP Code: $http_code, Curl Error: " . ($curl_error ?: 'None'));
     write_log("Header della risposta ricevuti: " . print_r($response_headers, true));
-    // Log più esteso del corpo se non è chiaramente audio lungo
+    
     $response_content_type_log = isset($response_headers['content-type'][0]) ? $response_headers['content-type'][0] : 'N/D';
     if (strlen($response_body_raw) < 5000 || stripos($response_content_type_log, 'text') !== false || stripos($response_content_type_log, 'json') !== false) {
         write_log("Corpo della risposta grezza (lunghezza: " . strlen($response_body_raw) . "):\n" . $response_body_raw);
     } else {
         write_log("Corpo della risposta grezza (lunghezza: " . strlen($response_body_raw) . ", Content-Type: " . $response_content_type_log . "): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]");
     }
-
 
     if ($curl_error) {
         header('Content-Type: application/json');
@@ -217,18 +275,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (file_put_contents($filepath, $response_body_raw) !== false) {
                 write_log("Audio salvato con successo: $filename");
+                
                 $scheme   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ? 'https' : 'http';
                 $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
                 $script_download_url = $_SERVER['PHP_SELF'] . '?download=' . urlencode($filename);
                 $full_download_url = "$scheme://$host" . $script_download_url;
                 
-                header('Content-Type: application/json'); // Assicurati che la risposta al client sia JSON
+                // ⚡ NUOVO: INTEGRAZIONE GALLERY
+                $gallery_info = ['error' => 'User not logged in'];
+                
+                if (is_user_logged_in()) {
+                    $user_id = get_current_user_id();
+                    write_log("GALLERY: Utente loggato (ID: $user_id), inizio salvataggio creazione");
+                    
+                    $creation_data = [
+                        'title' => 'Creazione del ' . date('d/m/Y H:i'),
+                        'description' => 'Generata automaticamente da immagine',
+                        'image_path' => '',
+                        'audio_path' => $filepath,
+                        'audio_url' => $script_download_url,
+                        'prompt' => $prompt_to_send_to_api,
+                        'duration' => $duration_seconds,
+                        'format' => $file_extension,
+                        'file_size' => filesize($filepath),
+                        'analysis_data' => [],
+                        'objects' => '',
+                        'emotions' => '',
+                        'musical_settings' => [],
+                        'is_public' => false
+                    ];
+                    
+                    if (!empty($gallery_data)) {
+                        if (isset($gallery_data['analysis_data'])) {
+                            $analysis = $gallery_data['analysis_data'];
+                            $creation_data['analysis_data'] = $analysis;
+                            $creation_data['objects'] = isset($analysis['objects']) ? implode(', ', $analysis['objects']) : '';
+                            $creation_data['emotions'] = isset($analysis['emotions']) ? implode(', ', $analysis['emotions']) : '';
+                            $creation_data['image_path'] = $analysis['image_path'] ?? '';
+                        }
+                        
+                        if (isset($gallery_data['musical_settings'])) {
+                            $creation_data['musical_settings'] = $gallery_data['musical_settings'];
+                        }
+                        
+                        if (!empty($creation_data['objects']) || !empty($creation_data['emotions'])) {
+                            $title_parts = [];
+                            if (!empty($creation_data['emotions'])) {
+                                $title_parts[] = "Mood: " . $creation_data['emotions'];
+                            }
+                            if (!empty($creation_data['objects'])) {
+                                $objects_short = explode(', ', $creation_data['objects']);
+                                $title_parts[] = "da: " . $objects_short[0] . (count($objects_short) > 1 ? ' e altro' : '');
+                            }
+                            if (!empty($title_parts)) {
+                                $creation_data['title'] = implode(' - ', $title_parts) . ' (' . date('d/m H:i') . ')';
+                            }
+                        }
+                    }
+                    
+                    write_log("GALLERY: Dati creazione preparati: " . print_r($creation_data, true));
+                    
+                    $creation_id = pictosound_save_user_creation($user_id, $creation_data);
+                    
+                    if ($creation_id) {
+                        $share_token = pictosound_get_creation_share_token($creation_id);
+                        
+                        $gallery_info = [
+                            'creation_id' => $creation_id,
+                            'gallery_url' => home_url('/la-mia-galleria/'),
+                            'share_url' => $share_token ? home_url('/condividi/' . $share_token) : null,
+                            'share_token' => $share_token
+                        ];
+                        
+                        $script_download_url .= '&creation_id=' . $creation_id;
+                        $full_download_url .= '&creation_id=' . $creation_id;
+                        
+                        write_log("GALLERY: Creazione salvata con successo - ID: $creation_id, Token: $share_token");
+                    } else {
+                        write_log("GALLERY: Errore nel salvare creazione per user: $user_id");
+                        $gallery_info = ['error' => 'Gallery save failed'];
+                    }
+                } else {
+                    write_log("GALLERY: Utente non loggato, skip salvataggio gallery");
+                }
+                
+                header('Content-Type: application/json');
                 echo json_encode([
                     'success'     => true,
                     'audioUrl'    => $script_download_url, 
                     'downloadUrl' => $full_download_url,
                     'fileName'    => $filename,
-                    'message'     => 'Audio generato e salvato con successo.'
+                    'message'     => 'Audio generato e salvato con successo.',
+                    'gallery'     => $gallery_info
                 ], JSON_UNESCAPED_SLASHES);
                 exit;
             } else {
@@ -239,16 +377,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
         } else {
-            // HTTP 200 ma non è audio e non è il JSON che ci aspettavamo prima
             header('Content-Type: application/json');
             $error_msg = "Risposta API OK (HTTP 200) ma il Content-Type non è audio come atteso, oppure il corpo è vuoto. Content-Type: $response_content_type";
             write_log($error_msg . ". Corpo risposta: " . $response_body_raw);
-            http_response_code(502); // Bad Gateway - risposta inattesa dal server upstream
+            http_response_code(502);
             echo json_encode(['error' => "API Error (502): $error_msg"]);
             exit;
         }
 
-    } else { // Gestione errori HTTP non 2xx
+    } else {
         header('Content-Type: application/json');
         $error_msg = 'Errore API sconosciuto.';
         $resp_json = null;
@@ -268,20 +405,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error_msg = "L'API ha restituito HTTP $http_code senza corpo.";
         }
         
-        // Specifico per l'errore "prompt: required" se dovesse riapparire
         if ($resp_json !== null && isset($resp_json['errors']) && in_array("prompt: required", $resp_json['errors'])) {
             $error_msg = "prompt: required (da API)";
         }
 
-
         write_log("Errore API Stability (HTTP $http_code): $error_msg. Risposta grezza: " . $response_body_raw);
-        http_response_code($http_code); // Usa il codice HTTP originale dell'API
+        http_response_code($http_code);
         echo json_encode(['error' => "API Error ($http_code): $error_msg"]);
         exit;
     }
 }
 
-// Se non è POST, GET con download, o OPTIONS
 header('Content-Type: application/json');
 write_log("Richiesta con metodo non supportato: " . $_SERVER['REQUEST_METHOD']);
 http_response_code(405);

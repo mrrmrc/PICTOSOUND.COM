@@ -1668,10 +1668,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 console.log(`LOG: Parametri per generazione musica: prompt="${promptForMusic}", duration=${duration}, steps=${steps}`);
 
+                // ⚡ NUOVO: Prepara dati gallery per l'invio
+                const galleryData = prepareGalleryData();
+
+                const requestBody = {
+                    prompt: promptForMusic,
+                    duration: duration,
+                    steps: steps,
+                    gallery_data: galleryData  // ⚡ AGGIUNTO: Dati per gallery
+                };
+
+                console.log("LOG: Dati completi da inviare:", requestBody);
+
                 const musicApiResponse = await fetch('/wp-content/pictosound/generate_music.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: promptForMusic, duration: duration, steps: steps })
+                    body: JSON.stringify(requestBody)  // ⚡ MODIFICATO: Usa requestBody completo
                 });
 
                 console.log(`LOG: Risposta da generate_music.php. Status: ${musicApiResponse.status}`);
@@ -1684,6 +1696,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (musicResult.success && musicResult.audioUrl) {
                         updateProgressMessage("", false);
                         if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Musica generata con successo!", "success");
+
+                        // ⚡ NUOVO: Gestisci risposta gallery
+                        if (musicResult.gallery && !musicResult.gallery.error) {
+                            console.log("GALLERY: Creazione salvata:", musicResult.gallery);
+
+                            // Mostra notifica gallery se utente loggato
+                            if (musicResult.gallery.creation_id) {
+                                showGalleryNotification(musicResult.gallery);
+                            }
+                        } else if (musicResult.gallery && musicResult.gallery.error) {
+                            console.log("GALLERY: Non salvata -", musicResult.gallery.error);
+                        }
 
                         setTimeout(() => {
                             if (domElements.statusDiv && domElements.statusDiv.textContent === "Musica generata con successo!") {
@@ -1797,7 +1821,176 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     });
+    // ⚡ NUOVE FUNZIONI GALLERY
+    function prepareGalleryData() {
+        const galleryData = {};
 
+        // Dati analisi immagine se disponibili
+        if (imageAnalysisResults) {
+            galleryData.analysis_data = {
+                objects: imageAnalysisResults.objects || [],
+                emotions: imageAnalysisResults.emotions || [],
+                colors: imageAnalysisResults.colors || {},
+                image_path: currentImageSrc || ''
+            };
+        }
+
+        // Impostazioni musicali selezionate dall'utente
+        const selectedMoods = getSelectedCheckboxValues('mood');
+        const selectedGenres = getSelectedCheckboxValues('genre');
+        const selectedInstruments = getSelectedCheckboxValues('instrument');
+        const selectedRhythms = getSelectedCheckboxValues('rhythm');
+        const selectedBPM = domElements.bpmSlider ? domElements.bpmSlider.value : 120;
+
+        galleryData.musical_settings = {
+            moods: selectedMoods,
+            genres: selectedGenres,
+            instruments: selectedInstruments,
+            rhythms: selectedRhythms,
+            bpm: selectedBPM,
+            creativity_level: CREATIVITY_LEVEL
+        };
+
+        console.log("LOG: Dati gallery preparati:", galleryData);
+        return galleryData;
+    }
+
+    function showGalleryNotification(galleryInfo) {
+        // Rimuovi notifiche esistenti
+        document.querySelectorAll('.gallery-notification').forEach(el => el.remove());
+
+        // Crea notifica
+        const notification = document.createElement('div');
+        notification.className = 'gallery-notification';
+        notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        z-index: 10000;
+        max-width: 350px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        animation: slideInRight 0.5s ease;
+    `;
+
+        notification.innerHTML = `
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 1.5rem; margin-right: 10px;">🎵</span>
+            <strong style="font-size: 1.1rem;">Salvato nella Gallery!</strong>
+        </div>
+        <p style="margin: 0 0 15px 0; font-size: 0.9rem; opacity: 0.9;">
+            La tua creazione è stata salvata nella libreria personale.
+        </p>
+        <div style="display: flex; gap: 10px;">
+            <a href="${galleryInfo.gallery_url}" 
+               style="background: rgba(255,255,255,0.2); color: white; padding: 8px 12px; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500;">
+                📚 Vedi Gallery
+            </a>
+            ${galleryInfo.share_url ? `
+                <button onclick="copyToClipboard('${galleryInfo.share_url}')" 
+                        style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer;">
+                    🔗 Condividi
+                </button>
+            ` : ''}
+        </div>
+        <button onclick="this.parentElement.remove()" 
+                style="position: absolute; top: 8px; right: 12px; background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; opacity: 0.7;">
+            ×
+        </button>
+    `;
+
+        document.body.appendChild(notification);
+
+        // Auto-rimozione dopo 8 secondi
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.animation = 'slideOutRight 0.5s ease';
+                setTimeout(() => notification.remove(), 500);
+            }
+        }, 8000);
+    }
+
+    function copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+                showTempMessage('🔗 Link copiato negli appunti!');
+            }).catch(err => {
+                console.error('Errore copia clipboard:', err);
+                fallbackCopyToClipboard(text);
+            });
+        } else {
+            fallbackCopyToClipboard(text);
+        }
+    }
+
+    function fallbackCopyToClipboard(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            showTempMessage('🔗 Link copiato negli appunti!');
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            prompt('Copia questo link:', text);
+        }
+
+        document.body.removeChild(textArea);
+    }
+
+    function showTempMessage(message) {
+        const tempMsg = document.createElement('div');
+        tempMsg.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #22c55e;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        z-index: 10001;
+        animation: fadeInOut 2s ease;
+    `;
+        tempMsg.textContent = message;
+        document.body.appendChild(tempMsg);
+
+        setTimeout(() => tempMsg.remove(), 2000);
+    }
+
+    // CSS per animazioni
+    if (!document.getElementById('gallery-notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'gallery-notification-styles';
+        style.textContent = `
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(100px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        @keyframes slideOutRight {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(100px); }
+        }
+        
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+    `;
+        document.head.appendChild(style);
+    }
     // Fullscreen image on audio play
     if (domElements.audioPlayer && domElements.fullscreenImageModal && domElements.fullscreenImage && domElements.closeFullscreenButton) {
         domElements.audioPlayer.onplay = () => {
@@ -1810,7 +2003,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             domElements.fullscreenImageModal.style.display = 'none';
         };
         window.onclick = (event) => {
-            if (event.target == domElements.fullscreenImageModal) {
+            if (event.target === domElements.fullscreenImageModal) {
                 domElements.fullscreenImageModal.style.display = 'none';
             }
-        };
+        }; // Verifica se in questo file c'è un errore di sintassi

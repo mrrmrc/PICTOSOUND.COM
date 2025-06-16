@@ -2855,5 +2855,292 @@ function pictosound_ms_load_textdomain() {
    load_plugin_textdomain( 'pictosound-mostra-saldo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' ); 
 }
 add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
+// ============================================
+// FUNZIONI GALLERY PICTOSOUND
+// ============================================
 
+function pictosound_cm_create_gallery_table() {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'pictosound_user_creations';
+    
+    $charset_collate = $wpdb->get_charset_collate();
+    
+    $sql = "CREATE TABLE $table_name (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) NOT NULL,
+        title varchar(255) NOT NULL DEFAULT '',
+        description text,
+        original_image_path varchar(500) DEFAULT '',
+        audio_file_path varchar(500) NOT NULL DEFAULT '',
+        audio_file_url varchar(500) NOT NULL DEFAULT '',
+        prompt_text text,
+        duration int(11) DEFAULT 40,
+        audio_format varchar(10) DEFAULT 'mp3',
+        file_size int(11) DEFAULT 0,
+        image_analysis_data longtext,
+        detected_objects varchar(1000) DEFAULT '',
+        detected_emotions varchar(500) DEFAULT '',
+        musical_settings longtext,
+        share_token varchar(64) NOT NULL DEFAULT '',
+        is_public tinyint(1) DEFAULT 0,
+        downloads_count int(11) DEFAULT 0,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY user_id (user_id),
+        KEY share_token (share_token),
+        KEY created_at (created_at),
+        KEY is_public (is_public)
+    ) $charset_collate;";
+    
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+    
+    write_log_cm("Tabella gallery creata/aggiornata");
+}
+register_activation_hook(__FILE__, 'pictosound_cm_create_gallery_table');
+
+function pictosound_cm_get_user_creations($user_id, $options = []) {
+    global $wpdb;
+    
+    $defaults = [
+        'limit' => 12,
+        'offset' => 0,
+        'order_by' => 'created_at',
+        'order' => 'DESC',
+        'search' => '',
+        'date_from' => '',
+        'date_to' => ''
+    ];
+    
+    $options = wp_parse_args($options, $defaults);
+    
+    $table_name = $wpdb->prefix . 'pictosound_user_creations';
+    
+    $where_conditions = ['user_id = %d'];
+    $where_values = [$user_id];
+    
+    if (!empty($options['search'])) {
+        $where_conditions[] = '(title LIKE %s OR description LIKE %s OR detected_objects LIKE %s)';
+        $search_term = '%' . $wpdb->esc_like($options['search']) . '%';
+        $where_values[] = $search_term;
+        $where_values[] = $search_term;
+        $where_values[] = $search_term;
+    }
+    
+    if (!empty($options['date_from'])) {
+        $where_conditions[] = 'created_at >= %s';
+        $where_values[] = $options['date_from'] . ' 00:00:00';
+    }
+    
+    if (!empty($options['date_to'])) {
+        $where_conditions[] = 'created_at <= %s';
+        $where_values[] = $options['date_to'] . ' 23:59:59';
+    }
+    
+    $where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
+    
+    $order_by = sanitize_sql_orderby($options['order_by'] . ' ' . $options['order']);
+    if (!$order_by) {
+        $order_by = 'created_at DESC';
+    }
+    
+    $limit = intval($options['limit']);
+    $offset = intval($options['offset']);
+    
+    $sql = $wpdb->prepare(
+        "SELECT * FROM {$table_name} {$where_clause} ORDER BY {$order_by} LIMIT %d OFFSET %d",
+        array_merge($where_values, [$limit, $offset])
+    );
+    
+    $results = $wpdb->get_results($sql, ARRAY_A);
+    
+    $count_sql = $wpdb->prepare(
+        "SELECT COUNT(*) FROM {$table_name} {$where_clause}",
+        $where_values
+    );
+    $total = $wpdb->get_var($count_sql);
+    
+    return [
+        'creations' => $results,
+        'total' => $total,
+        'has_more' => ($offset + $limit) < $total
+    ];
+}
+
+function pictosound_cm_my_gallery_shortcode($atts) {
+    if (!is_user_logged_in()) {
+        return '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 15px; text-align: center; margin: 20px 0;">
+            <h3>🔒 Accesso Richiesto</h3>
+            <p>Effettua il <a href="/wp-login.php" style="color: #ffd700; font-weight: bold;">login</a> per vedere la tua galleria personale.</p>
+        </div>';
+    }
+    
+    $atts = shortcode_atts([
+        'per_page' => 12,
+        'view' => 'grid'
+    ], $atts);
+    
+    $user_id = get_current_user_id();
+    
+    $current_page = max(1, intval($_GET['gallery_page'] ?? 1));
+    $search = sanitize_text_field($_GET['gallery_search'] ?? '');
+    $date_from = sanitize_text_field($_GET['date_from'] ?? '');
+    $date_to = sanitize_text_field($_GET['date_to'] ?? '');
+    
+    $offset = ($current_page - 1) * $atts['per_page'];
+    
+    $options = [
+        'limit' => $atts['per_page'],
+        'offset' => $offset,
+        'search' => $search,
+        'date_from' => $date_from,
+        'date_to' => $date_to
+    ];
+    
+    $data = pictosound_cm_get_user_creations($user_id, $options);
+    
+    ob_start();
+    ?>
+    
+    <div class="pictosound-my-gallery" data-user-id="<?php echo esc_attr($user_id); ?>">
+        
+        <!-- HEADER -->
+        <div style="text-align: center; margin-bottom: 40px; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; color: white;">
+            <h2 style="margin: 0 0 20px 0; font-size: 2.5rem; font-weight: 700;">🎵 La Mia Galleria Pictosound</h2>
+            <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
+                <div style="text-align: center; background: rgba(255,255,255,0.1); padding: 15px 20px; border-radius: 12px;">
+                    <div style="font-size: 2rem; font-weight: 800; color: #ffd700;"><?php echo count($data['creations']); ?></div>
+                    <div style="font-size: 0.9rem; opacity: 0.9;">Creazioni</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- FILTRI -->
+        <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 30px;">
+            <form method="GET" style="display: grid; grid-template-columns: 1fr auto auto; gap: 20px; align-items: end;">
+                <div>
+                    <input type="text" name="gallery_search" placeholder="🔍 Cerca nelle tue creazioni..." 
+                           value="<?php echo esc_attr($search); ?>" 
+                           style="width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 16px;" />
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="date" name="date_from" value="<?php echo esc_attr($date_from); ?>" 
+                           style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px;" />
+                    <span>-</span>
+                    <input type="date" name="date_to" value="<?php echo esc_attr($date_to); ?>" 
+                           style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px;" />
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;">
+                        Filtra
+                    </button>
+                    <a href="<?php echo remove_query_arg(['gallery_search', 'date_from', 'date_to', 'gallery_page']); ?>" 
+                       style="color: #64748b; text-decoration: none; padding: 12px 16px; border-radius: 8px;">Reset</a>
+                </div>
+            </form>
+        </div>
+        
+        <?php if (empty($data['creations'])): ?>
+            <!-- STATO VUOTO -->
+            <div style="text-align: center; padding: 80px 20px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 20px;">
+                <div style="font-size: 5rem; margin-bottom: 20px; opacity: 0.7;">🎨</div>
+                <h3 style="font-size: 1.8rem; color: #334155; margin: 0 0 10px 0;">La tua galleria è vuota</h3>
+                <p style="color: #64748b; font-size: 1.1rem; margin: 0 0 30px 0;">Inizia a creare la tua prima traccia musicale!</p>
+                <a href="/" style="display: inline-block; background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 15px 30px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 1.1rem;">
+                    🚀 Crea Ora
+                </a>
+            </div>
+        <?php else: ?>
+            <!-- GRID CREAZIONI -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 30px; margin-bottom: 40px;">
+                <?php foreach ($data['creations'] as $creation): ?>
+                    <div style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
+                        
+                        <!-- IMMAGINE PLACEHOLDER -->
+                        <div style="position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); display: flex; align-items: center; justify-content: center;">
+                            <div style="font-size: 4rem; color: #cbd5e0;">🎵</div>
+                            
+                            <!-- PLAY BUTTON -->
+                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s;" 
+                                 onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+                                <button onclick="playAudio('<?php echo esc_js($creation['audio_file_url']); ?>')" 
+                                        style="background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 80px; height: 80px; font-size: 2rem; cursor: pointer;">
+                                    ▶️
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- INFO -->
+                        <div style="padding: 20px;">
+                            <h4 style="font-size: 1.25rem; font-weight: 700; color: #1a202c; margin: 0 0 10px 0;">
+                                <?php echo esc_html($creation['title'] ?: 'Senza titolo'); ?>
+                            </h4>
+                            <p style="display: flex; gap: 15px; font-size: 0.9rem; color: #64748b; margin: 0 0 15px 0;">
+                                <span>📅 <?php echo date('d/m/Y H:i', strtotime($creation['created_at'])); ?></span>
+                                <span>⏱️ <?php echo $creation['duration']; ?>s</span>
+                                <span>📥 <?php echo $creation['downloads_count']; ?></span>
+                            </p>
+                            
+                            <?php if (!empty($creation['detected_objects'])): ?>
+                                <p style="font-size: 0.85rem; color: #64748b; margin: 0;">
+                                    🏷️ <?php echo esc_html(substr($creation['detected_objects'], 0, 50)); ?>
+                                    <?php if (strlen($creation['detected_objects']) > 50) echo '...'; ?>
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- AZIONI -->
+                        <div style="padding: 15px 20px 20px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            <a href="<?php echo esc_url($creation['audio_file_url'] . '&creation_id=' . $creation['id']); ?>" 
+                               style="background: #22c55e; color: white; padding: 8px 12px; text-decoration: none; border-radius: 8px; font-size: 0.85rem;" download>
+                                📥 Download
+                            </a>
+                            <button onclick="shareCreation('<?php echo esc_js($creation['share_token']); ?>')" 
+                                    style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; cursor: pointer;">
+                                🔗 Condividi
+                            </button>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+    
+    <!-- AUDIO PLAYER GLOBALE -->
+    <div id="gallery-audio-player" style="display: none; position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.15); z-index: 1000;">
+        <audio controls preload="none" style="width: 300px;"></audio>
+    </div>
+    
+    <script>
+    function playAudio(url) {
+        const player = document.getElementById('gallery-audio-player');
+        const audio = player.querySelector('audio');
+        
+        player.style.display = 'block';
+        audio.src = url;
+        audio.play();
+        
+        audio.addEventListener('ended', function() {
+            player.style.display = 'none';
+        });
+    }
+    
+    function shareCreation(token) {
+        const shareUrl = window.location.origin + '/condividi/' + token;
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                alert('🔗 Link copiato negli appunti!');
+            });
+        } else {
+            prompt('Copia questo link:', shareUrl);
+        }
+    }
+    </script>
+    
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('pictosound_my_gallery', 'pictosound_cm_my_gallery_shortcode')
 ?>
