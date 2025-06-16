@@ -19,51 +19,114 @@ function pictosound_cm_user_gallery_shortcode($atts) {
     ], $atts);
 
     $user_id = get_current_user_id();
-<<<<<<< HEAD
     $paged = get_query_var('paged') ? get_query_var('paged') : 1;
 
-    // Query per le creazioni dell'utente
-    $query_args = [
-        'post_type' => 'attachment',
-        'post_status' => 'inherit',
-        'author' => $user_id,
-        'posts_per_page' => $atts['per_page'],
-        'paged' => $paged,
-        'orderby' => 'date',
-        'order' => 'DESC',
-        'meta_query' => [
-            'relation' => 'OR',
-            [
-                'key' => '_pictosound_creation',
-                'value' => 'yes',
-                'compare' => '='
-            ],
-            [
-                'key' => '_pictosound_audio_id',
-                'compare' => 'EXISTS'
-            ]
-        ]
-    ];
+    // ⚡ NUOVO: Leggi dalla tabella dedicata
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'pictosound_creations';
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
+    
+    write_log_cm("DEBUG Gallery - Tabella $table_name esiste: " . ($table_exists ? 'SI' : 'NO'));
+    
+    $creations_data = [];
+    $total_creations = 0;
+    
+    if ($table_exists) {
+        // Leggi dalla nuova tabella
+        $offset = ($paged - 1) * $atts['per_page'];
+        
+        $count_query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table_name} WHERE user_id = %d",
+            $user_id
+        );
+        $total_creations = intval($wpdb->get_var($count_query));
+        
+        $data_query = $wpdb->prepare(
+            "SELECT * FROM {$table_name} 
+             WHERE user_id = %d 
+             ORDER BY created_at DESC 
+             LIMIT %d OFFSET %d",
+            $user_id, $atts['per_page'], $offset
+        );
+        
+        $creations_data = $wpdb->get_results($data_query);
+        
+        write_log_cm("DEBUG Gallery - Trovate $total_creations creazioni nella tabella per user $user_id");
+        
+    } else {
+        // Fallback: cerca negli attachment WordPress (codice precedente)
+        $debug_all_files = get_posts([
+            'post_type' => 'attachment',
+            'post_status' => 'inherit',
+            'author' => $user_id,
+            'posts_per_page' => -1,
+            'fields' => 'ids'
+        ]);
+        
+        write_log_cm("DEBUG Gallery - Tabella non esiste, fallback su attachment. User $user_id ha " . count($debug_all_files) . " attachment totali");
+        
+        foreach ($debug_all_files as $file_id) {
+            $post = get_post($file_id);
+            $meta_creation = get_post_meta($file_id, '_pictosound_creation', true);
+            $meta_audio_id = get_post_meta($file_id, '_pictosound_audio_id', true);
+            $meta_prompt = get_post_meta($file_id, '_pictosound_prompt', true);
+            $meta_description = get_post_meta($file_id, '_pictosound_description', true);
+            $mime_type = get_post_mime_type($file_id);
+            
+            write_log_cm("DEBUG Gallery - File ID: $file_id, Titolo: " . $post->post_title . ", MIME: $mime_type");
+            write_log_cm("DEBUG Gallery - Meta creation: '$meta_creation', audio_id: '$meta_audio_id', prompt: '$meta_prompt', description: '$meta_description'");
+        }
 
-    $creations = new WP_Query($query_args);
-    $total_creations = $creations->found_posts;
-=======
-    $images = get_posts([
-        'post_type'      => 'attachment',
-        'post_mime_type' => 'image',
-        'post_status'    => 'inherit',
-        'posts_per_page' => -1,
-        'author'         => $user_id,
-        'meta_query'     => [
-            [
-                'key'     => '_pictosound_audio_id',
-                'compare' => 'EXISTS',
-            ],
-        ],
-        'orderby'        => 'date',
-        'order'          => 'DESC'
-    ]);
->>>>>>> 3d1f10e2be49bd007057676990093a0c1f8dbba0
+        // Query per attachment (codice precedente)
+        $query_args = [
+            'post_type' => 'attachment',
+            'post_status' => 'inherit',
+            'author' => $user_id,
+            'posts_per_page' => $atts['per_page'],
+            'paged' => $paged,
+            'orderby' => 'date',
+            'order' => 'DESC'
+        ];
+        
+        $has_pictosound_files = false;
+        foreach ($debug_all_files as $file_id) {
+            if (get_post_meta($file_id, '_pictosound_creation', true) || 
+                get_post_meta($file_id, '_pictosound_audio_id', true) ||
+                get_post_meta($file_id, '_pictosound_prompt', true)) {
+                $has_pictosound_files = true;
+                break;
+            }
+        }
+        
+        if ($has_pictosound_files) {
+            $query_args['meta_query'] = [
+                'relation' => 'OR',
+                [
+                    'key' => '_pictosound_creation',
+                    'value' => 'yes',
+                    'compare' => '='
+                ],
+                [
+                    'key' => '_pictosound_audio_id',
+                    'compare' => 'EXISTS'
+                ],
+                [
+                    'key' => '_pictosound_prompt',
+                    'compare' => 'EXISTS'
+                ]
+            ];
+            write_log_cm("DEBUG Gallery - Usando query con meta_query specifica");
+        } else {
+            $query_args['post_mime_type'] = ['image', 'audio'];
+            write_log_cm("DEBUG Gallery - Usando query generica per immagini e audio");
+        }
+        
+        $creations = new WP_Query($query_args);
+        $total_creations = $creations->found_posts;
+        
+        write_log_cm("DEBUG Gallery - Query args: " . print_r($query_args, true));
+        write_log_cm("DEBUG Gallery - Trovate $total_creations creazioni per user $user_id");
+    }
 
     ob_start();
     ?>
@@ -560,6 +623,22 @@ function pictosound_cm_user_gallery_shortcode($atts) {
                     <span style="margin: 0 10px;">•</span>
                     <span><?php echo pictosound_cm_get_user_credits($user_id); ?> crediti disponibili</span>
                 </div>
+                
+                <?php if (defined('WP_DEBUG') && WP_DEBUG): ?>
+                <!-- DEBUG INFO - Rimuovere in produzione -->
+                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; margin-top: 15px; font-size: 0.9rem; text-align: left;">
+                    <strong>🐛 Debug Info:</strong><br>
+                    User ID: <?php echo $user_id; ?><br>
+                    Tabella creazioni esiste: <?php echo $table_exists ? 'SI' : 'NO'; ?><br>
+                    Fonte dati: <?php echo $table_exists ? 'Database Pictosound' : 'Attachment WordPress'; ?><br>
+                    Creazioni trovate: <?php echo $total_creations; ?><br>
+                    <?php if (!$table_exists && isset($debug_all_files)): ?>
+                    Totale attachment utente: <?php echo count($debug_all_files); ?><br>
+                    Query: <?php echo isset($has_pictosound_files) && $has_pictosound_files ? 'Meta specifica' : 'Generica'; ?><br>
+                    <?php endif; ?>
+                    <small>Controlla i log per dettagli completi</small>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -574,6 +653,9 @@ function pictosound_cm_user_gallery_shortcode($atts) {
                     $attachment_id = get_the_ID();
                     $attachment = get_post($attachment_id);
                     
+                    // ⚡ DEBUG: Log di ogni file processato
+                    write_log_cm("DEBUG Gallery - Processando file ID: $attachment_id, Titolo: " . get_the_title());
+                    
                     // Metadata della creazione
                     $audio_id = get_post_meta($attachment_id, '_pictosound_audio_id', true);
                     $audio_url = $audio_id ? wp_get_attachment_url($audio_id) : '';
@@ -581,23 +663,38 @@ function pictosound_cm_user_gallery_shortcode($atts) {
                     $duration = get_post_meta($attachment_id, '_pictosound_duration', true);
                     $creation_date = get_the_date('j M Y, H:i');
                     
+                    // ⚡ Se non c'è audio associato, controlla se il file stesso è audio
+                    if (!$audio_url && strpos(get_post_mime_type($attachment_id), 'audio') !== false) {
+                        $audio_url = wp_get_attachment_url($attachment_id);
+                        write_log_cm("DEBUG Gallery - File $attachment_id è un audio, usando come audio_url");
+                    }
+                    
                     // Immagine
                     $image_url = wp_get_attachment_image_url($attachment_id, 'medium');
                     $image_full = wp_get_attachment_image_url($attachment_id, 'large');
                     
+                    // ⚡ Se non c'è immagine ma c'è audio, crea placeholder
+                    if (!$image_url && $audio_url) {
+                        write_log_cm("DEBUG Gallery - File $attachment_id è solo audio, userà placeholder");
+                    }
+                    
                     // Titolo (dal nome file o personalizzato)
                     $title = get_the_title() ?: 'Creazione del ' . get_the_date('j M Y');
                     
-                    // Descrizione (prompt o descrizione AI)
-                    $description = $prompt ?: 'Nessuna descrizione disponibile';
+                    // Descrizione (prompt o descrizione AI o fallback)
+                    $description = $prompt ?: ($attachment->post_content ?: 'Nessuna descrizione disponibile');
+                    
+                    // ⚡ DEBUG: Log dei dati estratti
+                    write_log_cm("DEBUG Gallery - File $attachment_id: audio_url='$audio_url', image_url='$image_url', prompt='$prompt'");
                     ?>
                     
                     <div class="creation-item" 
                          data-id="<?php echo esc_attr($attachment_id); ?>"
                          data-title="<?php echo esc_attr($title); ?>"
                          data-description="<?php echo esc_attr($description); ?>"
-                         data-image="<?php echo esc_url($image_full ?: $image_url); ?>"
+                         data-image="<?php echo esc_url($image_full ?: $image_url ?: ''); ?>"
                          data-audio="<?php echo esc_url($audio_url); ?>"
+                         data-has-image="<?php echo $image_url ? 'true' : 'false'; ?>"
                          onclick="openFullscreen(this)">
                         
                         <!-- THUMBNAIL -->
@@ -607,7 +704,9 @@ function pictosound_cm_user_gallery_shortcode($atts) {
                                      alt="<?php echo esc_attr($title); ?>"
                                      loading="lazy" />
                             <?php else: ?>
-                                <div class="thumbnail-placeholder">🎵</div>
+                                <div class="thumbnail-placeholder">
+                                    <?php echo $audio_url ? '🎵' : '📁'; ?>
+                                </div>
                             <?php endif; ?>
                             
                             <?php if ($audio_url): ?>
@@ -662,25 +761,29 @@ function pictosound_cm_user_gallery_shortcode($atts) {
             </div>
             
             <!-- PAGINATION -->
-            <?php if ($creations->max_num_pages > 1): ?>
+            <?php if ($total_creations > $atts['per_page']): ?>
                 <div class="gallery-pagination">
                     <?php
+                    $max_pages = ceil($total_creations / $atts['per_page']);
                     $current_page = max(1, $paged);
-                    $pagination_args = [
-                        'base' => add_query_arg('paged', '%#%'),
-                        'format' => '',
-                        'current' => $current_page,
-                        'total' => $creations->max_num_pages,
-                        'prev_text' => '← Precedente',
-                        'next_text' => 'Successiva →',
-                        'type' => 'array'
-                    ];
                     
-                    $pagination_links = paginate_links($pagination_args);
-                    if ($pagination_links) {
-                        foreach ($pagination_links as $link) {
-                            echo str_replace(['page-numbers', 'current'], ['page-btn', 'page-btn current'], $link);
-                        }
+                    // Previous button
+                    if ($current_page > 1) {
+                        $prev_url = add_query_arg('paged', $current_page - 1);
+                        echo '<a href="' . esc_url($prev_url) . '" class="page-btn">← Precedente</a>';
+                    }
+                    
+                    // Page numbers
+                    for ($i = 1; $i <= $max_pages; $i++) {
+                        $page_url = add_query_arg('paged', $i);
+                        $current_class = ($i == $current_page) ? ' current' : '';
+                        echo '<a href="' . esc_url($page_url) . '" class="page-btn' . $current_class . '">' . $i . '</a>';
+                    }
+                    
+                    // Next button
+                    if ($current_page < $max_pages) {
+                        $next_url = add_query_arg('paged', $current_page + 1);
+                        echo '<a href="' . esc_url($next_url) . '" class="page-btn">Successiva →</a>';
                     }
                     ?>
                 </div>
@@ -748,13 +851,46 @@ function pictosound_cm_user_gallery_shortcode($atts) {
             const description = element.dataset.description;
             const image = element.dataset.image;
             const audio = element.dataset.audio;
+            const hasImage = element.dataset.hasImage === 'true';
 
-            console.log('Apertura fullscreen:', title);
+            console.log('Apertura fullscreen:', title, 'HasImage:', hasImage, 'Audio:', !!audio);
 
             // Populate modal
             document.getElementById('fullscreenTitle').textContent = title;
             document.getElementById('fullscreenDescription').textContent = description;
-            document.getElementById('fullscreenImage').src = image;
+            
+            // Handle image or placeholder
+            const imageElement = document.getElementById('fullscreenImage');
+            if (hasImage && image) {
+                imageElement.src = image;
+                imageElement.style.display = 'block';
+            } else {
+                // Hide image and create a music placeholder
+                imageElement.style.display = 'none';
+                
+                // Create or update placeholder
+                let placeholder = document.getElementById('fullscreenPlaceholder');
+                if (!placeholder) {
+                    placeholder = document.createElement('div');
+                    placeholder.id = 'fullscreenPlaceholder';
+                    placeholder.style.cssText = `
+                        width: 400px;
+                        height: 400px;
+                        background: linear-gradient(45deg, #667eea, #764ba2);
+                        border-radius: 20px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 8rem;
+                        color: white;
+                        margin-bottom: 30px;
+                        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+                    `;
+                    imageElement.parentNode.insertBefore(placeholder, imageElement);
+                }
+                placeholder.textContent = '🎵';
+                placeholder.style.display = 'flex';
+            }
 
             // Setup audio if available
             if (audio) {
@@ -796,6 +932,12 @@ function pictosound_cm_user_gallery_shortcode($atts) {
                 currentAudio.currentTime = 0;
                 currentAudio = null;
                 isPlaying = false;
+            }
+
+            // Hide placeholder if exists
+            const placeholder = document.getElementById('fullscreenPlaceholder');
+            if (placeholder) {
+                placeholder.style.display = 'none';
             }
 
             // Hide modal
@@ -911,9 +1053,9 @@ function pictosound_cm_user_gallery_shortcode($atts) {
                 return;
             }
 
-            console.log('Eliminazione creazione:', creationId);
+            console.log('Eliminazione attachment:', creationId);
             
-            const $item = $(`.creation-item[data-id="${creationId}"]`);
+            const $item = $(`.creation-item[data-id="${creationId}"][data-source="attachment"]`);
             $item.css('opacity', '0.5').find('.action-btn').prop('disabled', true);
 
             $.ajax({
@@ -928,11 +1070,7 @@ function pictosound_cm_user_gallery_shortcode($atts) {
                     if (response.success) {
                         $item.fadeOut(400, function() {
                             $(this).remove();
-                            
-                            // Check if gallery is empty
-                            if ($('.creation-item').length === 0) {
-                                location.reload();
-                            }
+                            checkIfGalleryEmpty();
                         });
                         showMessage(`✅ "${title}" eliminata con successo`, 'success');
                     } else {
@@ -946,6 +1084,52 @@ function pictosound_cm_user_gallery_shortcode($atts) {
                 }
             });
         };
+
+        // ⚡ NUOVA FUNZIONE: Elimina creazione dal database
+        window.deleteCreationDB = function(creationId, title) {
+            if (!confirm(`Sei sicuro di voler eliminare "${title}"?\n\nQuesta azione non può essere annullata.`)) {
+                return;
+            }
+
+            console.log('Eliminazione creazione database:', creationId);
+            
+            const $item = $(`.creation-item[data-id="${creationId}"][data-source="database"]`);
+            $item.css('opacity', '0.5').find('.action-btn').prop('disabled', true);
+
+            $.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'pictosound_delete_creation_db',
+                    creation_id: creationId,
+                    _wpnonce: '<?php echo wp_create_nonce('pictosound_delete_creation_db'); ?>'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $item.fadeOut(400, function() {
+                            $(this).remove();
+                            checkIfGalleryEmpty();
+                        });
+                        showMessage(`✅ "${title}" eliminata con successo`, 'success');
+                    } else {
+                        $item.css('opacity', '1').find('.action-btn').prop('disabled', false);
+                        showMessage('❌ Errore durante l\'eliminazione: ' + (response.data?.message || 'Errore sconosciuto'), 'error');
+                    }
+                },
+                error: function() {
+                    $item.css('opacity', '1').find('.action-btn').prop('disabled', false);
+                    showMessage('❌ Errore di connessione durante l\'eliminazione', 'error');
+                }
+            });
+        };
+
+        function checkIfGalleryEmpty() {
+            if ($('.creation-item').length === 0) {
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            }
+        }
 
         function showMessage(message, type = 'success') {
             const $messagesArea = $('#gallery-messages');
@@ -1035,4 +1219,75 @@ function pictosound_cm_ajax_delete_media() {
         wp_send_json_error(['message' => 'Errore durante l\'eliminazione del media.']);
     }
 }
-add_action('wp_ajax_pictosound_delete_media', 'pictosound_cm_ajax_delete_media')
+add_action('wp_ajax_pictosound_delete_media', 'pictosound_cm_ajax_delete_media');
+
+/**
+ * ⚡ AJAX Handler per eliminazione creazione dal database
+ */
+function pictosound_cm_ajax_delete_creation_db() {
+    // Verifica nonce
+    if (!check_ajax_referer('pictosound_delete_creation_db', '_wpnonce', false)) {
+        wp_send_json_error(['message' => 'Sessione scaduta. Ricarica la pagina.']);
+        return;
+    }
+
+    // Verifica login
+    if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => 'Devi essere loggato.']);
+        return;
+    }
+
+    $creation_id = isset($_POST['creation_id']) ? intval($_POST['creation_id']) : 0;
+    
+    if (!$creation_id) {
+        wp_send_json_error(['message' => 'ID creazione non valido.']);
+        return;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'pictosound_creations';
+    
+    // Verifica che la creazione esista e appartenga all'utente
+    $creation = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$table_name} WHERE id = %d AND user_id = %d",
+        $creation_id, get_current_user_id()
+    ));
+    
+    if (!$creation) {
+        wp_send_json_error(['message' => 'Creazione non trovata o non hai i permessi per eliminarla.']);
+        return;
+    }
+
+    // Log dell'operazione
+    write_log_cm("Pictosound Gallery: Eliminazione creazione DB ID $creation_id richiesta da user " . get_current_user_id());
+
+    // Elimina gli attachment associati se esistono
+    if ($creation->image_id) {
+        $image_deleted = wp_delete_attachment($creation->image_id, true);
+        write_log_cm("Pictosound Gallery: Immagine associata ID {$creation->image_id} " . ($image_deleted ? 'eliminata' : 'non eliminata'));
+    }
+    
+    if ($creation->audio_id) {
+        $audio_deleted = wp_delete_attachment($creation->audio_id, true);
+        write_log_cm("Pictosound Gallery: Audio associato ID {$creation->audio_id} " . ($audio_deleted ? 'eliminato' : 'non eliminato'));
+    }
+
+    // Elimina la creazione dal database
+    $deleted = $wpdb->delete(
+        $table_name,
+        ['id' => $creation_id, 'user_id' => get_current_user_id()],
+        ['%d', '%d']
+    );
+    
+    if ($deleted) {
+        write_log_cm("Pictosound Gallery: Creazione DB ID $creation_id eliminata con successo");
+        wp_send_json_success([
+            'deleted' => true,
+            'message' => 'Creazione eliminata con successo.'
+        ]);
+    } else {
+        write_log_cm("Pictosound Gallery: Errore nell'eliminazione della creazione DB ID $creation_id");
+        wp_send_json_error(['message' => 'Errore durante l\'eliminazione della creazione.']);
+    }
+}
+add_action('wp_ajax_pictosound_delete_creation_db', 'pictosound_cm_ajax_delete_creation_db');
