@@ -1953,3 +1953,140 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+/**
+ * ===================================================================
+ * LOGICA DI GENERAZIONE MUSICA PICTOSOUND
+ * Aggiunta per integrare con WordPress AJAX e popolare il database.
+ * ===================================================================
+ */
+document.addEventListener('DOMContentLoaded', function () {
+
+    // Troviamo il pulsante di generazione
+    const generateBtn = document.getElementById('generateMusicButton');
+
+    // Se il pulsante non esiste in questa pagina, non facciamo nulla.
+    if (!generateBtn) {
+        console.log('Pictosound: Pulsante di generazione non trovato in questa pagina.');
+        return;
+    }
+
+    console.log('Pictosound: Logica di generazione inizializzata.');
+
+    // Aggiungiamo l'evento 'click' al pulsante
+    generateBtn.addEventListener('click', function () {
+
+        // --- 1. PREPARAZIONE E CONTROLLI INIZIALI ---
+
+        // Disabilita il pulsante per evitare click multipli
+        this.disabled = true;
+
+        // Mostra lo spinner e i messaggi di stato
+        const musicSpinner = document.getElementById('musicSpinner');
+        if (musicSpinner) musicSpinner.style.display = 'inline-block';
+
+        // Funzioni di utilità per aggiornare l'interfaccia (se non le hai già, sono utili)
+        const updateStatus = (message, type = 'info') => {
+            const statusEl = document.getElementById('status');
+            if (statusEl) {
+                statusEl.textContent = message;
+                statusEl.className = `status-message ${type}`;
+            }
+        };
+        const showProgressBar = () => {
+            const progressContainer = document.getElementById('progressBarContainer');
+            if (progressContainer) progressContainer.style.display = 'block';
+        };
+        const hideProgressBar = () => {
+            const progressContainer = document.getElementById('progressBarContainer');
+            if (progressContainer) progressContainer.style.display = 'none';
+        };
+
+        updateStatus('Avvio generazione musica...', 'info');
+        showProgressBar();
+
+
+        // --- 2. RACCOLTA DEI DATI DAL FORM ---
+
+        // Raccogli la durata selezionata
+        const selectedDurationInput = document.querySelector('input[name="musicDuration"]:checked');
+        const selectedDuration = selectedDurationInput ? selectedDurationInput.value : '45'; // Default a 45s se non trovato
+
+        // Raccogli il prompt (assicurati di avere una funzione che lo costruisce, o sostituisci con la tua logica)
+        // IPOTIZZO che tu abbia una funzione `buildFinalPrompt()` o simile.
+        // Se non ce l'hai, devi creare la logica per leggere i valori di mood, genere, etc. e creare la stringa.
+        let finalPrompt = '';
+        try {
+            // Sostituisci questo con la tua vera logica per costruire il prompt
+            finalPrompt = buildFinalPrompt();
+        } catch (e) {
+            console.error("Funzione buildFinalPrompt() non trovata o ha causato un errore. Assicurati che esista nel tuo script.js. Uso un prompt di default per test.", e);
+            finalPrompt = "A beautiful landscape with mountains and a lake, epic cinematic music";
+            updateStatus("Errore nella costruzione del prompt. Contatta l'assistenza.", "error");
+        }
+
+        if (!finalPrompt) {
+            updateStatus('Errore: impossibile costruire il prompt.', 'error');
+            this.disabled = false;
+            return;
+        }
+
+
+        // --- 3. CHIAMATA AJAX A WORDPRESS ---
+
+        console.log(`Pictosound: Invio richiesta AJAX a WordPress con prompt: "${finalPrompt}" e durata: ${selectedDuration}s`);
+
+        const dataToSend = {
+            action: 'pictosound_generate_music', // L'azione che abbiamo registrato nel plugin
+            prompt: finalPrompt,
+            duration: selectedDuration
+        };
+
+        fetch(pictosound_vars.ajax_url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(dataToSend)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        let errorMessage = (err && err.data && err.data.error) ? err.data.error : `Errore server: ${response.status}`;
+                        throw new Error(errorMessage);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    console.log("Risposta di successo da WordPress:", data.data);
+
+                    // Aggiorna l'interfaccia utente con il risultato
+                    const audioPlayer = document.getElementById('audioPlayer');
+                    const downloadLink = document.getElementById('downloadAudioLink');
+                    const audioContainer = document.getElementById('audioPlayerContainer');
+
+                    audioPlayer.src = data.data.audioUrl;
+                    downloadLink.href = data.data.downloadUrl;
+
+                    if (audioContainer) audioContainer.style.display = 'block';
+                    if (downloadLink) downloadLink.style.display = 'inline-block';
+
+                    updateStatus('Musica generata con successo!', 'success');
+                } else {
+                    throw new Error(data.data.error || 'Si è verificato un errore sconosciuto.');
+                }
+            })
+            .catch(error => {
+                console.error('Errore durante la generazione della musica:', error);
+                updateStatus(`Errore critico: ${error.message}`, 'error');
+            })
+            .finally(() => {
+                // Questa parte viene eseguita sia in caso di successo che di errore
+                hideProgressBar();
+                if (musicSpinner) musicSpinner.style.display = 'none';
+                this.disabled = false; // Riabilita sempre il pulsante alla fine
+            });
+    });
+});

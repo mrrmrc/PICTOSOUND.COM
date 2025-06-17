@@ -1859,8 +1859,8 @@ function pictosound_cm_frontend_scripts_and_data() {
         $script_data = [
             'ajax_url'        => admin_url( 'admin-ajax.php' ),
             'nonce_check_credits' => wp_create_nonce( 'pictosound_check_credits_nonce' ),
-            'nonce_save_generation' => wp_create_nonce('pictosound_save_generation_nonce'),
             'nonce_recharge'  => wp_create_nonce( 'pictosound_recharge_credits_nonce' ),
+            'nonce_generate'  => wp_create_nonce( 'pictosound_generate_nonce' ), // <-- AGGIUNGI QUESTA RIGA
             'is_user_logged_in' => is_user_logged_in(),
             'user_credits'    => $user_credits,
             'user_id'         => $user_id,
