@@ -318,7 +318,7 @@ add_action('wp_ajax_pictosound_stripe_webhook', 'pictosound_cm_handle_stripe_web
 function pictosound_cm_save_transaction($user_id, $transaction_id, $package, $status, $method = 'stripe') {
     global $wpdb;
     
-    $table_name = $wpdb->prefix . 'pictosound_transactions';
+    $table_name = 'aDOtz4PiG8_pictosound_creations';
     
     // Verifica se la tabella esiste prima di inserire
     if($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
@@ -1744,82 +1744,116 @@ add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
  * ⚡ AJAX Handler per salvare le creazioni musicali
  */
 function pictosound_cm_ajax_save_creation() {
-    $user_id = get_current_user_id();
+    // Abilita il logging di WordPress per questo test
+    if (!defined('WP_DEBUG')) {
+        define('WP_DEBUG', true);
+    }
+    if (!defined('WP_DEBUG_LOG')) {
+        define('WP_DEBUG_LOG', true);
+    }
+    if (!defined('WP_DEBUG_DISPLAY')) {
+        define('WP_DEBUG_DISPLAY', false);
+    }
+
+    // --- INIZIO BLOCCO DI DEBUG ---
+    $debug_log = [];
+    $debug_log[] = "===========================================================";
+    $debug_log[] = "Inizio processo di salvataggio creazione: " . date('Y-m-d H:i:s');
     
-    // Rate limiting per salvataggio creazioni
-    if (!pictosound_cm_check_rate_limit('save_creation', $user_id, 20, 10 * MINUTE_IN_SECONDS)) {
-        write_log_cm("Rate limit exceeded for save creation - user $user_id");
-        wp_send_json_error(['message' => __('Troppi tentativi di salvataggio. Riprova tra qualche minuto.', 'pictosound-credits-manager')]);
+    // 1. Verifica Nonce
+    $nonce_received = isset($_POST['nonce']) ? sanitize_text_field($_POST['nonce']) : 'NON_RICEVUTO';
+    if (wp_verify_nonce($nonce_received, 'pictosound_save_creation_nonce')) {
+        $debug_log[] = "[OK] Nonce valido ricevuto.";
+    } else {
+        $debug_log[] = "[ERRORE] Nonce non valido o mancante. Ricevuto: " . $nonce_received;
+        error_log(implode("\n", $debug_log)); // Scrivi il log prima di uscire
+        wp_send_json_error(['message' => 'Sessione non valida.']);
         return;
     }
+
+    // 2. Verifica Login
+    if (is_user_logged_in()) {
+        $user_id = get_current_user_id();
+        $debug_log[] = "[OK] Utente loggato. User ID: " . $user_id;
+    } else {
+        $debug_log[] = "[ERRORE] Utente non loggato.";
+        error_log(implode("\n", $debug_log));
+        wp_send_json_error(['message' => 'Login richiesto.']);
+        return;
+    }
+
+    global $wpdb;
+    $table_name = 'aDOtz4PiG8_pictosound_creations';
+    $debug_log[] = "[INFO] Nome tabella target: " . $table_name;
+
+    // 3. Verifica Esistenza Tabella
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name) {
+        $debug_log[] = "[OK] La tabella '$table_name' esiste nel database.";
+    } else {
+        $debug_log[] = "[ERRORE FATALE] La tabella '$table_name' NON esiste nel database.";
+        error_log(implode("\n", $debug_log));
+        wp_send_json_error(['message' => "La tabella di destinazione '$table_name' non e' stata trovata."]);
+        return;
+    }
+
+    // 4. Prepara i dati e logga la loro lunghezza
+    $creation_data = [
+        'user_id'         => $user_id,
+        'title'           => sanitize_text_field($_POST['title'] ?? 'Creazione senza titolo'),
+        'prompt'          => sanitize_textarea_field($_POST['prompt'] ?? ''),
+        'description'     => sanitize_textarea_field($_POST['description'] ?? ''),
+        'image_url'       => $_POST['image_url'] ?? '', // Lasciamo URL grezzo per il logging
+        'audio_url'       => esc_url_raw($_POST['audio_url'] ?? ''),
+        'duration'        => intval($_POST['duration'] ?? 0),
+        'style'           => sanitize_text_field($_POST['style'] ?? ''),
+        'mood'            => sanitize_text_field($_POST['mood'] ?? ''),
+        'credits_used'    => intval($_POST['credits_used'] ?? 0),
+        'generation_data' => isset($_POST['generation_data']) ? wp_unslash($_POST['generation_data']) : '[]',
+        'status'          => 'completed'
+    ];
+
+    $debug_log[] = "[INFO] Dati pronti per l'inserimento:";
+    foreach ($creation_data as $key => $value) {
+        $debug_log[] = "  - $key: (Lunghezza: " . strlen($value) . ") " . substr($value, 0, 100) . "...";
+    }
+
+    $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s'];
     
-    // Verifica nonce per sicurezza
-    $nonce_received = isset($_POST['nonce']) ? sanitize_text_field($_POST['nonce']) : 'MISSING';
-    $nonce_valid = wp_verify_nonce($nonce_received, 'pictosound_save_creation_nonce');
+    // 5. Esegui l'inserimento
+    $debug_log[] = "[INFO] Tentativo di esecuzione di \$wpdb->insert...";
+    $result = $wpdb->insert($table_name, $creation_data, $formats);
     
-    write_log_cm("Save Creation - User ID: $user_id, Nonce valido: " . ($nonce_valid ? 'SI' : 'NO'));
-    
-    if (!$nonce_valid) {
+    // 6. Analizza il risultato
+    if ($result === false) {
+        $db_error = $wpdb->last_error;
+        $debug_log[] = "[ERRORE DATABASE] \$wpdb->insert ha fallito.";
+        $debug_log[] = "[ERRORE DATABASE] Messaggio di errore MySQL: " . $db_error;
+        error_log(implode("\n", $debug_log)); // Scrivi log completo dell'errore
         wp_send_json_error([
-            'message' => __('Sessione scaduta. Ricarica la pagina e riprova.', 'pictosound-credits-manager'),
-            'code' => 'nonce_expired'
+            'message'  => 'Errore del database durante il salvataggio.',
+            'db_error' => $db_error 
         ]);
         return;
     }
-
-    if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => __('Login richiesto per salvare le creazioni.', 'pictosound-credits-manager')]);
-        return;
+    
+    if ($result > 0) {
+        $creation_id = $wpdb->insert_id;
+        $debug_log[] = "[SUCCESSO] Dati inseriti correttamente. ID Nuova riga: " . $creation_id;
+        error_log(implode("\n", $debug_log)); // Scrivi log completo del successo
+        wp_send_json_success([
+            'message'     => 'Creazione salvata con successo!',
+            'creation_id' => $creation_id
+        ]);
+    } else {
+        $db_error = $wpdb->last_error;
+        $debug_log[] = "[ERRORE SCONOSCIUTO] \$wpdb->insert non ha restituito un errore, ma non ha inserito righe. Result: $result";
+        $debug_log[] = "[INFO] Ultimo errore DB (se presente): " . $db_error;
+        error_log(implode("\n", $debug_log));
+        wp_send_json_error([
+            'message'  => 'Operazione fallita senza un errore specifico del database.',
+            'db_error' => $db_error
+        ]);
     }
-    
-    // Aggiorna attività utente
-    pictosound_cm_update_user_activity($user_id);
-
-    global $wpdb;
-    $table_name = 'aDOtz4PiG8_pictosound_creations'; // Nome tabella completo corretto
-    
-    // Verifica che la tabella esista
-    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
-        write_log_cm("ERRORE: Tabella creazioni '$table_name' non esiste");
-        wp_send_json_error(['message' => __('Sistema di salvataggio non disponibile. Contatta l\'assistenza.', 'pictosound-credits-manager')]);
-        return;
-    }
-    
-    // Prepara i dati per il salvataggio
-    $creation_data = [
-        'user_id' => $user_id,
-        'title' => sanitize_text_field($_POST['title'] ?? 'Creazione senza titolo'),
-        'prompt' => sanitize_textarea_field($_POST['prompt'] ?? ''),
-        'description' => sanitize_textarea_field($_POST['description'] ?? ''),
-        'image_url' => esc_url_raw($_POST['image_url'] ?? ''),
-        'audio_url' => esc_url_raw($_POST['audio_url'] ?? ''),
-        'duration' => intval($_POST['duration'] ?? 0),
-        'style' => sanitize_text_field($_POST['style'] ?? ''),
-        'mood' => sanitize_text_field($_POST['mood'] ?? ''),
-        'credits_used' => intval($_POST['credits_used'] ?? 0),
-        'generation_data' => wp_json_encode($_POST['generation_data'] ?? []),
-        'status' => 'completed'
-    ];
-    
-    $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s'];
-    
-    // Inserisci nella tabella
-    $result = $wpdb->insert($table_name, $creation_data, $formats);
-    
-    if ($result === false) {
-        write_log_cm("ERRORE salvataggio creazione: " . $wpdb->last_error);
-        wp_send_json_error(['message' => __('Errore nel salvataggio: ', 'pictosound-credits-manager') . $wpdb->last_error]);
-        return;
-    }
-    
-    $creation_id = $wpdb->insert_id;
-    write_log_cm("Creazione salvata con successo - ID: $creation_id, User: $user_id, Title: " . $creation_data['title']);
-    
-    wp_send_json_success([
-        'message' => __('Creazione salvata con successo nella tua galleria!', 'pictosound-credits-manager'),
-        'creation_id' => $creation_id,
-        'new_credits' => pictosound_cm_get_user_credits($user_id)
-    ]);
 }
 add_action('wp_ajax_pictosound_save_creation', 'pictosound_cm_ajax_save_creation');
 

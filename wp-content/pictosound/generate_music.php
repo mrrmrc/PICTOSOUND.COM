@@ -216,22 +216,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $filepath = $audio_dir . $filename;
 
             if (file_put_contents($filepath, $response_body_raw) !== false) {
-                write_log("Audio salvato con successo: $filename");
-                $scheme   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ? 'https' : 'http';
-                $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                $script_download_url = $_SERVER['PHP_SELF'] . '?download=' . urlencode($filename);
-                $full_download_url = "$scheme://$host" . $script_download_url;
-                
-                header('Content-Type: application/json'); // Assicurati che la risposta al client sia JSON
-                echo json_encode([
-                    'success'     => true,
-                    'audioUrl'    => $script_download_url, 
-                    'downloadUrl' => $full_download_url,
-                    'fileName'    => $filename,
-                    'message'     => 'Audio generato e salvato con successo.'
-                ], JSON_UNESCAPED_SLASHES);
-                exit;
-            } else {
+    write_log("Audio salvato con successo in: $filepath");
+
+    // COSTRUISCI L'URL DIRETTO AL FILE AUDIO
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    // Ottiene il percorso della directory dello script corrente (es. /wp-content/pictosound)
+    $script_path = dirname($_SERVER['PHP_SELF']);
+    // Unisce il tutto per creare un URL pubblico diretto al file
+    $public_audio_url = "$scheme://$host" . rtrim($script_path, '/') . '/audio/' . rawurlencode($filename);
+
+    write_log("URL pubblico generato per il client: $public_audio_url");
+    
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success'   => true,
+        'audioUrl'  => $public_audio_url, // <-- URL CORRETTO DIRETTO AL FILE MP3
+        'fileName'  => $filename,
+        'message'   => 'Audio generato con successo.'
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+} else {
                 header('Content-Type: application/json');
                 write_log("Errore salvataggio file audio diretto: " . $filepath);
                 http_response_code(500);

@@ -1697,7 +1697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const selectedDurationRadio = document.querySelector('input[name="musicDuration"]:checked');
                 const duration = selectedDurationRadio ? parseInt(selectedDurationRadio.value) : 40;
 
-                console.log(`LOG: Parametri per generazione musica: prompt="${promptForMusic}", duration=${duration}, steps=${steps}`);
+                console.log(`[DEBUG] Sto per chiamare generate_music.php con: prompt="${promptForMusic}", duration=${duration}`);
 
                 const musicApiResponse = await fetch('/wp-content/pictosound/generate_music.php', {
                     method: 'POST',
@@ -1705,193 +1705,69 @@ document.addEventListener('DOMContentLoaded', async () => {
                     body: JSON.stringify({ prompt: promptForMusic, duration: duration, steps: steps })
                 });
 
-                console.log(`LOG: Risposta da generate_music.php. Status: ${musicApiResponse.status}`);
+                // ===================================================================
+                // ⚡ BLOCCO DI DEBUG PER ANALIZZARE LA RISPOSTA ⚡
+                // ===================================================================
+                console.log(`[DEBUG] Risposta ricevuta da generate_music.php. Status HTTP: ${musicApiResponse.status}`);
+                const responseText = await musicApiResponse.text(); // Leggiamo la risposta come testo
+                console.log(`[DEBUG] Contenuto RAW della risposta da generate_music.php:`, responseText);
+                // ===================================================================
 
+                // Ora proviamo a interpretare la risposta che abbiamo loggato
                 const musicContentType = musicApiResponse.headers.get("content-type");
                 if (musicApiResponse.ok && musicContentType && musicContentType.indexOf("application/json") !== -1) {
-                    const musicResult = await musicApiResponse.json();
-                    console.log("LOG DEBUG SERVER (generate_music.php): Risposta JSON:", musicResult);
+                    const musicResult = JSON.parse(responseText); // Usiamo il testo che abbiamo già letto
 
                     if (musicResult.success && musicResult.audioUrl) {
-
+                        // Successo, procedi con il salvataggio
                         updateProgressMessage("", false);
                         if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Musica generata con successo!", "success");
 
-
-                        // ⭐ SALVATAGGIO AUTOMATICO CORRETTO - CHIAMATA AJAX
-                        const durationCostMap = pictosound_vars.duration_costs || {};
-                        const creditsUsed = durationCostMap[duration] || 0;
-
+                        // La chiamata di salvataggio (che ora sappiamo essere corretta)
                         const creationDataToSave = {
                             action: 'pictosound_save_creation',
-                            nonce: pictosound_vars.save_creation_nonce, // Questo nonce viene aggiunto da un filtro in PHP
+                            nonce: pictosound_vars.save_creation_nonce,
                             title: 'Musica del ' + new Date().toLocaleString('it-IT'),
                             prompt: promptForMusic,
-                            description: 'Generato da Pictosound con prompt: ' + promptForMusic,
+                            description: 'Generato da Pictosound',
                             image_url: currentImageSrc,
                             audio_url: musicResult.audioUrl,
                             duration: duration,
                             style: (getSelectedGenresForSave() || []).join(', '),
                             mood: (getSelectedMoodsForSave() || []).join(', '),
-                            credits_used: creditsUsed,
-                            generation_data: {
+                            credits_used: (pictosound_vars.duration_costs || {})[duration] || 0,
+                            generation_data: JSON.stringify({
                                 api_prompt: promptForMusic,
-                                timestamp: new Date().toISOString(),
-                                user_selections: {
-                                    moods: getSelectedMoodsForSave(),
-                                    genres: getSelectedGenresForSave(),
-                                    instruments: getSelectedInstrumentsForSave(),
-                                    rhythms: getSelectedRhythmsForSave(),
-                                    bpm: document.getElementById('bpmSlider').value
-                                }
-                            }
+                                user_selections: { moods: getSelectedMoodsForSave(), genres: getSelectedGenresForSave() }
+                            })
                         };
-
-                        // Esegui la chiamata AJAX per salvare i dati nel database
                         jQuery.ajax({
                             url: pictosound_vars.ajax_url,
                             type: 'POST',
                             data: creationDataToSave,
                             success: function (response) {
-                                if (response.success) {
-                                    console.log('✅ Creazione salvata con successo nel DB:', response.data);
-                                    showSaveNotificationPictosound('Creazione salvata nella tua galleria!', 'success');
-                                } else {
-                                    console.warn('⚠️ Errore nel salvataggio della creazione nel DB:', response.data);
-                                    showSaveNotificationPictosound('Errore salvataggio: ' + (response.data.message || 'sconosciuto'), 'error');
-                                }
+                                if (response.success) { console.log('✅ Creazione salvata nel DB.'); }
+                                else { console.warn('⚠️ Errore salvataggio DB:', response.data); }
                             },
-                            error: function (xhr, status, error) {
-                                console.error('❌ Errore critico AJAX durante il salvataggio della creazione:', error);
-                                showSaveNotificationPictosound('Errore di connessione durante il salvataggio.', 'error');
-                            }
+                            error: function () { console.error('❌ Errore AJAX salvataggio.'); }
                         });
-                        // ⭐ FINE SALVATAGGIO AUTOMATICO CORRETTO
 
-                        setTimeout(() => {
-                            if (domElements.statusDiv && domElements.statusDiv.textContent === "Musica generata con successo!") {
-                                if (domElements.dynamicFeedbackArea && !(domElements.audioPlayerContainer && domElements.audioPlayerContainer.style.display === 'block')) {
-                                    domElements.dynamicFeedbackArea.style.display = 'none';
-                                }
-                                if (domElements.statusDiv) domElements.statusDiv.style.display = 'none';
-                            }
-                        }, 4000);
+                        // Aggiorna UI
+                        if (domElements.audioPlayer) domElements.audioPlayer.src = musicResult.audioUrl;
+                        if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'block';
 
-                        if (domElements.audioPlayer && musicResult.audioUrl) domElements.audioPlayer.src = musicResult.audioUrl;
-                        if (domElements.audioInfo) domElements.audioInfo.textContent = `Traccia: ${musicResult.fileName || 'audio_generato'}. ${musicResult.message || ''}`;
-                        if (domElements.downloadAudioLink && (musicResult.downloadUrl || musicResult.audioUrl)) {
-                            domElements.downloadAudioLink.href = musicResult.downloadUrl || musicResult.audioUrl;
-                            domElements.downloadAudioLink.download = musicResult.fileName || `generated_audio_${Date.now()}.mp3`;
-                            domElements.downloadAudioLink.style.display = 'inline-flex';
-                        }
-                        if (domElements.audioPlayerContainer && musicResult.audioUrl) domElements.audioPlayerContainer.style.display = 'block';
-                        if (domElements.progressAndPlayerContainer && musicResult.audioUrl) domElements.progressAndPlayerContainer.style.display = 'block';
-
-                        // QR code e immagine composita
-                        if (currentImage && currentImage.complete && typeof QRCode !== 'undefined' && musicResult.audioUrl && domElements.compositeImageCanvas) {
-                            try {
-                                const qrCanvasForComposite = document.createElement('canvas');
-                                const qrCanvasForSoloDownload = document.createElement('canvas');
-                                let desiredQrPixelSize = Math.max(50, Math.min(currentImage.naturalWidth * 0.25, currentImage.naturalHeight * 0.25, 150));
-
-                                await generateQrCodeToCanvas(qrCanvasForComposite, musicResult.audioUrl, desiredQrPixelSize);
-                                const compositeImageDataUrl = await createCompositeImage(currentImage, qrCanvasForComposite, domElements.compositeImageCanvas);
-
-                                if (domElements.downloadCompositeImageLink) {
-                                    const placeholder = domElements.downloadCompositeImageLink.querySelector('.button-icon-placeholder');
-                                    if (placeholder) {
-                                        placeholder.innerHTML = '';
-                                        const miniImg = document.createElement('img');
-                                        miniImg.src = compositeImageDataUrl;
-                                        miniImg.alt = 'Preview';
-                                        placeholder.appendChild(miniImg);
-                                    }
-                                    domElements.downloadCompositeImageLink.href = compositeImageDataUrl;
-                                    domElements.downloadCompositeImageLink.download = `pictosound_img_qr_${Date.now()}.png`;
-                                    domElements.downloadCompositeImageLink.style.display = 'inline-flex';
-                                }
-
-                                await generateQrCodeToCanvas(qrCanvasForSoloDownload, musicResult.audioUrl, 150);
-                                const soloQrDataUrl = qrCanvasForSoloDownload.toDataURL('image/png');
-
-                                if (domElements.downloadQrOnlyLink) {
-                                    domElements.downloadQrOnlyLink.href = soloQrDataUrl;
-                                    domElements.downloadQrOnlyLink.download = `pictosound_qrcode_${Date.now()}.png`;
-                                    domElements.downloadQrOnlyLink.style.display = 'inline-flex';
-                                }
-                            } catch (qrError) {
-                                console.error("ERRORE QR:", qrError);
-                                if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
-                                if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
-                            }
-                        } else {
-                            if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
-                            if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
-                        }
                     } else {
-                        const musicGenErrorMessage = musicResult.error || "Errore generazione musica";
-                        updateProgressMessage(musicGenErrorMessage, false);
-                        if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, musicGenErrorMessage, "error");
+                        // Il JSON non indicava successo
+                        updateProgressMessage(musicResult.error || "Errore sconosciuto da generate_music.php", false);
                     }
-                } else if (musicApiResponse.ok && musicContentType && musicContentType.indexOf("audio/") !== -1) {
-                    console.warn("WARN: Risposta audio diretta da generate_music.php (non JSON).");
-                    updateProgressMessage("", false);
-                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Musica generata (formato diretto)!", "success");
-                    const audioBlob = await musicApiResponse.blob();
-                    const audioUrlForPlayer = URL.createObjectURL(audioBlob);
-                    if (domElements.audioPlayer) domElements.audioPlayer.src = audioUrlForPlayer;
-                    if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'block';
-                    if (domElements.progressAndPlayerContainer) domElements.progressAndPlayerContainer.style.display = 'block';
-
-
-                    // ⭐ SALVATAGGIO FORMATO AUDIO DIRETTO CORRETTO
-                    const creationDataToSaveBlob = {
-                        action: 'pictosound_save_creation',
-                        nonce: pictosound_vars.save_creation_nonce,
-                        title: 'Musica del ' + new Date().toLocaleString('it-IT'),
-                        prompt: promptForMusic,
-                        description: 'Musica generata automaticamente da immagine (formato diretto)',
-                        image_url: currentImageSrc,
-                        audio_url: audioUrlForPlayer,
-                        duration: duration,
-                        style: 'AI Generated',
-                        mood: 'Auto',
-                        credits_used: pictosound_vars.duration_costs[duration] || 0,
-                        generation_data: {
-                            prompt: promptForMusic,
-                            duration: duration,
-                            format: 'direct_audio',
-                            timestamp: new Date().toISOString()
-                        }
-                    };
-
-                    jQuery.ajax({
-                        url: pictosound_vars.ajax_url,
-                        type: 'POST',
-                        data: creationDataToSaveBlob,
-                        success: function (response) {
-                            if (response.success) {
-                                console.log('✅ Creazione (formato diretto) salvata:', response.data);
-                            } else {
-                                console.warn('⚠️ Errore salvataggio formato diretto:', response.data);
-                            }
-                        },
-                        error: function (xhr, status, error) {
-                            console.error('❌ Errore AJAX salvataggio formato diretto:', error);
-                        }
-                    });
-                    // ⭐ FINE SALVATAGGIO FORMATO DIRETTO CORRETTO
-
-
                 } else {
-                    const errorText = await musicApiResponse.text();
-                    updateProgressMessage(`Errore server (HTTP ${musicApiResponse.status})`, false);
-                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, `Errore server (HTTP ${musicApiResponse.status})`, "error");
+                    // La risposta non era JSON o lo status non era OK
+                    updateProgressMessage(`Errore server da generate_music.php (Status: ${musicApiResponse.status})`, false);
                 }
+
             } catch (error) {
-                console.error("ERRORE durante la generazione musica:", error);
-                updateProgressMessage(`Errore: ${error.message}`, false);
-                if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore durante la generazione musica", "error");
+                console.error("ERRORE CRITICO nel blocco try/catch di startMusicGeneration:", error);
+                updateProgressMessage(`Errore JavaScript: ${error.message}`, false);
             } finally {
                 if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = false;
                 if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'none';
