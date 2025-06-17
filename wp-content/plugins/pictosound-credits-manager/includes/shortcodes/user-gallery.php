@@ -121,6 +121,7 @@ function pictosound_cm_user_gallery_shortcode($atts) {
             write_log_cm("DEBUG Gallery - Usando query generica per immagini e audio");
         }
         
+        // ⚡ CREA SEMPRE L'OGGETTO WP_Query NEL FALLBACK
         $creations = new WP_Query($query_args);
         $total_creations = $creations->found_posts;
         
@@ -632,9 +633,9 @@ function pictosound_cm_user_gallery_shortcode($atts) {
                     Tabella creazioni esiste: <?php echo $table_exists ? 'SI' : 'NO'; ?><br>
                     Fonte dati: <?php echo $table_exists ? 'Database Pictosound' : 'Attachment WordPress'; ?><br>
                     Creazioni trovate: <?php echo $total_creations; ?><br>
-                    <?php if (!$table_exists && isset($debug_all_files)): ?>
+                    <?php if (!$table_exists): ?>
                     Totale attachment utente: <?php echo count($debug_all_files); ?><br>
-                    Query: <?php echo isset($has_pictosound_files) && $has_pictosound_files ? 'Meta specifica' : 'Generica'; ?><br>
+                    Query: <?php echo $has_pictosound_files ? 'Meta specifica' : 'Generica'; ?><br>
                     <?php endif; ?>
                     <small>Controlla i log per dettagli completi</small>
                 </div>

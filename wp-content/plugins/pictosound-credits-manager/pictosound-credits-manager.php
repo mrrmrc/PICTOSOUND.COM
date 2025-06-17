@@ -1740,4 +1740,109 @@ function pictosound_ms_load_textdomain() {
 }
 add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
 
+/**
+ * ⚡ AJAX Handler per salvare le creazioni musicali
+ */
+function pictosound_cm_ajax_save_creation() {
+    $user_id = get_current_user_id();
+    
+    // Rate limiting per salvataggio creazioni
+    if (!pictosound_cm_check_rate_limit('save_creation', $user_id, 20, 10 * MINUTE_IN_SECONDS)) {
+        write_log_cm("Rate limit exceeded for save creation - user $user_id");
+        wp_send_json_error(['message' => __('Troppi tentativi di salvataggio. Riprova tra qualche minuto.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    // Verifica nonce per sicurezza
+    $nonce_received = isset($_POST['nonce']) ? sanitize_text_field($_POST['nonce']) : 'MISSING';
+    $nonce_valid = wp_verify_nonce($nonce_received, 'pictosound_save_creation_nonce');
+    
+    write_log_cm("Save Creation - User ID: $user_id, Nonce valido: " . ($nonce_valid ? 'SI' : 'NO'));
+    
+    if (!$nonce_valid) {
+        wp_send_json_error([
+            'message' => __('Sessione scaduta. Ricarica la pagina e riprova.', 'pictosound-credits-manager'),
+            'code' => 'nonce_expired'
+        ]);
+        return;
+    }
+
+    if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => __('Login richiesto per salvare le creazioni.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    // Aggiorna attività utente
+    pictosound_cm_update_user_activity($user_id);
+
+    global $wpdb;
+    $table_name = 'aDOtz4PiG8_pictosound_creations'; // Nome tabella completo corretto
+    
+    // Verifica che la tabella esista
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+        write_log_cm("ERRORE: Tabella creazioni '$table_name' non esiste");
+        wp_send_json_error(['message' => __('Sistema di salvataggio non disponibile. Contatta l\'assistenza.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    // Prepara i dati per il salvataggio
+    $creation_data = [
+        'user_id' => $user_id,
+        'title' => sanitize_text_field($_POST['title'] ?? 'Creazione senza titolo'),
+        'prompt' => sanitize_textarea_field($_POST['prompt'] ?? ''),
+        'description' => sanitize_textarea_field($_POST['description'] ?? ''),
+        'image_url' => esc_url_raw($_POST['image_url'] ?? ''),
+        'audio_url' => esc_url_raw($_POST['audio_url'] ?? ''),
+        'duration' => intval($_POST['duration'] ?? 0),
+        'style' => sanitize_text_field($_POST['style'] ?? ''),
+        'mood' => sanitize_text_field($_POST['mood'] ?? ''),
+        'credits_used' => intval($_POST['credits_used'] ?? 0),
+        'generation_data' => wp_json_encode($_POST['generation_data'] ?? []),
+        'status' => 'completed'
+    ];
+    
+    $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s'];
+    
+    // Inserisci nella tabella
+    $result = $wpdb->insert($table_name, $creation_data, $formats);
+    
+    if ($result === false) {
+        write_log_cm("ERRORE salvataggio creazione: " . $wpdb->last_error);
+        wp_send_json_error(['message' => __('Errore nel salvataggio: ', 'pictosound-credits-manager') . $wpdb->last_error]);
+        return;
+    }
+    
+    $creation_id = $wpdb->insert_id;
+    write_log_cm("Creazione salvata con successo - ID: $creation_id, User: $user_id, Title: " . $creation_data['title']);
+    
+    wp_send_json_success([
+        'message' => __('Creazione salvata con successo nella tua galleria!', 'pictosound-credits-manager'),
+        'creation_id' => $creation_id,
+        'new_credits' => pictosound_cm_get_user_credits($user_id)
+    ]);
+}
+add_action('wp_ajax_pictosound_save_creation', 'pictosound_cm_ajax_save_creation');
+
+/**
+ * ⚡ Hook per aggiungere il nonce di salvataggio alle variabili JavaScript
+ * Modifica la funzione esistente pictosound_cm_frontend_scripts_and_data
+ */
+function pictosound_cm_add_save_creation_nonce($script_data) {
+    // Aggiungi il nonce per il salvataggio
+    $script_data['save_creation_nonce'] = wp_create_nonce('pictosound_save_creation_nonce');
+    return $script_data;
+}
+
+// Hook per modificare i dati dello script esistente
+add_filter('wp_footer', function() {
+    ?>
+    <script>
+    // Aggiungi il nonce alle variabili esistenti se pictosound_vars è definito
+    if (typeof pictosound_vars !== 'undefined') {
+        pictosound_vars.save_creation_nonce = '<?php echo wp_create_nonce('pictosound_save_creation_nonce'); ?>';
+    }
+    </script>
+    <?php
+}, 5);
+?>
 ?>
