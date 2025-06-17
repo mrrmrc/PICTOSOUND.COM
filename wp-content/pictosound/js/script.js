@@ -1955,138 +1955,281 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 /**
  * ===================================================================
- * LOGICA DI GENERAZIONE MUSICA PICTOSOUND
- * Aggiunta per integrare con WordPress AJAX e popolare il database.
+ * BLOCCO COMPLETO E DEFINITIVO PER PICTOSOUND
+ * Contiene: Inizializzazione AI, pulizia e gestione del pulsante,
+ * e la chiamata AJAX corretta a WordPress.
  * ===================================================================
  */
 document.addEventListener('DOMContentLoaded', function () {
 
-    // Troviamo il pulsante di generazione
-    const generateBtn = document.getElementById('generateMusicButton');
+    // --- 1. RIFERIMENTI AGLI ELEMENTI HTML ---
+    const imageUploadInput = document.getElementById('imageUpload');
+    const takePictureBtn = document.getElementById('takePictureButton');
+    const generateBtnOriginal = document.getElementById('generateMusicButton');
+    const statusEl = document.getElementById('status');
 
-    // Se il pulsante non esiste in questa pagina, non facciamo nulla.
-    if (!generateBtn) {
-        console.log('Pictosound: Pulsante di generazione non trovato in questa pagina.');
+    // Se gli elementi fondamentali non sono in pagina, non proseguiamo.
+    if (!generateBtnOriginal || !imageUploadInput || !statusEl) {
+        console.log("Pictosound: Elementi essenziali (pulsante, input immagine o status) non trovati. Script non in esecuzione.");
         return;
     }
 
-    console.log('Pictosound: Logica di generazione inizializzata.');
+    // --- 2. FUNZIONI DI UTILITÀ ---
+    const updateStatus = (message, type = 'info') => {
+        statusEl.innerHTML = message; // Usiamo innerHTML per poter inserire link
+        statusEl.className = `status-message ${type}`;
+        console.log(`Pictosound Status: ${message}`);
+    };
 
-    // Aggiungiamo l'evento 'click' al pulsante
-    generateBtn.addEventListener('click', function () {
+    // --- 3. LOGICA DI INIZIALIZZAZIONE DELL'APPLICAZIONE ---
+    async function initializeApp() {
+        updateStatus('Caricamento modelli di intelligenza artificiale...', 'info');
+        try {
+            // Carichiamo in parallelo tutti i modelli necessari.
+            // Assicurati che i file dei modelli si trovino nel percorso specificato.
+            const modelPath = '/wp-content/pictosound/js/models';
+            await Promise.all([
+                cocoSsd.load(),
+                faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+                faceapi.nets.faceExpressionNet.loadFromUri(modelPath)
+                // Aggiungi altri modelli se necessario (es. ageGenderNet, faceLandmark68Net)
+            ]);
 
-        // --- 1. PREPARAZIONE E CONTROLLI INIZIALI ---
+            // Successo! L'applicazione è pronta per ricevere un'immagine.
+            updateStatus('Modelli AI pronti! Scegli un\'immagine o scatta una foto.', 'success');
+            imageUploadInput.disabled = false;
+            takePictureBtn.disabled = false;
 
-        // Disabilita il pulsante per evitare click multipli
+        } catch (error) {
+            console.error('Errore critico durante il caricamento dei modelli AI:', error);
+            updateStatus('Errore: impossibile caricare i modelli AI. <a href="javascript:location.reload();">Ricarica la pagina</a> per riprovare.', 'error');
+            generateBtnOriginal.disabled = true; // Lascia il pulsante disabilitato
+        }
+    }
+
+    // --- 4. GESTIONE DEL PULSANTE DI GENERAZIONE ---
+
+    // "Puliamo" il pulsante da qualsiasi evento precedente clonandolo.
+    const generateBtnClean = generateBtnOriginal.cloneNode(true);
+    generateBtnOriginal.parentNode.replaceChild(generateBtnClean, generateBtnOriginal);
+
+    // Il pulsante di generazione si attiva solo quando un'immagine è pronta.
+    // Aggiungiamo un evento personalizzato per gestire questo stato.
+    document.body.addEventListener('imageReady', function () {
+        console.log("Evento 'imageReady' ricevuto. Abilito il pulsante di generazione.");
+        generateBtnClean.disabled = false;
+        updateStatus('Immagine pronta. Personalizza se vuoi e avvia la generazione!', 'info');
+    });
+
+    // Aggiungiamo la logica di click al nostro pulsante "pulito".
+    generateBtnClean.addEventListener('click', function () {
         this.disabled = true;
-
-        // Mostra lo spinner e i messaggi di stato
         const musicSpinner = document.getElementById('musicSpinner');
         if (musicSpinner) musicSpinner.style.display = 'inline-block';
+        updateStatus('Richiesta inviata. Generazione della musica in corso...', 'info');
 
-        // Funzioni di utilità per aggiornare l'interfaccia (se non le hai già, sono utili)
-        const updateStatus = (message, type = 'info') => {
-            const statusEl = document.getElementById('status');
-            if (statusEl) {
-                statusEl.textContent = message;
-                statusEl.className = `status-message ${type}`;
-            }
-        };
-        const showProgressBar = () => {
-            const progressContainer = document.getElementById('progressBarContainer');
-            if (progressContainer) progressContainer.style.display = 'block';
-        };
-        const hideProgressBar = () => {
-            const progressContainer = document.getElementById('progressBarContainer');
-            if (progressContainer) progressContainer.style.display = 'none';
-        };
-
-        updateStatus('Avvio generazione musica...', 'info');
-        showProgressBar();
-
-
-        // --- 2. RACCOLTA DEI DATI DAL FORM ---
-
-        // Raccogli la durata selezionata
-        const selectedDurationInput = document.querySelector('input[name="musicDuration"]:checked');
-        const selectedDuration = selectedDurationInput ? selectedDurationInput.value : '45'; // Default a 45s se non trovato
-
-        // Raccogli il prompt (assicurati di avere una funzione che lo costruisce, o sostituisci con la tua logica)
-        // IPOTIZZO che tu abbia una funzione `buildFinalPrompt()` o simile.
-        // Se non ce l'hai, devi creare la logica per leggere i valori di mood, genere, etc. e creare la stringa.
-        let finalPrompt = '';
-        try {
-            // Sostituisci questo con la tua vera logica per costruire il prompt
-            finalPrompt = buildFinalPrompt();
-        } catch (e) {
-            console.error("Funzione buildFinalPrompt() non trovata o ha causato un errore. Assicurati che esista nel tuo script.js. Uso un prompt di default per test.", e);
-            finalPrompt = "A beautiful landscape with mountains and a lake, epic cinematic music";
-            updateStatus("Errore nella costruzione del prompt. Contatta l'assistenza.", "error");
-        }
+        const finalPrompt = buildFinalPrompt();
+        const selectedDuration = document.querySelector('input[name="musicDuration"]:checked').value;
 
         if (!finalPrompt) {
-            updateStatus('Errore: impossibile costruire il prompt.', 'error');
+            updateStatus('Errore: Il prompt non può essere vuoto.', 'error');
             this.disabled = false;
+            if (musicSpinner) musicSpinner.style.display = 'none';
             return;
         }
 
+        const body = new URLSearchParams();
+        body.append('action', 'pictosound_generate_music');
+        body.append('prompt', finalPrompt);
+        body.append('duration', selectedDuration);
 
-        // --- 3. CHIAMATA AJAX A WORDPRESS ---
-
-        console.log(`Pictosound: Invio richiesta AJAX a WordPress con prompt: "${finalPrompt}" e durata: ${selectedDuration}s`);
-
-        const dataToSend = {
-            action: 'pictosound_generate_music', // L'azione che abbiamo registrato nel plugin
-            prompt: finalPrompt,
-            duration: selectedDuration
-        };
-
+        // Chiamata AJAX
         fetch(pictosound_vars.ajax_url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(dataToSend)
+            body: body
         })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => {
-                        let errorMessage = (err && err.data && err.data.error) ? err.data.error : `Errore server: ${response.status}`;
-                        throw new Error(errorMessage);
-                    });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    console.log("Risposta di successo da WordPress:", data.data);
-
-                    // Aggiorna l'interfaccia utente con il risultato
-                    const audioPlayer = document.getElementById('audioPlayer');
-                    const downloadLink = document.getElementById('downloadAudioLink');
-                    const audioContainer = document.getElementById('audioPlayerContainer');
-
-                    audioPlayer.src = data.data.audioUrl;
-                    downloadLink.href = data.data.downloadUrl;
-
-                    if (audioContainer) audioContainer.style.display = 'block';
-                    if (downloadLink) downloadLink.style.display = 'inline-block';
-
+                    console.log("Successo! URL Audio:", data.data.audioUrl);
+                    document.getElementById('audioPlayer').src = data.data.audioUrl;
+                    document.getElementById('downloadAudioLink').href = data.data.downloadUrl;
+                    document.getElementById('audioPlayerContainer').style.display = 'block';
+                    document.getElementById('downloadButtonsContainer').style.display = 'flex';
                     updateStatus('Musica generata con successo!', 'success');
                 } else {
-                    throw new Error(data.data.error || 'Si è verificato un errore sconosciuto.');
+                    throw new Error(data.data.error || 'Errore sconosciuto dal server.');
                 }
             })
             .catch(error => {
-                console.error('Errore durante la generazione della musica:', error);
-                updateStatus(`Errore critico: ${error.message}`, 'error');
+                console.error('Errore durante la chiamata fetch:', error);
+                updateStatus(`Errore: ${error.message}`, 'error');
             })
             .finally(() => {
-                // Questa parte viene eseguita sia in caso di successo che di errore
-                hideProgressBar();
                 if (musicSpinner) musicSpinner.style.display = 'none';
-                this.disabled = false; // Riabilita sempre il pulsante alla fine
+                this.disabled = false; // Riabilita il pulsante
             });
     });
+
+    // --- 5. ATTIVIAMO L'INIZIALIZZAZIONE ---
+    initializeApp();
+
 });
+
+
+/**
+ * Funzione FONDAMENTALE per costruire il prompt.
+ * Questa è una versione generica. ASSICURATI DI ADATTARLA
+ * alla logica esatta della tua applicazione per raccogliere
+ * i dati dall'analisi AI e dalle selezioni dell'utente.
+ */
+function buildFinalPrompt() {
+    let parts = [];
+
+    // Esempio: Raccogliere i risultati salvati dall'analisi dell'immagine
+    // (Dovrai avere un'altra funzione che popola 'aiInsightsContent' dopo l'analisi)
+    const aiInsights = document.getElementById('aiInsightsContent')?.textContent;
+    if (aiInsights && aiInsights.trim() !== 'In attesa di analisi immagine...') {
+        parts.push(aiInsights.trim());
+    }
+
+    // Raccogliere i pills selezionati
+    const selectedPills = document.querySelectorAll('.checkbox-pills-group input[type="checkbox"]:checked');
+    selectedPills.forEach(pill => {
+        parts.push(pill.value);
+    });
+
+    // Raccogliere il valore del BPM
+    const bpmSlider = document.getElementById('bpmSlider');
+    if (bpmSlider) {
+        parts.push(`${bpmSlider.value} BPM`);
+    }
+
+    // Unisci tutto in una stringa, pulendo spazi extra e virgole duplicate
+    let finalPrompt = parts.filter(p => p).join(', ').replace(/,+/g, ',').trim();
+
+    console.log('Prompt finale costruito:', finalPrompt);
+
+    // Un prompt non può essere vuoto
+    if (!finalPrompt) {
+        return "epic cinematic music, dramatic, intense"; // Un prompt di riserva
+    }
+
+    return finalPrompt;
+}
+/**
+ * ===================================================================
+ * BLOCCO DI INIZIALIZZAZIONE AI E ABILITAZIONE PULSANTE
+ * Carica i modelli AI e attiva l'interfaccia utente quando è pronta.
+ * ===================================================================
+ */
+document.addEventListener('DOMContentLoaded', function () {
+
+    // Riferimenti agli elementi chiave dell'interfaccia
+    const generateBtn = document.getElementById('generateMusicButton');
+    const statusEl = document.getElementById('status');
+    const imageUploadEl = document.getElementById('imageUpload');
+
+    // Funzione per aggiornare il messaggio di stato
+    const updateStatus = (message, type = 'info') => {
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type}`;
+            console.log(`Pictosound Status: ${message}`);
+        }
+    };
+
+    // Funzione principale di inizializzazione
+    async function initializeApp() {
+        // Se il pulsante non esiste in questa pagina, interrompiamo tutto
+        if (!generateBtn) return;
+
+        updateStatus('Inizializzazione in corso...', 'info');
+
+        try {
+            updateStatus('Caricamento modelli di intelligenza artificiale...', 'info');
+
+            // Carichiamo in parallelo tutti i modelli necessari
+            // TensorFlow.js (tf), Coco-SSD (per oggetti), Face-API (per volti)
+            await Promise.all([
+                cocoSsd.load(), // Assicura che la libreria coco-ssd.min.js sia caricata
+                faceapi.nets.tinyFaceDetector.loadFromUri('/wp-content/pictosound/js/models'),
+                faceapi.nets.faceLandmark68Net.loadFromUri('/wp-content/pictosound/js/models'),
+                faceapi.nets.faceRecognitionNet.loadFromUri('/wp-content/pictosound/js/models'),
+                faceapi.nets.faceExpressionNet.loadFromUri('/wp-content/pictosound/js/models'),
+                faceapi.nets.ageGenderNet.loadFromUri('/wp-content/pictosound/js/models')
+            ]);
+
+            // Se arriviamo qui, tutti i modelli sono stati caricati con successo
+            updateStatus('Modelli AI pronti! Carica un\'immagine per iniziare.', 'success');
+
+            // Abilita i pulsanti per caricare l'immagine
+            if (imageUploadEl) imageUploadEl.disabled = false;
+            // Aggiungi qui altri pulsanti da abilitare se necessario
+
+        } catch (error) {
+            console.error('Errore critico durante il caricamento dei modelli AI:', error);
+            updateStatus('Errore: impossibile caricare i modelli AI. Ricarica la pagina.', 'error');
+            // Lasciamo il pulsante principale disabilitato perché l'app non può funzionare
+            generateBtn.disabled = true;
+        }
+    }
+
+    // Aggiungiamo un listener all'input dell'immagine.
+    // Il pulsante di generazione si attiverà SOLO dopo aver caricato un'immagine.
+    if (imageUploadEl) {
+        imageUploadEl.addEventListener('change', function () {
+            if (this.files && this.files[0]) {
+                // Una volta che un'immagine è stata selezionata (e analizzata, se necessario),
+                // abilitiamo finalmente il pulsante di generazione.
+                if (generateBtn) {
+                    console.log('Immagine caricata, abilito il pulsante di generazione.');
+                    generateBtn.disabled = false;
+                    updateStatus('Immagine pronta. Puoi avviare la generazione!', 'info');
+                }
+            }
+        });
+    }
+
+    // Avvia il processo di inizializzazione
+    initializeApp();
+});
+
+
+/**
+ * Funzione FONDAMENTALE per costruire il prompt.
+ * Assicurati che questa funzione esista e funzioni correttamente nel tuo script.
+ * Deve raccogliere tutti gli input dell'utente (oggetti, mood, genere, etc.)
+ * e restituire una singola stringa di testo.
+ */
+function buildFinalPrompt() {
+    let parts = [];
+
+    // 1. Raccogli l'analisi dell'immagine (se la salvi da qualche parte)
+    // Esempio: const detectedObjects = document.getElementById('aiInsightsContent').textContent;
+    // if(detectedObjects) parts.push(detectedObjects);
+
+    // 2. Raccogli i pills selezionati (mood, genere, etc.)
+    const selectedPills = document.querySelectorAll('.checkbox-pills-group input[type="checkbox"]:checked');
+    selectedPills.forEach(pill => {
+        parts.push(pill.value);
+    });
+
+    // 3. Raccogli il valore del BPM
+    const bpmSlider = document.getElementById('bpmSlider');
+    if (bpmSlider) {
+        parts.push(`${bpmSlider.value} BPM`);
+    }
+
+    // Unisci tutto in una stringa separata da virgole
+    let finalPrompt = parts.join(', ');
+
+    console.log('Prompt finale costruito:', finalPrompt);
+
+    // Un prompt non può essere vuoto, forniamo un fallback
+    if (!finalPrompt.trim()) {
+        return "epic cinematic music, dramatic, intense";
+    }
+
+    return finalPrompt;
+}

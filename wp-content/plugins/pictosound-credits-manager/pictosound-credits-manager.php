@@ -3958,151 +3958,228 @@ function pictosound_cm_add_generation_nonces_to_js($script_data) {
 // Hook per aggiungere i nonce ai dati JavaScript esistenti
 add_filter('pictosound_frontend_js_data', 'pictosound_cm_add_generation_nonces_to_js');
 
-function pictosound_ajax_generate_music() {
-    // 1. VERIFICA SICUREZZA E DATI IN INGRESSO
-    // Anche se questa azione può essere pubblica, usiamo un nonce per una maggiore sicurezza
-    // check_ajax_referer('pictosound_generate_nonce', 'nonce'); // Opzionale ma consigliato
+/**
+ * ⚡ GESTIONE AJAX PER LA GENERAZIONE DELLA MUSICA (v3 - ROBUSTA E CON LOGGING DI FALLBACK)
+ */
 
-    // Log per debugging
-    write_log_cm("Inizio AJAX pictosound_ajax_generate_music. User ID: " . get_current_user_id());
-
-    $input = json_decode(file_get_contents('php://input'), true);
-
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        write_log_cm("Errore decodifica JSON: " . json_last_error_msg());
-        wp_send_json_error(['error' => 'JSON malformato.'], 400);
-        return;
+    if (!function_exists('write_log_cm')) {
+        function write_log_cm($message) { error_log('Pictosound Fallback Log: ' . print_r($message, true)); }
     }
-    
-    $prompt_text = trim($input['prompt'] ?? '');
-    $duration_seconds = isset($input['duration']) ? max(30, min(180, intval($input['duration']))) : 45;
+    write_log_cm("--- INIZIO RICHIESTA AJAX v6 (con log percorsi) ---");
+    if (empty($_POST['action']) || empty($_POST['prompt']) || empty($_POST['duration'])) {
+        wp_send_json_error(['error' => 'Richiesta malformata.'], 400);
+        wp_die();
+    }
+    $prompt_text = sanitize_textarea_field(stripslashes($_POST['prompt']));
+    $duration_seconds = intval($_POST['duration']);
     $user_id = is_user_logged_in() ? get_current_user_id() : null;
-    $session_id = session_id(); // O un altro identificatore univoco per gli utenti non loggati
-    $ip_address = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-
-    if (empty($prompt_text)) {
-        write_log_cm("Prompt mancante.");
-        wp_send_json_error(['error' => 'Prompt mancante.'], 400);
-        return;
-    }
-    
-    // 2. PREPARAZIONE CHIAMATA API A STABILITY AI
-    $audio_dir = WP_CONTENT_DIR . '/pictosound/audio/'; // Percorso fisico corretto
-    if (!file_exists($audio_dir)) {
-        if (!mkdir($audio_dir, 0775, true)) {
-            write_log_cm("Impossibile creare la directory audio: " . $audio_dir);
-            wp_send_json_error(['error' => 'Errore server creazione directory.'], 500);
-            return;
+    if ($user_id) {
+        global $wpdb;
+        $user_table_name = $wpdb->prefix . 'ps_users';
+        $user_exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $user_table_name WHERE id = %d", $user_id));
+        if (!$user_exists) {
+            $wp_user_data = get_userdata($user_id);
+            if ($wp_user_data) {
+                $wpdb->insert($user_table_name, ['id' => $user_id, 'email' => $wp_user_data->user_email, 'name' => $wp_user_data->display_name, 'status' => 'active'], ['%d', '%s', '%s', '%s']);
+            }
         }
     }
-    
-    // Usa la chiave API definita nel plugin o in wp-config.php
-    $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // SOSTITUISCI CON LA TUA VERA CHIAVE API
+    $audio_dir = WP_CONTENT_DIR . '/pictosound/audio/';
+    if (!file_exists($audio_dir) && !mkdir($audio_dir, 0775, true)) {
+        wp_send_json_error(['error' => 'Errore permessi directory.'], 500);
+        wp_die();
+    }
+    $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // ⚠️ USA LA TUA CHIAVE API VALIDA
     $api_url = 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio';
-
-    $fields_to_send = [
-        'prompt' => $prompt_text,
-        'output_format' => 'mp3',
-        'duration' => $duration_seconds,
-        'steps' => 30,
-    ];
-
-    // 3. ESECUZIONE DELLA CHIAMATA cURL (Logica da generate_music.php)
+    $fields_to_send = ['prompt' => $prompt_text, 'output_format' => 'mp3', 'duration' => $duration_seconds, 'steps' => 30];
     $boundary = "------------------------" . uniqid();
     $request_body = "";
-    foreach ($fields_to_send as $name => $value) {
-        $request_body .= "--" . $boundary . "\r\n";
-        $request_body .= "Content-Disposition: form-data; name=\"" . $name . "\"\r\n\r\n";
-        $request_body .= $value . "\r\n";
-    }
+    foreach ($fields_to_send as $name => $value) { $request_body .= "--" . $boundary . "\r\n" . "Content-Disposition: form-data; name=\"" . $name . "\"\r\n\r\n" . $value . "\r\n"; }
     $request_body .= "--" . $boundary . "--\r\n";
-    
-    $response = wp_remote_post($api_url, [
-        'method' => 'POST',
-        'timeout' => 180,
-        'headers' => [
-            "Authorization" => "Bearer $api_key",
-            "Accept" => "audio/*",
-            "Content-Type" => "multipart/form-data; boundary=" . $boundary,
-        ],
-        'body' => $request_body,
-    ]);
-
+    $response = wp_remote_post($api_url, ['method' => 'POST', 'timeout' => 180, 'headers' => ["Authorization" => "Bearer $api_key", "Accept" => "audio/*", "Content-Type" => "multipart/form-data; boundary=" . $boundary], 'body' => $request_body]);
     if (is_wp_error($response)) {
-        write_log_cm("Errore WP_Error chiamata API: " . $response->get_error_message());
-        wp_send_json_error(['error' => "Errore cURL: " . $response->get_error_message()], 500);
-        return;
+        wp_send_json_error(['error' => "Errore API musicale."], 500);
+        wp_die();
     }
-    
     $http_code = wp_remote_retrieve_response_code($response);
     $response_body_raw = wp_remote_retrieve_body($response);
     $response_content_type = wp_remote_retrieve_header($response, 'content-type');
-
-    write_log_cm("Risposta da Stability API - HTTP Code: $http_code");
-
-    // 4. GESTIONE DELLA RISPOSTA E SALVATAGGIO FILE
     if ($http_code >= 200 && $http_code < 300 && strpos($response_content_type, 'audio/') !== false) {
-        $file_extension = 'mp3'; // O determina dall'header
-        $filename = 'audio_gen_' . time() . '_' . wp_generate_password(8, false) . '.' . $file_extension;
+        $filename = 'audio_gen_' . time() . '_' . wp_generate_password(8, false) . '.mp3';
         $filepath = $audio_dir . $filename;
-        
-        if (file_put_contents($filepath, $response_body_raw) !== false) {
-            write_log_cm("Audio salvato con successo: $filename");
-            
-            // Costruzione URL corretto
+        if (file_put_contents($filepath, $response_body_raw)) {
+            // LOG FONDAMENTALE 
+            write_log_cm("DEBUG SALVATAGGIO: File salvato con successo in -> " . $filepath);
             $download_url = content_url("/pictosound/includes/download.php?file=" . urlencode($filename));
-            
-            // 5. INSERIMENTO DATI NEL DATABASE (IL PASSAGGIO MANCANTE!)
             global $wpdb;
             $table_name = $wpdb->prefix . 'ps_generations';
-            
-            $wpdb->insert(
-                $table_name,
-                [
-                    'user_id' => $user_id,
-                    'session_id' => $session_id,
-                    'duration' => $duration_seconds,
-                    'credits_used' => 0, // Inserisci qui la logica dei crediti se applicabile
-                    'prompt' => $prompt_text,
-                    'audio_filename' => $filename,
-                    'audio_url' => $download_url,
-                    'ip_address' => $ip_address,
-                    'user_agent' => $user_agent,
-                    'created_at' => current_time('mysql'),
-                ],
-                [
-                    '%d', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s'
-                ]
-            );
-            
-            $insert_id = $wpdb->insert_id;
-            if ($insert_id) {
-                write_log_cm("Record inserito in ps_generations con ID: $insert_id");
-            } else {
-                write_log_cm("ERRORE: Inserimento nel database fallito. Errore DB: " . $wpdb->last_error);
-            }
-
-            wp_send_json_success([
-                'audioUrl' => $download_url, // L'URL che il player userà
-                'downloadUrl' => $download_url,
-                'fileName' => $filename,
-                'message' => 'Audio generato e salvato con successo.'
-            ], 200);
-
+            $wpdb->insert($table_name, ['user_id' => $user_id, 'session_id' => session_id() ?: 'N/A', 'duration' => $duration_seconds, 'credits_used' => 0, 'prompt' => $prompt_text, 'audio_filename' => $filename, 'audio_url' => $download_url, 'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'N/A', 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'N/A', 'created_at' => current_time('mysql')]);
+            wp_send_json_success(['audioUrl' => $download_url, 'downloadUrl' => $download_url, 'fileName' => $filename]);
         } else {
-            write_log_cm("Errore salvataggio file audio: " . $filepath);
-            wp_send_json_error(['error' => "Impossibile salvare il file audio."], 500);
+            wp_send_json_error(['error' => "Errore scrittura file."], 500);
         }
     } else {
-        // Gestione errori API
-        write_log_cm("Errore API Stability (HTTP $http_code). Risposta: " . $response_body_raw);
         $error_data = json_decode($response_body_raw, true);
-        $error_message = $error_data['message'] ?? 'Errore sconosciuto dall\'API.';
-        wp_send_json_error(['error' => "API Error ($http_code): $error_message"], $http_code);
+        $error_to_send = $error_data['message'] ?? 'Errore API musicale.';
+        wp_send_json_error(['error' => "API Error ($http_code): $error_to_send"], $http_code);
     }
+    wp_die();
 }
-// Aggancia la funzione all'hook AJAX di WordPress
+// Assicurati che gli hook siano sempre presenti dopo la funzione
 add_action('wp_ajax_pictosound_generate_music', 'pictosound_ajax_generate_music');
 add_action('wp_ajax_nopriv_pictosound_generate_music', 'pictosound_ajax_generate_music');
+
+/**
+ * =============================================================
+ * SHORTCODE PER L'ARCHIVIO DELLE GENERAZIONI MUSICALI
+ * Legge i dati dalla tabella ps_generations e li mostra.
+ * =============================================================
+ */
+function pictosound_cm_generations_archive_shortcode() {
+    // 1. Controlla se l'utente è loggato. L'archivio è personale.
+    if (!is_user_logged_in()) {
+        return '<div class="ps-archive-login-prompt">
+                    <p>Devi effettuare il <a href="' . wp_login_url(get_permalink()) . '">login</a> per vedere le tue creazioni musicali.</p>
+                </div>';
+    }
+
+    // ob_start() cattura tutto l'output HTML in una variabile invece di stamparlo direttamente.
+    ob_start();
+
+    // 2. Prepara la query al database
+    global $wpdb;
+    $user_id = get_current_user_id();
+    $table_name = $wpdb->prefix . 'ps_generations';
+
+    // Prepara e esegui la query in modo sicuro per l'utente corrente, ordinando dalla più recente
+    $generations = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT * FROM %i WHERE user_id = %d ORDER BY created_at DESC",
+            $table_name,
+            $user_id
+        )
+    );
+
+    // 3. Controlla se abbiamo trovato risultati
+    if ($generations) {
+        echo '<div class="pictosound-generations-archive">';
+        echo '<h3>Le Tue Creazioni Musicali</h3>';
+        echo '<ul>';
+
+        // 4. Itera (fa un ciclo) su ogni risultato e crea l'HTML
+        foreach ($generations as $generation) {
+            echo '<li class="generation-item">';
+            
+            // Dettagli della traccia
+            echo '<div class="generation-details">';
+            echo '<strong class="generation-prompt">Prompt:</strong> <span>' . esc_html($generation->prompt) . '</span>';
+            echo '<div class="generation-meta">';
+            echo '<span><strong>Durata:</strong> ' . esc_html($generation->duration) . 's</span>';
+            // Formatta la data per essere più leggibile
+            $formatted_date = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($generation->created_at));
+            echo '<span><strong>Data:</strong> ' . $formatted_date . '</span>';
+            echo '</div>';
+            echo '</div>';
+
+            // Player audio e download
+            echo '<div class="generation-player-action">';
+            echo '<audio controls src="' . esc_url($generation->audio_url) . '"></audio>';
+            echo '<a href="' . esc_url($generation->audio_url) . '" class="download-button-archive" download>Scarica</a>';
+            echo '</div>';
+
+            echo '</li>';
+        }
+
+        echo '</ul>';
+        echo '</div>';
+    } else {
+        // Messaggio da mostrare se non ci sono ancora generazioni
+        echo '<div class="pictosound-no-generations">
+                <p>Non hai ancora creato nessuna traccia musicale. <a href="/">Inizia ora!</a></p>
+              </div>';
+    }
+
+    // ob_get_clean() restituisce tutto l'HTML catturato e pulisce il buffer.
+    return ob_get_clean();
+}
+
+// 5. Registra il nuovo shortcode in WordPress
+add_shortcode('pictosound_generations_archive', 'pictosound_cm_generations_archive_shortcode');
+
+
+/**
+ * =============================================================
+ * CSS OPZIONALE PER L'ARCHIVIO
+ * Aggiunge uno stile di base per rendere l'elenco più leggibile.
+ * =============================================================
+ */
+function pictosound_cm_archive_styles() {
+    // Aggiungi questi stili solo se la pagina corrente contiene lo shortcode
+    global $post;
+    if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'pictosound_generations_archive')) {
+        ?>
+        <style>
+            .pictosound-generations-archive ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            .generation-item {
+                background: #f9f9f9;
+                border: 1px solid #e5e5e5;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 20px;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                align-items: center;
+                gap: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            .generation-details {
+                flex: 1;
+                min-width: 300px;
+            }
+            .generation-prompt {
+                font-size: 1.1em;
+                color: #333;
+            }
+            .generation-meta {
+                margin-top: 10px;
+                font-size: 0.9em;
+                color: #666;
+                display: flex;
+                gap: 20px;
+            }
+            .generation-player-action {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }
+            .generation-player-action audio {
+                max-width: 300px;
+                height: 40px;
+            }
+            .download-button-archive {
+                background-color: #0073aa;
+                color: white !important;
+                padding: 8px 15px;
+                border-radius: 5px;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: bold;
+                white-space: nowrap;
+                transition: background-color 0.2s;
+            }
+            .download-button-archive:hover {
+                background-color: #005a87;
+            }
+        </style>
+        <?php
+    }
+}
+// Aggancia la funzione all'head di WordPress
+add_action('wp_head', 'pictosound_cm_archive_styles');
+
 ?>
