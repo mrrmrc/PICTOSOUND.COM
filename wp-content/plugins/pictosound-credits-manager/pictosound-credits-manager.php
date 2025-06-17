@@ -1845,4 +1845,3 @@ add_filter('wp_footer', function() {
     <?php
 }, 5);
 ?>
-?>

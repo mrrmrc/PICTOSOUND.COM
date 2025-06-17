@@ -1713,8 +1713,60 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.log("LOG DEBUG SERVER (generate_music.php): Risposta JSON:", musicResult);
 
                     if (musicResult.success && musicResult.audioUrl) {
+
                         updateProgressMessage("", false);
                         if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Musica generata con successo!", "success");
+
+
+                        // ⭐ SALVATAGGIO AUTOMATICO CORRETTO - CHIAMATA AJAX
+                        const durationCostMap = pictosound_vars.duration_costs || {};
+                        const creditsUsed = durationCostMap[duration] || 0;
+
+                        const creationDataToSave = {
+                            action: 'pictosound_save_creation',
+                            nonce: pictosound_vars.save_creation_nonce, // Questo nonce viene aggiunto da un filtro in PHP
+                            title: 'Musica del ' + new Date().toLocaleString('it-IT'),
+                            prompt: promptForMusic,
+                            description: 'Generato da Pictosound con prompt: ' + promptForMusic,
+                            image_url: currentImageSrc,
+                            audio_url: musicResult.audioUrl,
+                            duration: duration,
+                            style: (getSelectedGenresForSave() || []).join(', '),
+                            mood: (getSelectedMoodsForSave() || []).join(', '),
+                            credits_used: creditsUsed,
+                            generation_data: {
+                                api_prompt: promptForMusic,
+                                timestamp: new Date().toISOString(),
+                                user_selections: {
+                                    moods: getSelectedMoodsForSave(),
+                                    genres: getSelectedGenresForSave(),
+                                    instruments: getSelectedInstrumentsForSave(),
+                                    rhythms: getSelectedRhythmsForSave(),
+                                    bpm: document.getElementById('bpmSlider').value
+                                }
+                            }
+                        };
+
+                        // Esegui la chiamata AJAX per salvare i dati nel database
+                        jQuery.ajax({
+                            url: pictosound_vars.ajax_url,
+                            type: 'POST',
+                            data: creationDataToSave,
+                            success: function (response) {
+                                if (response.success) {
+                                    console.log('✅ Creazione salvata con successo nel DB:', response.data);
+                                    showSaveNotificationPictosound('Creazione salvata nella tua galleria!', 'success');
+                                } else {
+                                    console.warn('⚠️ Errore nel salvataggio della creazione nel DB:', response.data);
+                                    showSaveNotificationPictosound('Errore salvataggio: ' + (response.data.message || 'sconosciuto'), 'error');
+                                }
+                            },
+                            error: function (xhr, status, error) {
+                                console.error('❌ Errore critico AJAX durante il salvataggio della creazione:', error);
+                                showSaveNotificationPictosound('Errore di connessione durante il salvataggio.', 'error');
+                            }
+                        });
+                        // ⭐ FINE SALVATAGGIO AUTOMATICO CORRETTO
 
                         setTimeout(() => {
                             if (domElements.statusDiv && domElements.statusDiv.textContent === "Musica generata con successo!") {
@@ -1790,6 +1842,47 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (domElements.audioPlayer) domElements.audioPlayer.src = audioUrlForPlayer;
                     if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'block';
                     if (domElements.progressAndPlayerContainer) domElements.progressAndPlayerContainer.style.display = 'block';
+
+
+                    // ⭐ SALVATAGGIO FORMATO AUDIO DIRETTO CORRETTO
+                    const creationDataToSaveBlob = {
+                        action: 'pictosound_save_creation',
+                        nonce: pictosound_vars.save_creation_nonce,
+                        title: 'Musica del ' + new Date().toLocaleString('it-IT'),
+                        prompt: promptForMusic,
+                        description: 'Musica generata automaticamente da immagine (formato diretto)',
+                        image_url: currentImageSrc,
+                        audio_url: audioUrlForPlayer,
+                        duration: duration,
+                        style: 'AI Generated',
+                        mood: 'Auto',
+                        credits_used: pictosound_vars.duration_costs[duration] || 0,
+                        generation_data: {
+                            prompt: promptForMusic,
+                            duration: duration,
+                            format: 'direct_audio',
+                            timestamp: new Date().toISOString()
+                        }
+                    };
+
+                    jQuery.ajax({
+                        url: pictosound_vars.ajax_url,
+                        type: 'POST',
+                        data: creationDataToSaveBlob,
+                        success: function (response) {
+                            if (response.success) {
+                                console.log('✅ Creazione (formato diretto) salvata:', response.data);
+                            } else {
+                                console.warn('⚠️ Errore salvataggio formato diretto:', response.data);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            console.error('❌ Errore AJAX salvataggio formato diretto:', error);
+                        }
+                    });
+                    // ⭐ FINE SALVATAGGIO FORMATO DIRETTO CORRETTO
+
+
                 } else {
                     const errorText = await musicApiResponse.text();
                     updateProgressMessage(`Errore server (HTTP ${musicApiResponse.status})`, false);
