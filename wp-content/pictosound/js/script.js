@@ -46,33 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         closeFullscreenButton: document.getElementById('closeFullscreenButton')
     };
 
-    /**
-     * ⚡ FUNZIONE DI DEBUG VISIVO ⚡
-     * Aggiunge messaggi di log direttamente nell'area di stato per un facile debug.
-     */
-    function logStep(message) {
-        console.log(`[UI_LOG] ${message}`);
-        if (domElements.progressMessage) {
-            domElements.dynamicFeedbackArea.style.display = 'block';
-            domElements.progressAndPlayerContainer.style.display = 'block';
-            domElements.progressBarContainer.style.display = 'none'; // Nasconde la barra di progresso per mostrare solo i log
-
-            const logEntry = document.createElement('div');
-            const timestamp = new Date().toLocaleTimeString('it-IT');
-            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
-            logEntry.style.fontSize = '12px';
-            logEntry.style.fontFamily = 'monospace';
-            logEntry.style.whiteSpace = 'pre-wrap';
-            logEntry.style.borderBottom = '1px solid #eee';
-            logEntry.style.padding = '3px 0';
-            logEntry.style.textAlign = 'left';
-
-            // Inserisce il nuovo log in cima
-            domElements.progressMessage.prepend(logEntry);
-        }
-    }
-
-
     // --- SISTEMA AUTO-RECOVERY PER NONCE SCADUTI ---
     function handleNonceExpiredError(originalAjaxCall, originalData) {
         console.log('Pictosound: Nonce scaduto rilevato, aggiornamento automatico...');
@@ -117,6 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Funzione per ricarica crediti con auto-recovery
+    // Sostituisci la funzione rechargeCredits esistente con questa versione PayPal
     function rechargeCredits(packageKey) {
         const requestData = {
             action: 'pictosound_recharge_credits',
@@ -131,17 +105,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 data: data,
                 success: function (response) {
                     if (response.success) {
+                        // Controlla se è un redirect PayPal
                         if (response.data.is_redirect && response.data.redirect_url) {
+                            console.log('PayPal redirect URL:', response.data.redirect_url);
+
+                            // Mostra messaggio e reindirizza a PayPal
                             const rechargeStatusDiv = document.getElementById('rechargeStatusMessage');
                             if (rechargeStatusDiv) {
-                                setStatusMessage(rechargeStatusDiv, 'Reindirizzamento per il pagamento...', "info");
+                                setStatusMessage(rechargeStatusDiv, 'Reindirizzamento a PayPal...', "info");
                             }
+
+                            // Reindirizza a PayPal dopo un breve delay
                             setTimeout(() => {
                                 window.location.href = response.data.redirect_url;
                             }, 1000);
+
                         } else {
+                            // Gestisci risposta normale (non dovrebbe succedere con PayPal)
+                            console.log('Ricarica completata:', response.data);
                             const rechargeStatusDiv = document.getElementById('rechargeStatusMessage');
                             if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, response.data.message, "success");
+
                             if (response.data.new_balance) {
                                 pictosound_vars.user_credits = response.data.new_balance;
                                 updateCreditsDisplay(response.data.new_balance);
@@ -151,23 +135,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                             }
                         }
                     } else {
+                        console.error('Errore ricarica:', response.data);
                         const rechargeStatusDiv = document.getElementById('rechargeStatusMessage');
                         if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, response.data.message || 'Errore durante la ricarica', "error");
                     }
                 },
-                error: function (xhr) {
+                error: function (xhr, status, error) {
                     try {
                         const response = JSON.parse(xhr.responseText);
                         if (response.data && response.data.code === 'nonce_expired') {
+                            // Gestisci automaticamente il nonce scaduto
                             handleNonceExpiredError(makeRechargeRequest, data);
                             return;
                         }
-                    } catch (e) { }
+                    } catch (e) {
+                        // Ignora errori di parsing
+                    }
+
+                    console.error('ERRORE: Risposta JSON dal server (WP AJAX Ricarica) indica fallimento:', xhr.responseText);
                     const rechargeStatusDiv = document.getElementById('rechargeStatusMessage');
-                    if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, 'Errore di connessione. Riprova.', "error");
+                    if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, 'Errore durante la ricarica. Riprova.', "error");
                 }
             });
         }
+
         makeRechargeRequest(requestData);
     }
 
@@ -186,35 +177,46 @@ document.addEventListener('DOMContentLoaded', async () => {
                 data: data,
                 success: function (response) {
                     if (response.success) {
+                        console.log('Check crediti completato:', response.data);
+                        // Gestisci il successo
                         if (response.data.can_proceed) {
+                            // Aggiorna crediti rimanenti se forniti
                             if (typeof response.data.remaining_credits !== 'undefined') {
                                 pictosound_vars.user_credits = response.data.remaining_credits;
                                 if (typeof updateDurationOptionsUI === 'function') updateDurationOptionsUI();
                             }
+                            // Procedi con la generazione
                             if (typeof window.startMusicGeneration === 'function') {
                                 window.startMusicGeneration();
                             }
                         } else {
+                            // Crediti insufficienti o altro errore
                             if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, response.data.message || 'Impossibile procedere', "error");
                             updateProgressMessage("", false);
                             if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = false;
                             if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'none';
                         }
                     } else {
+                        console.error('Errore check crediti:', response.data);
                         if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, response.data.message || 'Errore nella verifica crediti', "error");
                         updateProgressMessage("", false);
                         if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = false;
                         if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'none';
                     }
                 },
-                error: function (xhr) {
+                error: function (xhr, status, error) {
                     try {
                         const response = JSON.parse(xhr.responseText);
                         if (response.data && response.data.code === 'nonce_expired') {
+                            // Gestisci automaticamente il nonce scaduto
                             handleNonceExpiredError(makeCheckRequest, data);
                             return;
                         }
-                    } catch (e) { }
+                    } catch (e) {
+                        // Ignora errori di parsing
+                    }
+
+                    console.error('ERRORE: Risposta JSON dal server (WP AJAX Check) indica fallimento:', xhr.responseText);
                     if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, 'Errore durante la verifica crediti. Riprova.', "error");
                     updateProgressMessage("", false);
                     if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = false;
@@ -222,17 +224,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         }
+
         makeCheckRequest(requestData);
     }
 
     // Funzione di utilità per aggiornare il display dei crediti
     function updateCreditsDisplay(newBalance) {
+        // Aggiorna tutti gli elementi che mostrano il saldo crediti
         jQuery('.pictosound-saldo-display-widget').each(function () {
             const $element = jQuery(this);
             const text = $element.text();
             const newText = text.replace(/\d+/, newBalance);
             $element.text(newText);
         });
+
+        // Aggiorna anche le variabili globali
         pictosound_vars.user_credits = newBalance;
     }
 
@@ -286,7 +292,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 console.error("ERRORE CRITICO: pictosound_vars non definito per popolare pacchetti.");
             }
-        }, 600);
+        }, 600); // Un leggero ritardo maggiore rispetto all'altro timeout
     }
 
     // Event Listener per il pulsante di ricarica con auto-recovery
@@ -953,26 +959,101 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Generates the final English prompt for the music generation API
+    // ✅ NUOVA FUNZIONE SEMPLIFICATA
     function generateStableAudioPrompt(parsedData) {
         console.log("🎵 generateStableAudioPrompt chiamata con:", parsedData);
 
+        // Fallback se parsedData non è valido
         if (!parsedData) {
             console.log("⚠️ parsedData non valido, uso fallback");
             return "acoustic upbeat with guitar, 120 BPM, high quality";
         }
 
-        let parts = [];
-        if (parsedData.genres?.length > 0) parts.push(...parsedData.genres.map(c => translateCueToEnglish(c, 'genre')));
-        if (parsedData.moods?.length > 0) parts.push(...parsedData.moods.map(c => translateCueToEnglish(c, 'mood')));
-        if (parsedData.instruments?.length > 0) parts.push(...parsedData.instruments.map(c => translateCueToEnglish(c, 'instrument')));
-        if (parsedData.rhythms?.length > 0) parts.push(...parsedData.rhythms.map(c => translateCueToEnglish(c, 'rhythm')));
-        if (parsedData.keywords?.length > 0) parts.push(...parsedData.keywords.map(c => translateCueToEnglish(c, 'object')));
+        // Estrai dati dall'analisi immagine GLOBALE
+        const detectedObjects = imageAnalysisResults?.objects || [];
+        const detectedEmotions = imageAnalysisResults?.emotions || [];
 
-        parts.push(parsedData.tempoBPM + " BPM");
-        parts.push("high quality instrumental");
+        console.log("🎯 Oggetti rilevati:", detectedObjects);
+        console.log("😊 Emozioni rilevate:", detectedEmotions);
+        console.log("🎭 Mood parsedData:", parsedData.moods);
+        console.log("🎼 Generi parsedData:", parsedData.genres);
 
-        const finalPrompt = [...new Set(parts.filter(Boolean))].join(", ");
-        console.log("🎵 PROMPT FINALE:", finalPrompt);
+        // 1. DETERMINA GENERE PRINCIPALE
+        let genre = "atmospheric"; // Default
+
+        if (detectedObjects.includes("persona")) {
+            genre = "acoustic";
+            console.log("👤 Persona rilevata → genere: acoustic");
+        } else if (detectedObjects.includes("cane") && detectedObjects.includes("persona")) {
+            genre = "acoustic";
+            console.log("👤🐕 Persona + cane → genere: acoustic");
+        } else if (detectedObjects.some(obj => ["auto", "città", "strada"].includes(obj))) {
+            genre = "electronic";
+            console.log("🏙️ Urbano rilevato → genere: electronic");
+        } else if (detectedObjects.some(obj => ["natura", "albero", "montagna"].includes(obj))) {
+            genre = "ambient";
+            console.log("🌲 Natura rilevata → genere: ambient");
+        }
+
+        // 2. DETERMINA MOOD
+        let mood = "";
+
+        // Prima controlla emozioni rilevate DIRETTAMENTE
+        if (detectedEmotions.includes("felice")) {
+            mood = "upbeat";
+            console.log("😊 Emozione felice → mood: upbeat");
+        } else if (detectedEmotions.includes("triste")) {
+            mood = "melancholic";
+            console.log("😢 Emozione triste → mood: melancholic");
+        } else if (parsedData.moods && parsedData.moods.length > 0 && parsedData.moods[0] !== "descrittivo") {
+            // Usa mood dall'analisi se non è il fallback
+            const firstMood = parsedData.moods[0];
+            if (firstMood === "energico") mood = "upbeat";
+            else if (firstMood === "malinconico") mood = "melancholic";
+            else if (firstMood === "rilassante") mood = "calm";
+            console.log("🎭 Mood da parsedData:", firstMood, "→", mood);
+        }
+
+        // 3. DETERMINA STRUMENTO
+        let instrument = "guitar"; // Default per acoustic
+
+        if (genre === "acoustic") instrument = "guitar";
+        else if (genre === "electronic") instrument = "synthesizer";
+        else if (genre === "ambient") instrument = "piano";
+
+        console.log("🎸 Strumento scelto:", instrument);
+
+        // 4. DETERMINA BPM
+        let bpm = "120"; // Default
+        if (mood === "upbeat") bpm = "130";
+        else if (mood === "melancholic" || mood === "calm") bpm = "80";
+
+        console.log("⏱️ BPM scelto:", bpm);
+
+        // 5. COSTRUISCI PROMPT SEMPLICE
+        const parts = [];
+
+        // Aggiungi genere
+        parts.push(genre);
+
+        // Aggiungi mood se significativo
+        if (mood && mood !== genre) {
+            parts.push(mood);
+        }
+
+        // Aggiungi strumento
+        parts.push("with " + instrument);
+
+        // Aggiungi BPM
+        parts.push(bpm + " BPM");
+
+        // Aggiungi qualità
+        parts.push("high quality");
+
+        const finalPrompt = parts.join(", ");
+
+        console.log("🎵 PROMPT FINALE SEMPLIFICATO:", finalPrompt);
+
         return finalPrompt;
     }
 
@@ -993,17 +1074,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function updateProgressMessage(message, isLoading = false) {
-        if (domElements.dynamicFeedbackArea) domElements.dynamicFeedbackArea.style.display = 'block';
+        domElements.dynamicFeedbackArea.style.display = 'block';
         if (!message && !isLoading) {
-            if (domElements.progressAndPlayerContainer) domElements.progressAndPlayerContainer.style.display = 'none';
-            if (domElements.progressMessage) domElements.progressMessage.innerHTML = ''; // Clear logs too
-            if (domElements.progressBarContainer) domElements.progressBarContainer.style.display = 'none';
+            domElements.progressAndPlayerContainer.style.display = 'none';
+            domElements.progressMessage.textContent = '';
+            domElements.progressBarContainer.style.display = 'none';
             return;
         }
-        if (domElements.progressAndPlayerContainer) domElements.progressAndPlayerContainer.style.display = 'block';
-        if (domElements.progressBarContainer) domElements.progressBarContainer.style.display = isLoading ? 'block' : 'none';
+        domElements.progressAndPlayerContainer.style.display = 'block';
+        domElements.progressMessage.textContent = message;
+        domElements.progressBarContainer.style.display = isLoading ? 'block' : 'none';
         if (isLoading || message) {
-            if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'none';
+            domElements.audioPlayerContainer.style.display = 'none';
         }
     }
 
@@ -1026,7 +1108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 faceApiReady = true;
                 console.log("LOG: Modelli face-api.js caricati.");
             } else {
-                console.error("ERRORE CRITICO: Libreria face-api.js non trovata.");
+                console.error("ERRORE CRITICO: Libreria face-api.js non trovata. Assicurati che '/wp-content/pictosound/js/face-api.min.js' sia caricato.");
             }
         } catch (error) {
             console.error("ERRORE caricamento face-api:", error);
@@ -1038,7 +1120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 cocoReady = true;
                 console.log("LOG: Modello COCO-SSD caricato.");
             } else {
-                console.error("ERRORE CRITICO: Libreria COCO-SSD non trovata.");
+                console.error("ERRORE CRITICO: Libreria COCO-SSD non trovata. Assicurati che '/wp-content/pictosound/js/coco-ssd.min.js' sia caricato.");
             }
         } catch (error) {
             console.error("ERRORE caricamento COCO-SSD:", error);
@@ -1051,12 +1133,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             let failedModels = [];
             if (!cocoReady) failedModels.push("Rilevamento Oggetti");
             if (!faceApiReady) failedModels.push("Rilevamento Volti");
-            setStatusMessage(domElements.statusDiv, `ATTENZIONE: Caricamento fallito per: ${failedModels.join(" e ")}.`, "error");
+            setStatusMessage(domElements.statusDiv, `ATTENZIONE: Caricamento fallito per: ${failedModels.join(" e ")}. Funzionalità limitate.`, "error");
+            console.error("ERRORE: Caricamento fallito per:", failedModels.join(" e "));
         }
 
-        if (domElements.statusDiv.textContent.includes("pronti")) {
+        if (domElements.statusDiv.textContent === "Tutti i modelli AI pronti. Carica un'immagine." && !domElements.progressMessage.textContent && domElements.audioPlayerContainer.style.display === 'none') {
             setTimeout(() => {
-                if (domElements.statusDiv.textContent.includes("pronti")) {
+                if (domElements.statusDiv.textContent === "Tutti i modelli AI pronti. Carica un'immagine.") {
                     domElements.statusDiv.style.display = 'none';
                     domElements.dynamicFeedbackArea.style.display = 'none';
                 }
@@ -1066,7 +1149,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Image Analysis Functions
     function analyzeImageAdvanced(imageElement, numDominantColors = 5) {
-        if (!imageElement || !imageElement.complete || imageElement.naturalHeight === 0) return null;
+        if (!imageElement || !imageElement.complete || imageElement.naturalHeight === 0) {
+            console.warn("WARN: analyzeImageAdvanced - Immagine non valida o non caricata.");
+            return null;
+        }
 
         const aspectRatio = imageElement.naturalWidth / imageElement.naturalHeight;
         const canvasWidth = 120;
@@ -1111,10 +1197,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function detectObjectsInImage(imageElementForDetection) {
-        if (!cocoSsdModel) return [];
+        if (!cocoSsdModel) {
+            console.warn("WARN: Modello COCO-SSD non pronto per rilevamento oggetti.");
+            return [];
+        }
         try {
             const predictions = await cocoSsdModel.detect(imageElementForDetection);
-            return predictions.filter(p => p.score > 0.55).map(p => translateObject(p.class));
+            const filtered = predictions.filter(p => p.score > 0.55);
+            console.log("LOG: Oggetti rilevati (originale EN):", filtered.map(p => p.class));
+            return filtered.map(p => translateObject(p.class));
         } catch (e) {
             console.error("ERRORE COCO-SSD:", e);
             return [];
@@ -1122,11 +1213,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function analyzeFacesInImage(imageElementForDetection) {
-        if (!faceApiModelLoaded) return [];
+        if (!faceApiModelLoaded) {
+            console.warn("WARN: Modello FaceAPI non pronto per analisi volti.");
+            return [];
+        }
         try {
             const detections = await faceapi.detectAllFaces(imageElementForDetection, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
             return detections.map(d => {
-                return translateEmotion(Object.keys(d.expressions).reduce((a, b) => d.expressions[a] > d.expressions[b] ? a : b));
+                let dominantEmotionKey = "neutral";
+                if (d.expressions && Object.keys(d.expressions).length > 0) {
+                    dominantEmotionKey = Object.keys(d.expressions).reduce((a, b) => d.expressions[a] > d.expressions[b] ? a : b);
+                }
+                return translateEmotion(dominantEmotionKey);
             });
         } catch (e) {
             console.error("ERRORE FaceAPI:", e);
@@ -1134,8 +1232,182 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // QR Code and Composite Image Functions
+    async function generateQrCodeToCanvas(canvasElement, text, size = 120) {
+        console.log(`LOG DEBUG QR: Chiamata a generateQrCodeToCanvas con testo: "${text}", dimensione: ${size}`);
+        return new Promise((resolve, reject) => {
+            if (typeof QRCode === 'undefined') {
+                console.error("ERRORE CRITICO: Libreria QRCode non è definita! Assicurati che '/wp-content/pictosound/js/qrcode.min.js' sia caricato.");
+                return reject(new Error("Libreria QRCode non definita"));
+            }
+            if (typeof QRCode.toCanvas !== 'function') {
+                console.error("ERRORE CRITICO: QRCode.toCanvas non è una funzione! La libreria potrebbe essere errata o non caricata.");
+                return reject(new TypeError("QRCode.toCanvas is not a function"));
+            }
+
+            const options = {
+                width: size,
+                margin: 1,
+                errorCorrectionLevel: 'H'
+            };
+            QRCode.toCanvas(canvasElement, text, options, function (error) {
+                if (error) {
+                    console.error("ERRORE DEBUG QR: Errore generazione QR Code:", error);
+                    reject(error);
+                } else {
+                    console.log(`LOG DEBUG QR: QR Code generato su canvas (${canvasElement.width}x${canvasElement.height}) per:`, text);
+                    resolve(canvasElement);
+                }
+            });
+        });
+    }
+
+    async function createCompositeImage(originalImageElement, qrCodeCanvasElement, targetCanvasElement) {
+        console.log("LOG DEBUG QR: Inizio createCompositeImage.");
+        const ctx = targetCanvasElement.getContext('2d');
+        const PADDING_FACTOR = 0.03;
+
+        const PADDING = originalImageElement.naturalWidth * PADDING_FACTOR;
+
+        const QR_DRAW_WIDTH = qrCodeCanvasElement.width;
+        const QR_DRAW_HEIGHT = qrCodeCanvasElement.height;
+        console.log(`LOG DEBUG QR: Dimensioni QR canvas per disegno: ${QR_DRAW_WIDTH}x${QR_DRAW_HEIGHT}`);
+
+        targetCanvasElement.width = originalImageElement.naturalWidth;
+        targetCanvasElement.height = originalImageElement.naturalHeight;
+        console.log(`LOG DEBUG QR: Dimensioni canvas composito: ${targetCanvasElement.width}x${targetCanvasElement.height}`);
+
+        ctx.drawImage(originalImageElement, 0, 0);
+        console.log("LOG DEBUG QR: Immagine originale disegnata su canvas composito.");
+
+        const qrX = targetCanvasElement.width - QR_DRAW_WIDTH - PADDING;
+        const qrY = targetCanvasElement.height - QR_DRAW_HEIGHT - PADDING;
+        console.log(`LOG DEBUG QR: Posizione QR (X,Y): ${qrX}, ${qrY}`);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.fillRect(qrX - PADDING / 2, qrY - PADDING / 2, QR_DRAW_WIDTH + PADDING, QR_DRAW_HEIGHT + PADDING);
+
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(qrX - PADDING / 2, qrY - PADDING / 2, QR_DRAW_WIDTH + PADDING, QR_DRAW_HEIGHT + PADDING);
+        console.log("LOG DEBUG QR: Sfondo e bordo per QR disegnati.");
+
+        ctx.drawImage(qrCodeCanvasElement, qrX, qrY, QR_DRAW_WIDTH, QR_DRAW_HEIGHT);
+        console.log("LOG DEBUG QR: Canvas QR disegnato su canvas composito.");
+
+        const dataUrl = targetCanvasElement.toDataURL('image/png');
+        console.log("LOG DEBUG QR: Immagine composita creata come Data URL.");
+        return dataUrl;
+    }
+
+    // Preselects cue checkboxes based on AI analysis
+    function preselectCuesFromAnalysis(musicalCues) {
+        if (!musicalCues) return;
+
+        const preselectGroup = (groupItems, cueValues, groupName) => {
+            groupItems.forEach(item => {
+                const checkbox = document.querySelector(`input[name="${groupName}"][value="${item.value}"]`);
+                if (checkbox) {
+                    const pillLabel = checkbox.closest('.checkbox-pill');
+                    if (cueValues.map(cv => cv.toLowerCase()).includes(item.value.toLowerCase())) {
+                        checkbox.checked = true;
+                        pillLabel.classList.add('selected');
+                    } else {
+                        checkbox.checked = false;
+                        pillLabel.classList.remove('selected');
+                    }
+                }
+            });
+        };
+
+        preselectGroup(moodItems, musicalCues.moods || [], 'mood');
+        preselectGroup(genreItems, musicalCues.genres || [], 'genre');
+        preselectGroup(instrumentItems, musicalCues.instruments || [], 'instrument');
+        preselectGroup(rhythmItems, musicalCues.rhythms || [], 'rhythm');
+
+        // Automatically open sections that have preselected cues
+        document.querySelectorAll('.cues-selection-container').forEach(container => {
+            const header = container.querySelector('label.group-label.collapsible-cue-header');
+            const pillsGroup = container.querySelector('.checkbox-pills-group');
+            if (header && pillsGroup) {
+                const hasSelectedPill = Array.from(pillsGroup.querySelectorAll('.checkbox-pill.selected')).length > 0;
+                if (hasSelectedPill && !header.classList.contains('open')) {
+                    header.classList.add('open');
+                    pillsGroup.classList.add('open');
+                    const bpmSliderContainer = header.parentElement.querySelector('.bpm-slider-container');
+                    if (bpmSliderContainer) {
+                        bpmSliderContainer.style.display = 'block';
+                    }
+                }
+            }
+        });
+    }
+
+    // Main function to update AI display and the stable audio prompt
+    async function updateAIDisplayAndStablePrompt() {
+        if (!currentImage) {
+            console.warn("WARN: updateAIDisplayAndStablePrompt chiamato senza currentImage.");
+            return;
+        }
+
+        // Perform analysis if not already done for the current image
+        if (!imageAnalysisResults) {
+            domElements.dynamicFeedbackArea.style.display = 'block';
+            domElements.statusDiv.classList.add('hidden');
+            updateProgressMessage("Analisi immagine in corso...", true);
+            startAISimulationText();
+
+            imageAnalysisResults = {
+                colors: analyzeImageAdvanced(currentImage),
+                objects: await detectObjectsInImage(currentImage),
+                emotions: await analyzeFacesInImage(currentImage)
+            };
+            stopAISimulationText();
+            initialPreselectionDoneForCurrentImage = false;
+        }
+
+        // Get current user selections from checkboxes and BPM slider
+        const selectedMoods = getSelectedCheckboxValues('mood');
+        const selectedGenres = getSelectedCheckboxValues('genre');
+        const selectedInstruments = getSelectedCheckboxValues('instrument');
+        const selectedRhythms = getSelectedCheckboxValues('rhythm');
+        const selectedBPM = domElements.bpmSlider.value;
+        const userInputs = { selectedMoods, selectedGenres, selectedInstruments, selectedRhythms, selectedBPM };
+
+        // Get musical cues based on analysis and user inputs
+        const tempParsedCues = getMusicalCues(imageAnalysisResults.colors, imageAnalysisResults.objects, imageAnalysisResults.emotions, CREATIVITY_LEVEL, userInputs);
+
+        // If AI preselection hasn't been done, do it now
+        if (!initialPreselectionDoneForCurrentImage) {
+            preselectCuesFromAnalysis(tempParsedCues);
+            initialPreselectionDoneForCurrentImage = true;
+        }
+
+        // Generate the final English prompt for the music API
+        stableAudioPromptForMusic = generateStableAudioPrompt(tempParsedCues);
+
+        // Update the AI Insights display section
+        generateAIDisplayContent(imageAnalysisResults.colors, imageAnalysisResults.objects, imageAnalysisResults.emotions, userInputs, stableAudioPromptForMusic);
+        domElements.aiInsightsSection.style.display = 'block';
+
+        // Flash accordion header if it's closed but has new content
+        if (imageAnalysisResults && !domElements.detailsAccordionHeader.classList.contains('open') && domElements.aiInsightsContent.innerHTML.includes('<h4>')) {
+            domElements.detailsAccordionHeader.classList.add('new-content-flash');
+            setTimeout(() => { domElements.detailsAccordionHeader.classList.remove('new-content-flash'); }, 1800);
+        }
+        console.log("LOG: Prompt per Stability AI (Inglese):", stableAudioPromptForMusic);
+
+        // Enable or disable the generate music button based on prompt validity
+        if (stableAudioPromptForMusic && !stableAudioPromptForMusic.toLowerCase().includes("errore") && !stableAudioPromptForMusic.toLowerCase().includes("data analysis not available")) {
+            domElements.generateMusicButton.disabled = false;
+        } else {
+            domElements.generateMusicButton.disabled = true;
+        }
+    }
+
     // Process new image (from upload or camera)
     function processImage(imageSrc) {
+        console.log("LOG: Inizio processImage con src:", imageSrc ? "presente" : "mancante");
         domElements.imagePreview.src = imageSrc;
         currentImageSrc = imageSrc;
         domElements.imagePreview.style.display = 'block';
@@ -1144,672 +1416,540 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         currentImage = new Image();
         currentImage.onload = async () => {
+            console.log("LOG: currentImage caricata. Dimensioni:", currentImage.naturalWidth, "x", currentImage.naturalHeight);
+
             domElements.detectionCanvas.width = domElements.imagePreview.clientWidth;
             domElements.detectionCanvas.height = domElements.imagePreview.clientHeight;
-            if (detectionCtx) detectionCtx.clearRect(0, 0, domElements.detectionCanvas.width, domElements.detectionCanvas.height);
+            detectionCtx.clearRect(0, 0, domElements.detectionCanvas.width, domElements.detectionCanvas.height);
+            toggleDetectionCanvasVisibility();
 
+            // Reset UI for new analysis
             domElements.generateMusicButton.disabled = true;
-            setStatusMessage(domElements.statusDiv, "Analisi in corso...", "info");
+            setStatusMessage(domElements.statusDiv, "Immagine caricata. Analisi in corso...", "info");
+            domElements.dynamicFeedbackArea.style.display = 'block';
             updateProgressMessage("Analisi immagine in corso...", true);
             stableAudioPromptForMusic = "";
 
+            // Hide AI insights and clear old content
+            domElements.aiInsightsSection.style.display = 'none';
+            if (domElements.detailsAccordionHeader) domElements.detailsAccordionHeader.classList.remove('open');
+            if (domElements.aiInsightsContent) {
+                domElements.aiInsightsContent.style.display = 'none';
+                const simDiv = domElements.aiInsightsContent.querySelector('.ai-processing-simulation');
+                const existingDetails = domElements.aiInsightsContent.querySelectorAll('h4, ul, #finalPromptForAI');
+                existingDetails.forEach(el => {
+                    if (!el.classList.contains('ai-processing-simulation')) el.remove();
+                });
+                if (simDiv) simDiv.innerHTML = '<p>In attesa di analisi immagine...</p>';
+            }
+
+            // Hide player and download links
+            domElements.progressAndPlayerContainer.style.display = 'none';
+            domElements.audioPlayerContainer.style.display = 'none';
+            domElements.downloadAudioLink.style.display = 'none';
+            domElements.downloadCompositeImageLink.style.display = 'none';
+            domElements.downloadQrOnlyLink.style.display = 'none';
+
+            // Clear all selected cue pills and close cue sections
+            document.querySelectorAll('.checkbox-pill input[type="checkbox"]:checked').forEach(cb => {
+                cb.checked = false;
+                cb.closest('.checkbox-pill').classList.remove('selected');
+            });
+            document.querySelectorAll('.cues-selection-container label.group-label.open').forEach(header => {
+                header.classList.remove('open');
+                const content = header.nextElementSibling;
+                if (content && content.classList.contains('checkbox-pills-group')) {
+                    content.classList.remove('open');
+                }
+                const bpmSliderContainer = header.parentElement.querySelector('.bpm-slider-container');
+                if (bpmSliderContainer) bpmSliderContainer.style.display = 'none';
+            });
+            domElements.bpmSlider.value = 120;
+            domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
+
+            // Start the analysis and update UI
             await updateAIDisplayAndStablePrompt();
 
+            // Update UI after analysis is complete
             updateProgressMessage("", false);
             domElements.dynamicFeedbackArea.style.display = 'none';
-            setStatusMessage(domElements.statusDiv, "Analisi completata!", "success");
+            setStatusMessage(domElements.statusDiv, "Analisi completata. Scegli spunti o genera direttamente!", "success");
+        };
+
+        currentImage.onerror = () => {
+            console.error("ERRORE: Errore durante il caricamento di currentImage.");
+            setStatusMessage(domElements.statusDiv, "Errore caricamento immagine.", "error");
+            updateProgressMessage("Errore caricamento immagine.", false);
+            domElements.generateMusicButton.disabled = true;
         };
         currentImage.src = imageSrc;
     }
 
-    // Initial setup
+    // Initial model loading
     loadModels();
-    if (typeof pictosound_vars !== 'undefined') {
+
+    // Inizializza il sistema di crediti
+    if (typeof pictosound_vars !== 'undefined' && pictosound_vars !== null) {
+        console.log("LOG: pictosound_vars trovato (dopo loadModels), chiamo updateDurationOptionsUI().");
         updateDurationOptionsUI();
     } else {
-        setTimeout(() => { if (typeof pictosound_vars !== 'undefined') updateDurationOptionsUI(); }, 500);
+        console.warn("WARN: pictosound_vars non immediatamente disponibile (dopo loadModels), imposto un timeout per updateDurationOptionsUI().");
+        setTimeout(() => {
+            if (typeof pictosound_vars !== 'undefined' && pictosound_vars !== null) {
+                console.log("LOG: pictosound_vars trovato dopo timeout (post-loadModels), chiamo updateDurationOptionsUI().");
+                updateDurationOptionsUI();
+            } else {
+                console.error("ERRORE CRITICO: pictosound_vars non definito dopo il timeout (post-loadModels). Il sistema di crediti non funzionerà correttamente.");
+                if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore configurazione crediti: dati server mancanti.", "error");
+            }
+        }, 500);
+    }
+
+    // Function to start and manage camera stream
+    async function startCamera(requestedFacingMode) {
+        domElements.imagePreview.style.display = 'none';
+        domElements.imagePreview.src = '#';
+        currentImage = null;
+        imageAnalysisResults = null;
+        domElements.aiInsightsSection.style.display = 'none';
+        domElements.cameraViewContainer.style.display = 'block';
+        domElements.generateMusicButton.disabled = true;
+
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+
+        let streamAcquired = false;
+        const primaryAttemptConstraints = { video: { facingMode: requestedFacingMode }, audio: false };
+        const alternateFacingMode = requestedFacingMode === "environment" ? "user" : "environment";
+        const alternateAttemptConstraints = { video: { facingMode: alternateFacingMode }, audio: false };
+        const genericAttemptConstraints = { video: true, audio: false };
+
+        try {
+            console.log(`Tentativo primario con facingMode: ${requestedFacingMode}`);
+            currentStream = await navigator.mediaDevices.getUserMedia(primaryAttemptConstraints);
+            setStatusMessage(domElements.statusDiv, `Fotocamera (${requestedFacingMode === 'environment' ? 'posteriore' : 'frontale'}) attivata.`, "info");
+            currentFacingMode = requestedFacingMode;
+            streamAcquired = true;
+        } catch (errPrimary) {
+            console.warn(`Errore con facingMode primario (${requestedFacingMode}): ${errPrimary.name} - ${errPrimary.message}`);
+            try {
+                console.log(`Tentativo alternativo con facingMode: ${alternateFacingMode}`);
+                currentStream = await navigator.mediaDevices.getUserMedia(alternateAttemptConstraints);
+                setStatusMessage(domElements.statusDiv, `Fotocamera (${alternateFacingMode === 'environment' ? 'posteriore' : 'frontale'}) attivata (fallback).`, "info");
+                currentFacingMode = alternateFacingMode;
+                streamAcquired = true;
+            } catch (errAlternate) {
+                console.warn(`Errore con facingMode alternativo (${alternateFacingMode}): ${errAlternate.name} - ${errAlternate.message}`);
+                try {
+                    console.log("Tentativo generico (video: true)...");
+                    currentStream = await navigator.mediaDevices.getUserMedia(genericAttemptConstraints);
+                    const settings = currentStream.getVideoTracks()[0].getSettings();
+                    const actualFacingMode = settings.facingMode || "sconosciuto";
+                    currentFacingMode = (actualFacingMode && actualFacingMode !== "unknown") ? actualFacingMode : currentFacingMode;
+                    setStatusMessage(domElements.statusDiv, `Fotocamera generica (${currentFacingMode}) attivata (fallback).`, "info");
+                    streamAcquired = true;
+                } catch (errGeneric) {
+                    console.error("Errore con fotocamera generica:", errGeneric);
+                    setStatusMessage(domElements.statusDiv, "Impossibile accedere alla fotocamera. Controlla i permessi.", "error");
+                    domElements.cameraViewContainer.style.display = 'none';
+                    currentFacingMode = "environment";
+                }
+            }
+        }
+
+        if (streamAcquired && currentStream) {
+            domElements.cameraFeed.srcObject = currentStream;
+            console.log("Stream fotocamera acquisito e assegnato.");
+        } else {
+            console.log("Impossibile acquisire stream fotocamera dopo tutti i tentativi.");
+            domElements.cameraViewContainer.style.display = 'none';
+        }
     }
 
     // Event Listeners
-    domElements.imageUpload.addEventListener('change', (event) => { if (event.target.files[0]) { processImage(URL.createObjectURL(event.target.files[0])); } });
-
-    domElements.generateMusicButton.addEventListener('click', async () => {
-        if (!currentImage) { setStatusMessage(domElements.statusDiv, "Carica un'immagine.", "error"); return; }
-        if (!stableAudioPromptForMusic) { await updateAIDisplayAndStablePrompt(); }
-        if (typeof pictosound_vars === 'undefined') { setStatusMessage(domElements.statusDiv, "Errore configurazione.", "error"); return; }
-
-        domElements.generateMusicButton.disabled = true;
-        domElements.musicSpinner.style.display = 'inline-block';
-        updateProgressMessage("Verifica crediti...", true);
-        const duration = document.querySelector('input[name="musicDuration"]:checked')?.value || 40;
-        checkCredits(duration);
+    domElements.imageUpload.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                processImage(e.target.result);
+                domElements.cameraViewContainer.style.display = 'none';
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                    currentStream = null;
+                }
+            }
+            reader.readAsDataURL(file);
+        }
     });
 
-    window.startMusicGeneration = async function () {
-        domElements.progressMessage.innerHTML = '';
-        updateProgressMessage("Inizio processo...", true);
-        try {
-            logStep("1. Avvio generazione musica.");
-            if (!stableAudioPromptForMusic) {
-                logStep("❌ ERRORE: Il prompt per la musica è vuoto. Rigenerazione in corso...");
-                await updateAIDisplayAndStablePrompt();
-                if (!stableAudioPromptForMusic) throw new Error("Impossibile generare un prompt valido.");
+    domElements.takePictureButton.addEventListener('click', async () => {
+        await startCamera(currentFacingMode);
+    });
+
+    if (domElements.switchCameraButton) {
+        domElements.switchCameraButton.addEventListener('click', async () => {
+            currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+            console.log(`Cambiando a facingMode: ${currentFacingMode}`);
+            await startCamera(currentFacingMode);
+        });
+    }
+
+    domElements.captureImageButton.addEventListener('click', () => {
+        if (currentStream && domElements.cameraFeed.readyState >= 2) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = domElements.cameraFeed.videoWidth;
+            tempCanvas.height = domElements.cameraFeed.videoHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(domElements.cameraFeed, 0, 0, tempCanvas.width, tempCanvas.height);
+            const imageDataUrl = tempCanvas.toDataURL('image/jpeg');
+            processImage(imageDataUrl);
+
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+            domElements.cameraViewContainer.style.display = 'none';
+        } else {
+            setStatusMessage(domElements.statusDiv, "Feed fotocamera non pronto. Riprova.", "warn");
+        }
+    });
+
+    domElements.closeCameraButton.addEventListener('click', () => {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+        }
+        domElements.cameraViewContainer.style.display = 'none';
+        setStatusMessage(domElements.statusDiv, "Fotocamera chiusa.", "info");
+    });
+
+    if (domElements.bpmSlider && domElements.bpmValueDisplay) {
+        domElements.bpmSlider.addEventListener('input', () => {
+            domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
+            initialPreselectionDoneForCurrentImage = true;
+            if (currentImage && imageAnalysisResults) {
+                updateAIDisplayAndStablePrompt();
             }
-            logStep(`2. Prompt finale per API: "${stableAudioPromptForMusic}"`);
+        });
+    }
+
+    // GENERATE MUSIC BUTTON con auto-recovery
+    if (domElements.generateMusicButton) {
+        domElements.generateMusicButton.addEventListener('click', async () => {
+            console.log("LOG: Pulsante 'Avvia generazione musica' cliccato (con auto-recovery).");
+
+            if (!currentImage) {
+                console.warn("WARN: Tentativo di generare musica senza currentImage.");
+                if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Carica o scatta prima un'immagine.", "error");
+                updateProgressMessage("", false);
+                if (domElements.dynamicFeedbackArea) domElements.dynamicFeedbackArea.style.display = 'none';
+                return;
+            }
+
+            if (!stableAudioPromptForMusic || stableAudioPromptForMusic.toLowerCase().includes("errore") || stableAudioPromptForMusic.toLowerCase().includes("data analysis not available")) {
+                console.log("LOG: Prompt non pronto, richiamo updateAIDisplayAndStablePrompt per finalizzarlo.");
+                if (typeof updateAIDisplayAndStablePrompt === 'function') {
+                    await updateAIDisplayAndStablePrompt();
+                } else {
+                    console.error("ERRORE: updateAIDisplayAndStablePrompt non è definita!");
+                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore interno (prompt).", "error");
+                    return;
+                }
+                if (!stableAudioPromptForMusic || stableAudioPromptForMusic.toLowerCase().includes("errore") || stableAudioPromptForMusic.toLowerCase().includes("data analysis not available")) {
+                    console.error("ERRORE: Prompt ancora non valido dopo il tentativo di finalizzazione.");
+                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore preparazione prompt. Riprova o seleziona nuova immagine.", "error");
+                    updateProgressMessage("Errore nella preparazione del prompt.", false);
+                    return;
+                }
+            }
+
+            if (typeof pictosound_vars === 'undefined' || pictosound_vars === null) {
+                console.error("ERRORE CRITICO: pictosound_vars non è definito! Impossibile procedere.");
+                if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore di configurazione (mancano variabili server).", "error");
+                return;
+            }
+
+            if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, pictosound_vars.text_checking_credits || "Verifica crediti...", "info");
+            if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = true;
+            if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'inline-block';
+            if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'none';
+            if (domElements.downloadAudioLink) domElements.downloadAudioLink.style.display = 'none';
+            if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
+            if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
+            if (domElements.dynamicFeedbackArea) domElements.dynamicFeedbackArea.style.display = 'block';
+            updateProgressMessage(pictosound_vars.text_checking_credits || "Verifica crediti...", true);
 
             const selectedDurationRadio = document.querySelector('input[name="musicDuration"]:checked');
-            const duration = selectedDurationRadio ? parseInt(selectedDurationRadio.value) : 40;
-            logStep(`3. Durata selezionata: ${duration} secondi.`);
+            const duration = selectedDurationRadio ? Math.max(30, Math.min(180, parseInt(selectedDurationRadio.value))) : 45; // Default 45s
 
-            logStep("4. Chiamata a 'generate_music.php' in corso...");
-            const musicApiResponse = await fetch('/wp-content/pictosound/generate_music.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: stableAudioPromptForMusic, duration: duration, steps: 30 })
-            });
-
-            logStep(`5. Risposta ricevuta da PHP. Status: ${musicApiResponse.status}`);
-            const responseText = await musicApiResponse.text();
-            logStep(`6. Testo grezzo della risposta: <pre>${responseText.substring(0, 500)}...</pre>`);
-
-            const musicContentType = musicApiResponse.headers.get("content-type");
-            if (!musicApiResponse.ok || !musicContentType || musicContentType.indexOf("application/json") === -1) {
-                throw new Error(`Errore server (PHP). Status: ${musicApiResponse.status}. Content-Type: ${musicContentType}.`);
-            }
-
-            logStep("7. Risposta è JSON valido. Analisi del contenuto...");
-            const musicResult = JSON.parse(responseText);
-
-            if (!musicResult.success || !musicResult.audioUrl) {
-                throw new Error(`L'API ha restituito un errore: ${musicResult.error || 'Dettagli non disponibili'}`);
-            }
-
-            logStep(`8. ✅ Successo! URL Audio: ${musicResult.audioUrl}`);
-            updateProgressMessage("", false);
-            setStatusMessage(domElements.statusDiv, "Musica generata! Ora salvo la creazione...", "success");
-
-            logStep("9. Preparazione dati per salvataggio nel database...");
-            const creationDataToSave = {
-                action: 'pictosound_save_creation',
-                nonce: pictosound_vars.save_creation_nonce,
-                title: 'Musica del ' + new Date().toLocaleString('it-IT'),
-                prompt: stableAudioPromptForMusic,
-                description: generateCreationDescriptionForSave(),
-                image_url: currentImageSrc.length > 5000 ? 'data:image (placeholder)' : currentImageSrc,
-                audio_url: musicResult.audioUrl,
-                duration: duration,
-                style: getSelectedGenresForSave().join(', '),
-                mood: getSelectedMoodsForSave().join(', '),
-                credits_used: (pictosound_vars.duration_costs || {})[duration] || 0,
-                generation_data: JSON.stringify({
-                    api_prompt: stableAudioPromptForMusic,
-                    user_selections: { moods: getSelectedMoodsForSave(), genres: getSelectedGenresForSave(), instruments: getSelectedInstrumentsForSave(), rhythms: getSelectedRhythmsForSave() }
-                })
-            };
-
-            logStep("10. Chiamata AJAX a 'pictosound_save_creation'...");
-            jQuery.ajax({
-                url: pictosound_vars.ajax_url,
-                type: 'POST',
-                data: creationDataToSave,
-                success: function (response) {
-                    if (response.success) {
-                        logStep("11. ✅ SALVATAGGIO COMPLETATO! ID Creazione: " + response.data.creation_id);
-                        showSaveNotificationPictosound("Creazione salvata con successo!", "success");
-                    } else {
-                        logStep(`11. ❌ ERRORE SALVATAGGIO DB: ${response.data.message || 'Errore sconosciuto'}`);
-                        showSaveNotificationPictosound(`Errore salvataggio: ${response.data.message}`, "error");
-                    }
-                },
-                error: function (xhr) {
-                    logStep(`11. ❌ ERRORE AJAX CRITICO DURANTE SALVATAGGIO: ${xhr.statusText}`);
-                    showSaveNotificationPictosound("Errore di connessione durante il salvataggio.", "error");
-                },
-                complete: function () {
-                    domElements.generateMusicButton.disabled = false;
-                    domElements.musicSpinner.style.display = 'none';
-                }
-            });
-
-            // Aggiorna UI finale
-            if (domElements.audioPlayer) domElements.audioPlayer.src = musicResult.audioUrl;
-            if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'block';
-
-        } catch (error) {
-            logStep(`❌ ERRORE CRITICO: ${error.message}`);
-            updateProgressMessage("", false);
-            setStatusMessage(domElements.statusDiv, `Processo interrotto. Dettagli nel log qui sopra.`, "error");
-            domElements.generateMusicButton.disabled = false;
-            domElements.musicSpinner.style.display = 'none';
-        }
-    };
-});
-
-/**
- * ⚡ NOTIFICA DI SALVATAGGIO
- */
-function showSaveNotificationPictosound(message, type = 'info') {
-    let notification = document.getElementById('pictosoundSaveNotification');
-    if (!notification) {
-        notification = document.createElement('div');
-        notification.id = 'pictosoundSaveNotification';
-        notification.style.cssText = ` position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; font-family: Inter, -apple-system, sans-serif; font-size: 14px; font-weight: 500; max-width: 300px; transition: all 0.3s ease; opacity: 0; transform: translateX(100%);`;
-        document.body.appendChild(notification);
-    }
-    const styles = { success: { background: '#28a745', color: 'white' }, error: { background: '#dc3545', color: 'white' }, info: { background: '#17a2b8', color: 'white' } };
-    const style = styles[type] || styles.info;
-    Object.assign(notification.style, style);
-    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-    notification.textContent = `${icons[type] || ''} ${message}`;
-    notification.style.opacity = '1';
-    notification.style.transform = 'translateX(0)';
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(100%)';
-    }, type === 'error' ? 6000 : 4000);
-}
-
-/**
- * ⚡ FUNZIONI HELPER PER RACCOGLIERE DATI (versioni sicure)
- */
-function generateCreationDescriptionForSave() {
-    const aiText = getAiInsightsTextForSave();
-    if (aiText && aiText.length > 10) return aiText.substring(0, 200) + (aiText.length > 200 ? '...' : '');
-    const moods = getSelectedMoodsForSave();
-    const genres = getSelectedGenresForSave();
-    if (moods.length > 0 || genres.length > 0) {
-        const parts = [];
-        if (moods.length > 0) parts.push(`Mood: ${moods.join(', ')}`);
-        if (genres.length > 0) parts.push(`Genere: ${genres.join(', ')}`);
-        return `Musica generata da immagine. ${parts.join('. ')}.`;
-    }
-    return 'Musica generata automaticamente da immagine con intelligenza artificiale.';
-}
-
-function getSelectedDurationForSave() { return parseInt(document.querySelector('input[name="musicDuration"]:checked')?.value || '40'); }
-function getSelectedMoodsForSave() { return Array.from(document.querySelectorAll('input[name="mood"]:checked')).map(i => i.value); }
-function getSelectedGenresForSave() { return Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(i => i.value); }
-function getSelectedInstrumentsForSave() { return Array.from(document.querySelectorAll('input[name="instrument"]:checked')).map(i => i.value); }
-function getSelectedRhythmsForSave() { return Array.from(document.querySelectorAll('input[name="rhythm"]:checked')).map(i => i.value); }
-
-function getAiInsightsTextForSave() {
-    const aiElement = document.getElementById('aiInterpretationText');
-    if (aiElement && aiElement.textContent) return aiElement.textContent.trim();
-    const aiContent = document.getElementById('aiInsightsContent');
-    if (aiContent) return (aiContent.textContent || '').replace(/\s+/g, ' ').trim().substring(0, 300);
-    return '';
-}
-
-function calculateCreditsUsedForSave() {
-    const duration = getSelectedDurationForSave();
-    if (duration <= 40) return 0;
-    if (duration <= 60) return 1;
-    if (duration <= 120) return 2;
-    if (duration <= 180) return 3;
-    if (duration <= 240) return 4;
-    if (duration <= 360) return 5;
-    return Math.ceil(duration / 60);
-}
-/**
- * Funzione principale che orchestra l'analisi dell'immagine e l'aggiornamento dell'UI.
- * Viene chiamata quando una nuova immagine viene caricata o quando l'utente modifica i parametri.
- */
-async function updateAIDisplayAndStablePrompt() {
-    if (!currentImage || !currentImage.complete || currentImage.naturalHeight === 0) {
-        console.warn("WARN: Tentativo di analisi su un'immagine non valida o non ancora caricata.");
-        return;
-    }
-
-    logStep("🤖 Inizio analisi AI completa.");
-    domElements.generateMusicButton.disabled = true;
-    domElements.aiInsightsSection.style.display = 'block';
-    domElements.detailsAccordionHeader.classList.add('active'); // Apri l'accordion
-    domElements.aiInsightsContent.style.maxHeight = domElements.aiInsightsContent.scrollHeight + "px";
-
-
-    // Mostra la simulazione di elaborazione AI
-    startAISimulationText();
-
-    // Esegui tutte le analisi in parallelo per efficienza
-    const [analysis, detectedObjects, detectedEmotions] = await Promise.all([
-        analyzeImageAdvanced(currentImage),
-        detectObjectsInImage(currentImage),
-        analyzeFacesInImage(currentImage)
-    ]);
-    logStep(`🎨 Analisi Colori: ${analysis ? 'Completata' : 'Fallita'}.`);
-    logStep(`📦 Analisi Oggetti: Rilevati ${detectedObjects.length} oggetti.`);
-    logStep(`😊 Analisi Emozioni: Rilevate ${detectedEmotions.length} emozioni.`);
-
-
-    imageAnalysisResults = { analysis, detectedObjects, detectedEmotions };
-
-    // Raccogli l'input dell'utente corrente
-    const userInputs = {
-        selectedMoods: getSelectedCheckboxValues('mood'),
-        selectedGenres: getSelectedCheckboxValues('genre'),
-        selectedInstruments: getSelectedCheckboxValues('instrument'),
-        selectedRhythms: getSelectedCheckboxValues('rhythm'),
-        selectedBPM: domElements.bpmSlider.value
-    };
-
-    // Ottieni i suggerimenti musicali basati sull'analisi e l'input utente
-    const musicalCues = getMusicalCues(analysis, detectedObjects, detectedEmotions, CREATIVITY_LEVEL, userInputs);
-    logStep("🎶 Cues musicali determinati.");
-
-    // Se è la prima analisi per questa immagine, preseleziona le pillole suggerite
-    if (!initialPreselectionDoneForCurrentImage) {
-        logStep("💡 Preselezione iniziale delle pillole in corso...");
-        ['moods', 'genres', 'instruments', 'rhythms'].forEach(type => {
-            const container = document.getElementById(type.slice(0, -1) + 'Pills');
-            if (container && musicalCues[type]) {
-                musicalCues[type].forEach(value => {
-                    const checkbox = container.querySelector(`input[value="${value}"]`);
-                    if (checkbox && !checkbox.checked) {
-                        checkbox.checked = true;
-                        checkbox.dispatchEvent(new Event('change')); // Scatena l'evento per aggiornare lo stile
-                    }
-                });
-            }
-        });
-        initialPreselectionDoneForCurrentImage = true; // Impedisce future preselezioni automatiche per questa immagine
-    }
-
-
-    // Genera il prompt stabile per l'API musicale
-    stableAudioPromptForMusic = generateStableAudioPrompt(musicalCues);
-
-    // Ferma l'animazione di testo e mostra i risultati finali
-    stopAISimulationText();
-    generateAIDisplayContent(analysis, detectedObjects, detectedEmotions, userInputs, stableAudioPromptForMusic);
-
-    // Riabilita il pulsante di generazione
-    domElements.generateMusicButton.disabled = false;
-    logStep("✅ Analisi AI completata e UI aggiornata.");
-}
-
-// Funzioni per la gestione della fotocamera
-async function startCamera() {
-    if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-    }
-    try {
-        const constraints = {
-            video: {
-                facingMode: currentFacingMode,
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
-        };
-        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-        domElements.cameraFeed.srcObject = currentStream;
-        domElements.cameraViewContainer.style.display = 'flex';
-        logStep("📷 Fotocamera avviata.");
-
-        // Controlla se il dispositivo ha più di una fotocamera
-        navigator.mediaDevices.enumerateDevices()
-            .then(devices => {
-                const videoInputs = devices.filter(device => device.kind === 'videoinput');
-                if (videoInputs.length > 1) {
-                    domElements.switchCameraButton.style.display = 'block';
-                } else {
-                    domElements.switchCameraButton.style.display = 'none';
-                }
-            });
-
-    } catch (err) {
-        console.error("Errore accesso fotocamera:", err);
-        setStatusMessage(domElements.statusDiv, "Impossibile accedere alla fotocamera. Controlla i permessi.", "error");
-    }
-}
-
-function stopCamera() {
-    if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-    }
-    domElements.cameraViewContainer.style.display = 'none';
-    logStep("📷 Fotocamera fermata.");
-}
-
-function captureImage() {
-    const canvas = domElements.imageCanvas;
-    canvas.width = domElements.cameraFeed.videoWidth;
-    canvas.height = domElements.cameraFeed.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(domElements.cameraFeed, 0, 0, canvas.width, canvas.height);
-    stopCamera();
-    processImage(canvas.toDataURL('image/jpeg'));
-    logStep("📸 Immagine catturata dalla fotocamera.");
-}
-
-
-// Initial setup
-loadModels();
-if (typeof pictosound_vars !== 'undefined') {
-    updateDurationOptionsUI();
-} else {
-    setTimeout(() => { if (typeof pictosound_vars !== 'undefined') updateDurationOptionsUI(); }, 500);
-}
-
-// Event Listeners
-
-// Listener per caricamento immagine
-domElements.imageUpload.addEventListener('change', (event) => { if (event.target.files[0]) { processImage(URL.createObjectURL(event.target.files[0])); } });
-
-// Listener per la fotocamera
-if (domElements.takePictureButton) {
-    domElements.takePictureButton.addEventListener('click', startCamera);
-}
-if (domElements.closeCameraButton) {
-    domElements.closeCameraButton.addEventListener('click', stopCamera);
-}
-if (domElements.captureImageButton) {
-    domElements.captureImageButton.addEventListener('click', captureImage);
-}
-if (domElements.switchCameraButton) {
-    domElements.switchCameraButton.addEventListener('click', () => {
-        currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
-        startCamera(); // Riavvia la fotocamera con la nuova modalità
-        logStep(`🔄 Fotocamera cambiata in: ${currentFacingMode}`);
-    });
-}
-
-// Listener per il pulsante Genera Musica
-domElements.generateMusicButton.addEventListener('click', async () => {
-    if (!currentImage) { setStatusMessage(domElements.statusDiv, "Carica o scatta un'immagine prima.", "error"); return; }
-    if (!stableAudioPromptForMusic) {
-        logStep("⚠️ Prompt non pronto, avvio analisi...");
-        await updateAIDisplayAndStablePrompt();
-    }
-    if (typeof pictosound_vars === 'undefined') { setStatusMessage(domElements.statusDiv, "Errore di configurazione. Ricarica la pagina.", "error"); return; }
-
-    domElements.generateMusicButton.disabled = true;
-    domElements.musicSpinner.style.display = 'inline-block';
-    updateProgressMessage("Verifica dei crediti in corso...", true);
-    const duration = document.querySelector('input[name="musicDuration"]:checked')?.value || 40;
-    checkCredits(duration);
-});
-
-// Listener per il BPM Slider
-if (domElements.bpmSlider) {
-    domElements.bpmSlider.addEventListener('input', () => {
-        if (domElements.bpmValueDisplay) domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
-    });
-    // Aggiorna il prompt se si cambia il BPM dopo aver analizzato un'immagine
-    domElements.bpmSlider.addEventListener('change', () => {
-        if (currentImage && imageAnalysisResults) {
-            updateAIDisplayAndStablePrompt();
-            logStep(`BPM aggiornato a: ${domElements.bpmSlider.value}`);
-        }
-    });
-}
-
-// Listener per l'accordion dei dettagli AI
-if (domElements.detailsAccordionHeader) {
-    domElements.detailsAccordionHeader.addEventListener('click', function () {
-        this.classList.toggle('active');
-        const content = domElements.aiInsightsContent;
-        if (content.style.maxHeight) {
-            content.style.maxHeight = null;
-        } else {
-            content.style.maxHeight = content.scrollHeight + "px";
-        }
-        logStep("Accordion AI attivato/disattivato.");
-    });
-}
-
-// Listeners per il modal a schermo intero
-if (domElements.imagePreview) {
-    domElements.imagePreview.addEventListener('click', () => {
-        if (domElements.fullscreenImage && domElements.fullscreenImageModal && currentImageSrc) {
-            domElements.fullscreenImage.src = currentImageSrc;
-            domElements.fullscreenImageModal.style.display = 'flex';
-            logStep("🖼️ Immagine ingrandita.");
-        }
-    });
-}
-
-if (domElements.closeFullscreenButton) {
-    domElements.closeFullscreenButton.addEventListener('click', () => {
-        if (domElements.fullscreenImageModal) {
-            domElements.fullscreenImageModal.style.display = 'none';
-            logStep("🖼️ Visualizzazione ingrandita chiusa.");
-        }
-    });
-}
-
-// Logica di generazione musica (funzione globale chiamata da checkCredits)
-window.startMusicGeneration = async function () {
-    domElements.progressMessage.innerHTML = '';
-    updateProgressMessage("Inizio processo di generazione musicale...", true);
-    try {
-        logStep("1. Avvio generazione musica.");
-        if (!stableAudioPromptForMusic) {
-            logStep("❌ ERRORE: Il prompt per la musica è vuoto. Tentativo di rigenerazione...");
-            await updateAIDisplayAndStablePrompt();
-            if (!stableAudioPromptForMusic) throw new Error("Impossibile generare un prompt valido per la musica.");
-        }
-        logStep(`2. Prompt finale per API: "${stableAudioPromptForMusic}"`);
-
-        const selectedDurationRadio = document.querySelector('input[name="musicDuration"]:checked');
-        const duration = selectedDurationRadio ? parseInt(selectedDurationRadio.value) : 40;
-        logStep(`3. Durata selezionata: ${duration} secondi.`);
-
-        logStep("4. Chiamata allo script 'generate_music.php' in corso...");
-        const musicApiResponse = await fetch('/wp-content/pictosound/generate_music.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: stableAudioPromptForMusic, duration: duration, steps: 30, creativity: CREATIVITY_LEVEL })
+            // Usa checkCredits con auto-recovery
+            checkCredits(duration);
         });
 
-        logStep(`5. Risposta ricevuta da PHP. Status: ${musicApiResponse.status}`);
-        const responseText = await musicApiResponse.text();
-        // Logga solo l'inizio della risposta per non intasare la console
-        logStep(`6. Testo grezzo della risposta: <pre>${responseText.substring(0, 500)}...</pre>`);
-
-        const musicContentType = musicApiResponse.headers.get("content-type");
-        if (!musicApiResponse.ok || !musicContentType || musicContentType.indexOf("application/json") === -1) {
-            let errorDetail = responseText;
+        // Funzione per procedere con la generazione dopo il check crediti
+        window.startMusicGeneration = async function () {
             try {
-                // Prova a parsare come JSON per un messaggio di errore più pulito
-                const errorJson = JSON.parse(responseText);
-                if (errorJson && errorJson.error) {
-                    errorDetail = errorJson.error;
-                }
-            } catch (e) { /* non è JSON, usa il testo grezzo */ }
+                if (domElements.dynamicFeedbackArea) domElements.dynamicFeedbackArea.style.display = 'block';
+                updateProgressMessage(pictosound_vars.text_generating_music || 'Generazione traccia audio in corso...', true);
 
-            throw new Error(`Errore dal server (PHP). Status: ${musicApiResponse.status}. Dettagli: ${errorDetail}`);
-        }
+                const promptForMusic = stableAudioPromptForMusic;
+                const steps = 30;
+                const selectedDurationRadio = document.querySelector('input[name="musicDuration"]:checked');
+                const duration = selectedDurationRadio ? parseInt(selectedDurationRadio.value) : 40;
 
-        logStep("7. Risposta JSON valida. Analisi del contenuto...");
-        const musicResult = JSON.parse(responseText);
+                console.log(`LOG: Parametri per generazione musica: prompt="${promptForMusic}", duration=${duration}, steps=${steps}`);
 
-        if (!musicResult.success || !musicResult.audioUrl) {
-            throw new Error(`L'API musicale ha restituito un errore: ${musicResult.error || 'Dettagli non disponibili'}`);
-        }
+                const musicApiResponse = await fetch('/wp-content/pictosound/generate_music.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptForMusic, duration: duration, steps: steps })
+                });
 
-        logStep(`8. ✅ Successo! URL Audio: ${musicResult.audioUrl}`);
-        updateProgressMessage("", false);
-        setStatusMessage(domElements.statusDiv, "Musica generata! Ora salvo la creazione nel tuo profilo...", "success");
+                console.log(`LOG: Risposta da generate_music.php. Status: ${musicApiResponse.status}`);
 
-        domElements.audioPlayerContainer.style.display = 'block';
-        if (domElements.audioPlayer) {
-            domElements.audioPlayer.src = musicResult.audioUrl;
-            domElements.audioPlayer.load();
-            domElements.audioPlayer.play();
-        }
-        if (domElements.downloadAudioLink) {
-            domElements.downloadAudioLink.href = musicResult.audioUrl;
-            domElements.downloadAudioLink.style.display = 'inline-block';
-        }
+                const musicContentType = musicApiResponse.headers.get("content-type");
+                if (musicApiResponse.ok && musicContentType && musicContentType.indexOf("application/json") !== -1) {
+                    const musicResult = await musicApiResponse.json();
+                    console.log("LOG DEBUG SERVER (generate_music.php): Risposta JSON:", musicResult);
 
-        if (!pictosound_vars.is_user_logged_in) {
-            logStep("Utente non loggato, salto salvataggio DB.");
-            domElements.generateMusicButton.disabled = false;
-            domElements.musicSpinner.style.display = 'none';
-            return; // Interrompi qui se l'utente non è loggato
-        }
+                    if (musicResult.success && musicResult.audioUrl) {
+                        updateProgressMessage("", false);
+                        // Salva automaticamente la generazione
+                        // ⚡ SALVATAGGIO AUTOMATICO NELL'ARCHIVIO - VERSIONE COMPLETA
+                        if (currentImageSrc && musicResult.audioUrl && typeof pictosound_vars !== 'undefined' && pictosound_vars.nonce_save_generation) {
+                            console.log('🎵 Avvio salvataggio automatico della generazione...');
 
-        logStep("9. Preparazione dati per salvataggio nel database...");
-        const creationDataToSave = {
-            action: 'pictosound_save_creation',
-            nonce: pictosound_vars.save_creation_nonce,
-            title: 'Musica creata il ' + new Date().toLocaleString('it-IT'),
-            prompt: stableAudioPromptForMusic,
-            description: generateCreationDescriptionForSave(),
-            // Se l'URL è troppo lungo (data URI), invia un placeholder
-            image_url: currentImageSrc.length > 5000 ? 'data:image/jpeg;base64,...(placeholder)' : currentImageSrc,
-            audio_url: musicResult.audioUrl,
-            duration: duration,
-            style: getSelectedGenresForSave().join(', '),
-            mood: getSelectedMoodsForSave().join(', '),
-            credits_used: (pictosound_vars.duration_costs || {})[String(duration)] || 0,
-            generation_data: JSON.stringify({
-                api_prompt: stableAudioPromptForMusic,
-                user_selections: {
-                    moods: getSelectedMoodsForSave(),
-                    genres: getSelectedGenresForSave(),
-                    instruments: getSelectedInstrumentsForSave(),
-                    rhythms: getSelectedRhythmsForSave(),
-                    bpm: domElements.bpmSlider.value
-                },
-                image_analysis: imageAnalysisResults
-            })
-        };
+                            // Ottieni durata selezionata
+                            const selectedDurationRadio = document.querySelector('input[name="musicDuration"]:checked');
+                            const selectedDuration = selectedDurationRadio ? parseInt(selectedDurationRadio.value) : 40;
 
-        logStep("10. Chiamata AJAX a 'pictosound_save_creation' per il salvataggio...");
-        jQuery.ajax({
-            url: pictosound_vars.ajax_url,
-            type: 'POST',
-            data: creationDataToSave,
-            success: function (response) {
-                if (response.success) {
-                    logStep("11. ✅ SALVATAGGIO COMPLETATO! ID Creazione: " + response.data.creation_id);
-                    showSaveNotificationPictosound("Creazione salvata con successo nel tuo profilo!", "success");
-                    if (response.data.new_balance !== undefined) {
-                        updateCreditsDisplay(response.data.new_balance);
-                        updateDurationOptionsUI();
+                            // Crea titolo descrittivo basato sulla data/ora
+                            const now = new Date();
+                            const dateStr = now.toLocaleDateString('it-IT', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                            });
+                            const timeStr = now.toLocaleTimeString('it-IT', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+
+                            // Salva la generazione nel database
+                            jQuery.ajax({
+                                url: pictosound_vars.ajax_url,
+                                type: 'POST',
+                                data: {
+                                    action: 'pictosound_save_generation',
+                                    image_url: currentImageSrc,
+                                    audio_url: musicResult.audioUrl || musicResult.downloadUrl,
+                                    prompt_used: stableAudioPromptForMusic || 'Generazione da immagine',
+                                    duration: selectedDuration,
+                                    title: `Creazione del ${dateStr} alle ${timeStr}`,
+                                    description: `Musica generata con AI da immagine. Prompt: "${stableAudioPromptForMusic || 'Auto-generato'}" - Durata: ${selectedDuration}s`,
+                                    nonce: pictosound_vars.nonce_save_generation
+                                },
+                                success: function (response) {
+                                    if (response.success) {
+                                        console.log('✅ Generazione salvata automaticamente con ID:', response.data.generation_id);
+
+                                        // Mostra notifica di salvataggio nella UI esistente
+                                        const originalStatusText = domElements.statusDiv ? domElements.statusDiv.textContent : '';
+                                        const originalStatusClass = domElements.statusDiv ? domElements.statusDiv.className : '';
+
+                                        if (domElements.statusDiv) {
+                                            setStatusMessage(domElements.statusDiv, "💾 Creazione salvata nel tuo archivio personale!", "success");
+
+                                            // Ripristina il messaggio precedente dopo 4 secondi
+                                            setTimeout(() => {
+                                                if (domElements.statusDiv.textContent.includes("archivio personale")) {
+                                                    domElements.statusDiv.textContent = originalStatusText;
+                                                    domElements.statusDiv.className = originalStatusClass;
+
+                                                    // Nascondi il messaggio se era nascosto prima
+                                                    if (originalStatusText === "" || originalStatusText === "Musica generata con successo!") {
+                                                        setTimeout(() => {
+                                                            if (domElements.statusDiv && domElements.audioPlayerContainer && domElements.audioPlayerContainer.style.display === 'block') {
+                                                                domElements.statusDiv.style.display = 'none';
+                                                                if (domElements.dynamicFeedbackArea) {
+                                                                    domElements.dynamicFeedbackArea.style.display = 'none';
+                                                                }
+                                                            }
+                                                        }, 2000);
+                                                    }
+                                                }
+                                            }, 4000);
+                                        }
+
+                                        // Aggiungi pulsante per visualizzare l'archivio
+                                        if (domElements.downloadButtonsContainer && !document.getElementById('viewArchiveButton')) {
+                                            const archiveButton = document.createElement('a');
+                                            archiveButton.id = 'viewArchiveButton';
+                                            archiveButton.href = '/le-mie-creazioni/'; // MODIFICA CON L'URL DELLA TUA PAGINA ARCHIVIO
+                                            archiveButton.className = 'download-button';
+                                            archiveButton.style.cssText = 'background: linear-gradient(45deg, #28a745, #20c997); margin-left: 10px;';
+                                            archiveButton.innerHTML = `
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                                                    <path d="M20.54,5.23l-1.39-1.68C18.88,3.21,18.47,3,18,3H6C5.53,3,5.12,3.21,4.85,3.55L3.46,5.23C3.17,5.57,3,6.02,3,6.5V19c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V6.5C21,6.02,20.83,5.57,20.54,5.23z M12,17.5L6.5,12H10v-2h4v2h3.5L12,17.5z M5.12,5l0.81-1h12l0.81-1H5.12z"/>
+                                                </svg>
+                                                🎵 Le Mie Creazioni
+                                            `;
+                                            domElements.downloadButtonsContainer.appendChild(archiveButton);
+                                        }
+
+                                    } else {
+                                        console.warn('⚠️ Errore nel salvataggio automatico:', response.data?.message || 'Errore sconosciuto');
+                                    }
+                                },
+                                error: function (xhr, status, error) {
+                                    console.error('❌ Errore AJAX nel salvataggio automatico:', error);
+                                }
+                            });
+                        } else {
+                            // Log per debug se il salvataggio non viene effettuato
+                            console.warn('⚠️ Salvataggio automatico saltato. Motivi:', {
+                                hasCurrentImageSrc: !!currentImageSrc,
+                                hasAudioUrl: !!(musicResult && musicResult.audioUrl),
+                                hasPictosoundVars: typeof pictosound_vars !== 'undefined',
+                                hasNonce: !!(pictosound_vars && pictosound_vars.nonce_save_generation),
+                                isUserLoggedIn: !!(pictosound_vars && pictosound_vars.is_user_logged_in)
+                            });
+                        }
+                        if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Musica generata con successo!", "success");
+
+                        setTimeout(() => {
+                            if (domElements.statusDiv && domElements.statusDiv.textContent === "Musica generata con successo!") {
+                                if (domElements.dynamicFeedbackArea && !(domElements.audioPlayerContainer && domElements.audioPlayerContainer.style.display === 'block')) {
+                                    domElements.dynamicFeedbackArea.style.display = 'none';
+                                }
+                                if (domElements.statusDiv) domElements.statusDiv.style.display = 'none';
+                            }
+                        }, 4000);
+
+                        if (domElements.audioPlayer && musicResult.audioUrl) domElements.audioPlayer.src = musicResult.audioUrl;
+                        if (domElements.audioInfo) domElements.audioInfo.textContent = `Traccia: ${musicResult.fileName || 'audio_generato'}. ${musicResult.message || ''}`;
+                        if (domElements.downloadAudioLink && (musicResult.downloadUrl || musicResult.audioUrl)) {
+                            domElements.downloadAudioLink.href = musicResult.downloadUrl || musicResult.audioUrl;
+                            domElements.downloadAudioLink.download = musicResult.fileName || `generated_audio_${Date.now()}.mp3`;
+                            domElements.downloadAudioLink.style.display = 'inline-flex';
+                        }
+                        if (domElements.audioPlayerContainer && musicResult.audioUrl) domElements.audioPlayerContainer.style.display = 'block';
+                        if (domElements.progressAndPlayerContainer && musicResult.audioUrl) domElements.progressAndPlayerContainer.style.display = 'block';
+
+                        // QR code e immagine composita
+                        if (currentImage && currentImage.complete && typeof QRCode !== 'undefined' && musicResult.audioUrl && domElements.compositeImageCanvas) {
+                            try {
+                                const qrCanvasForComposite = document.createElement('canvas');
+                                const qrCanvasForSoloDownload = document.createElement('canvas');
+                                let desiredQrPixelSize = Math.max(50, Math.min(currentImage.naturalWidth * 0.25, currentImage.naturalHeight * 0.25, 150));
+
+                                await generateQrCodeToCanvas(qrCanvasForComposite, musicResult.audioUrl, desiredQrPixelSize);
+                                const compositeImageDataUrl = await createCompositeImage(currentImage, qrCanvasForComposite, domElements.compositeImageCanvas);
+
+                                if (domElements.downloadCompositeImageLink) {
+                                    const placeholder = domElements.downloadCompositeImageLink.querySelector('.button-icon-placeholder');
+                                    if (placeholder) {
+                                        placeholder.innerHTML = '';
+                                        const miniImg = document.createElement('img');
+                                        miniImg.src = compositeImageDataUrl;
+                                        miniImg.alt = 'Preview';
+                                        placeholder.appendChild(miniImg);
+                                    }
+                                    domElements.downloadCompositeImageLink.href = compositeImageDataUrl;
+                                    domElements.downloadCompositeImageLink.download = `pictosound_img_qr_${Date.now()}.png`;
+                                    domElements.downloadCompositeImageLink.style.display = 'inline-flex';
+                                }
+
+                                await generateQrCodeToCanvas(qrCanvasForSoloDownload, musicResult.audioUrl, 150);
+                                const soloQrDataUrl = qrCanvasForSoloDownload.toDataURL('image/png');
+
+                                if (domElements.downloadQrOnlyLink) {
+                                    domElements.downloadQrOnlyLink.href = soloQrDataUrl;
+                                    domElements.downloadQrOnlyLink.download = `pictosound_qrcode_${Date.now()}.png`;
+                                    domElements.downloadQrOnlyLink.style.display = 'inline-flex';
+                                }
+                            } catch (qrError) {
+                                console.error("ERRORE QR:", qrError);
+                                if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
+                                if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
+                            }
+                        } else {
+                            if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
+                            if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
+                        }
+                    } else {
+                        const musicGenErrorMessage = musicResult.error || "Errore generazione musica";
+                        updateProgressMessage(musicGenErrorMessage, false);
+                        if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, musicGenErrorMessage, "error");
                     }
+                } else if (musicApiResponse.ok && musicContentType && musicContentType.indexOf("audio/") !== -1) {
+                    console.warn("WARN: Risposta audio diretta da generate_music.php (non JSON).");
+                    updateProgressMessage("", false);
+                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Musica generata (formato diretto)!", "success");
+                    const audioBlob = await musicApiResponse.blob();
+                    const audioUrlForPlayer = URL.createObjectURL(audioBlob);
+                    if (domElements.audioPlayer) domElements.audioPlayer.src = audioUrlForPlayer;
+                    if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'block';
+                    if (domElements.progressAndPlayerContainer) domElements.progressAndPlayerContainer.style.display = 'block';
                 } else {
-                    logStep(`11. ❌ ERRORE SALVATAGGIO DB: ${response.data.message || 'Errore sconosciuto'}`);
-                    showSaveNotificationPictosound(`Errore durante il salvataggio: ${response.data.message}`, "error");
+                    const errorText = await musicApiResponse.text();
+                    updateProgressMessage(`Errore server (HTTP ${musicApiResponse.status})`, false);
+                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, `Errore server (HTTP ${musicApiResponse.status})`, "error");
                 }
-            },
-            error: function (xhr) {
-                logStep(`11. ❌ ERRORE AJAX CRITICO DURANTE IL SALVATAGGIO: ${xhr.statusText}`);
-                showSaveNotificationPictosound("Errore di connessione durante il salvataggio della creazione.", "error");
-            },
-            complete: function () {
-                domElements.generateMusicButton.disabled = false;
-                domElements.musicSpinner.style.display = 'none';
+            } catch (error) {
+                console.error("ERRORE durante la generazione musica:", error);
+                updateProgressMessage(`Errore: ${error.message}`, false);
+                if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore durante la generazione musica", "error");
+            } finally {
+                if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = false;
+                if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'none';
+            }
+        };
+    }
+
+    // Accordion for "Dettagli" in AI Insights
+    if (domElements.detailsAccordionHeader && domElements.aiInsightsContent) {
+        domElements.detailsAccordionHeader.addEventListener('click', () => {
+            const isOpen = domElements.detailsAccordionHeader.classList.toggle('open');
+            domElements.aiInsightsContent.style.display = isOpen ? 'block' : 'none';
+        });
+    }
+
+    // Accordions for Cue Selection Groups
+    document.querySelectorAll('.cues-selection-container label.group-label.collapsible-cue-header').forEach(header => {
+        header.addEventListener('click', () => {
+            header.classList.toggle('open');
+            const content = header.nextElementSibling;
+            if (content && content.classList.contains('checkbox-pills-group')) {
+                content.classList.toggle('open');
+                const bpmSliderContainer = header.parentElement.querySelector('.bpm-slider-container');
+                if (bpmSliderContainer) {
+                    bpmSliderContainer.style.display = header.classList.contains('open') ? 'block' : 'none';
+                }
             }
         });
+    });
 
-    } catch (error) {
-        logStep(`❌ ERRORE CRITICO nel processo di generazione: ${error.message}`);
-        updateProgressMessage("", false);
-        setStatusMessage(domElements.statusDiv, `Processo interrotto. Dettagli nel log di debug.`, "error");
-        domElements.generateMusicButton.disabled = false;
-        domElements.musicSpinner.style.display = 'none';
+    // Fullscreen image on audio play
+    if (domElements.audioPlayer && domElements.fullscreenImageModal && domElements.fullscreenImage && domElements.closeFullscreenButton) {
+        domElements.audioPlayer.onplay = () => {
+            if (currentImageSrc) {
+                domElements.fullscreenImage.src = currentImageSrc;
+                domElements.fullscreenImageModal.style.display = 'flex';
+            }
+        };
+        domElements.closeFullscreenButton.onclick = () => {
+            domElements.fullscreenImageModal.style.display = 'none';
+        };
+        window.onclick = (event) => {
+            if (event.target == domElements.fullscreenImageModal) {
+                domElements.fullscreenImageModal.style.display = 'none';
+            }
+        };
+        document.addEventListener('keydown', function (event) {
+            if (event.key === "Escape") {
+                domElements.fullscreenImageModal.style.display = 'none';
+            }
+        });
     }
-};
-
 });
-
-/**
- * ⚡ NOTIFICA DI SALVATAGGIO GLOBALE
- * Mostra una notifica temporanea in stile "toast".
- */
-function showSaveNotificationPictosound(message, type = 'info') {
-    let notification = document.getElementById('pictosoundSaveNotification');
-    if (!notification) {
-        notification = document.createElement('div');
-        notification.id = 'pictosoundSaveNotification';
-        // Stili per posizionamento, aspetto e transizioni
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 10000;
-            font-family: Inter, -apple-system, sans-serif;
-            font-size: 14px;
-            font-weight: 500;
-            max-width: 300px;
-            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-            opacity: 0;
-            transform: translateX(120%);
-        `;
-        document.body.appendChild(notification);
-    }
-    // Stili per tipo di notifica (successo, errore, info)
-    const styles = {
-        success: { background: '#28a745', color: 'white' },
-        error: { background: '#dc3545', color: 'white' },
-        info: { background: '#17a2b8', color: 'white' }
-    };
-    const style = styles[type] || styles.info;
-    Object.assign(notification.style, style);
-
-    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-    notification.textContent = `${icons[type] || ''} ${message}`;
-
-    // Animazione di entrata
-    setTimeout(() => {
-        notification.style.opacity = '1';
-        notification.style.transform = 'translateX(0)';
-    }, 10); // Piccolo ritardo per permettere l'applicazione degli stili iniziali
-
-    // Animazione di uscita
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(120%)';
-    }, type === 'error' ? 6000 : 4000);
-}
-
-/**
- * ⚡ FUNZIONI HELPER PER RACCOGLIERE DATI IN MODO SICURO PER IL SALVATAGGIO
- * Queste funzioni prevengono errori se gli elementi non esistono nel DOM.
- */
-function generateCreationDescriptionForSave() {
-    const aiText = getAiInsightsTextForSave();
-    if (aiText && aiText.length > 10) return aiText.substring(0, 200) + (aiText.length > 200 ? '...' : '');
-
-    const moods = getSelectedMoodsForSave();
-    const genres = getSelectedGenresForSave();
-    if (moods.length > 0 || genres.length > 0) {
-        const parts = [];
-        if (moods.length > 0) parts.push(`Mood: ${moods.join(', ')}`);
-        if (genres.length > 0) parts.push(`Genere: ${genres.join(', ')}`);
-        return `Musica generata da un'immagine. ${parts.join('. ')}.`;
-    }
-    return "Musica generata automaticamente da un'immagine tramite intelligenza artificiale.";
-}
-
-function getSelectedDurationForSave() {
-    const radio = document.querySelector('input[name="musicDuration"]:checked');
-    return radio ? parseInt(radio.value) : 40;
-}
-
-function getSelectedValuesForSave(name) {
-    return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(i => i.value);
-}
-
-function getSelectedMoodsForSave() { return getSelectedValuesForSave('mood'); }
-function getSelectedGenresForSave() { return getSelectedValuesForSave('genre'); }
-function getSelectedInstrumentsForSave() { return getSelectedValuesForSave('instrument'); }
-function getSelectedRhythmsForSave() { return getSelectedValuesForSave('rhythm'); }
-
-
-function getAiInsightsTextForSave() {
-    const aiElement = document.getElementById('aiInterpretationText');
-    if (aiElement && aiElement.textContent) return aiElement.textContent.trim();
-
-    const aiContent = document.getElementById('aiInsightsContent');
-    if (aiContent) {
-        // Pulisce il testo da spazi multipli e ritorni a capo per una descrizione più pulita
-        return (aiContent.textContent || '').replace(/\s\s+/g, ' ').trim().substring(0, 300);
-    }
-    return '';
-}
