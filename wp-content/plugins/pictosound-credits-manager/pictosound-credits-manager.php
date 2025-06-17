@@ -3369,9 +3369,6 @@ function pictosound_cm_edit_profile_shortcode() {
 }
 add_shortcode('pictosound_edit_profile', 'pictosound_cm_edit_profile_shortcode');
 
-/**
-* Funzione callback per lo shortcode [mio_saldo_crediti_pictosound].
-*/
 function pictosound_ms_display_credits_shortcode_callback( $atts ) {
    $a = shortcode_atts( [
        'etichetta'         => __( 'Crediti Disponibili:', 'pictosound-mostra-saldo' ),
@@ -3408,571 +3405,34 @@ add_shortcode( 'mio_saldo_crediti_pictosound', 'pictosound_ms_display_credits_sh
 * Carica il text domain per le traduzioni.
 */
 function pictosound_ms_load_textdomain() {
-   load_plugin_textdomain( 'pictosound-mostra-saldo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' ); 
+   load_plugin_textdomain( 'pictosound-mostra-saldo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
 }
 add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
 
-function pictosound_cm_create_generations_table() {
-    global $wpdb;
-    
-    $table_name = $wpdb->prefix . 'pictosound_generations';
-    
-    $charset_collate = $wpdb->get_charset_collate();
-    
-    $sql = "CREATE TABLE $table_name (
-        id mediumint(9) NOT NULL AUTO_INCREMENT,
-        user_id bigint(20) NOT NULL,
-        image_url text NOT NULL,
-        audio_url text NOT NULL,
-        image_filename varchar(255) DEFAULT '',
-        audio_filename varchar(255) DEFAULT '',
-        prompt_used text DEFAULT '',
-        duration int(11) DEFAULT 0,
-        created_at datetime DEFAULT CURRENT_TIMESTAMP,
-        is_favorite tinyint(1) DEFAULT 0,
-        title varchar(255) DEFAULT '',
-        description text DEFAULT '',
-        PRIMARY KEY (id),
-        KEY user_id (user_id),
-        KEY created_at (created_at)
-    ) $charset_collate;";
-    
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
-    
-    write_log_cm("Tabella generazioni creata/aggiornata: $table_name");
-}
-
-// Hook per creare la tabella all'attivazione del plugin
-register_activation_hook(__FILE__, 'pictosound_cm_create_generations_table');
 
 /**
- * AJAX Handler per salvare una nuova generazione
+ * =============================================================
+ * FUNZIONE AJAX PER LA GENERAZIONE MUSICALE (FINALE)
+ * =============================================================
  */
-function pictosound_cm_save_generation() {
-    // Verifica che l'utente sia loggato
-    if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => 'Utente non autorizzato']);
-        return;
-    }
-    
-    $user_id = get_current_user_id();
-    
-    // Rate limiting
-    if (!pictosound_cm_check_rate_limit('save_generation', $user_id, 20, 10 * MINUTE_IN_SECONDS)) {
-        wp_send_json_error(['message' => 'Troppi salvataggi. Riprova tra qualche minuto.']);
-        return;
-    }
-    
-    // Verifica nonce
-    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'pictosound_save_generation_nonce')) {
-        wp_send_json_error(['message' => 'Sessione scaduta']);
-        return;
-    }
-    
-    // Sanitizza e valida i dati
-    $image_url = esc_url_raw($_POST['image_url'] ?? '');
-    $audio_url = esc_url_raw($_POST['audio_url'] ?? '');
-    $prompt_used = sanitize_textarea_field($_POST['prompt_used'] ?? '');
-    $duration = absint($_POST['duration'] ?? 0);
-    $title = sanitize_text_field($_POST['title'] ?? '');
-    $description = sanitize_textarea_field($_POST['description'] ?? '');
-    
-    // Estrai nomi file dalle URL
-    $image_filename = basename(parse_url($image_url, PHP_URL_PATH));
-    $audio_filename = basename(parse_url($audio_url, PHP_URL_PATH));
-    
-    // Validazioni
-    if (empty($image_url) || empty($audio_url)) {
-        wp_send_json_error(['message' => 'URL immagine e audio sono obbligatori']);
-        return;
-    }
-    
-    // Salva nel database
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'pictosound_generations';
-    
-    $result = $wpdb->insert(
-        $table_name,
-        [
-            'user_id' => $user_id,
-            'image_url' => $image_url,
-            'audio_url' => $audio_url,
-            'image_filename' => $image_filename,
-            'audio_filename' => $audio_filename,
-            'prompt_used' => $prompt_used,
-            'duration' => $duration,
-            'title' => $title,
-            'description' => $description,
-            'created_at' => current_time('mysql')
-        ],
-        ['%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s']
-    );
-    
-    if ($result === false) {
-        write_log_cm("Errore salvamento generazione per user $user_id: " . $wpdb->last_error);
-        wp_send_json_error(['message' => 'Errore nel salvare la generazione']);
-        return;
-    }
-    
-    $generation_id = $wpdb->insert_id;
-    write_log_cm("Generazione salvata con ID $generation_id per user $user_id");
-    
-    wp_send_json_success([
-        'message' => 'Generazione salvata con successo!',
-        'generation_id' => $generation_id
-    ]);
-}
-add_action('wp_ajax_pictosound_save_generation', 'pictosound_cm_save_generation');
-
-/**
- * AJAX Handler per eliminare una generazione
- */
-function pictosound_cm_delete_generation() {
-    if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => 'Utente non autorizzato']);
-        return;
-    }
-    
-    $user_id = get_current_user_id();
-    $generation_id = absint($_POST['generation_id'] ?? 0);
-    
-    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'pictosound_delete_generation_nonce')) {
-        wp_send_json_error(['message' => 'Sessione scaduta']);
-        return;
-    }
-    
-    if ($generation_id <= 0) {
-        wp_send_json_error(['message' => 'ID generazione non valido']);
-        return;
-    }
-    
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'pictosound_generations';
-    
-    // Verifica che la generazione appartenga all'utente
-    $generation = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM $table_name WHERE id = %d AND user_id = %d",
-        $generation_id, $user_id
-    ));
-    
-    if (!$generation) {
-        wp_send_json_error(['message' => 'Generazione non trovata']);
-        return;
-    }
-    
-    // Elimina la generazione
-    $result = $wpdb->delete(
-        $table_name,
-        ['id' => $generation_id, 'user_id' => $user_id],
-        ['%d', '%d']
-    );
-    
-    if ($result === false) {
-        wp_send_json_error(['message' => 'Errore nell\'eliminazione']);
-        return;
-    }
-    
-    wp_send_json_success(['message' => 'Generazione eliminata con successo!']);
-}
-add_action('wp_ajax_pictosound_delete_generation', 'pictosound_cm_delete_generation');
-
-/**
- * AJAX Handler per impostare/rimuovere dai preferiti
- */
-function pictosound_cm_toggle_generation_favorite() {
-    if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => 'Utente non autorizzato']);
-        return;
-    }
-    
-    $user_id = get_current_user_id();
-    $generation_id = absint($_POST['generation_id'] ?? 0);
-    $is_favorite = absint($_POST['is_favorite'] ?? 0);
-    
-    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'pictosound_favorite_generation_nonce')) {
-        wp_send_json_error(['message' => 'Sessione scaduta']);
-        return;
-    }
-    
-    if ($generation_id <= 0) {
-        wp_send_json_error(['message' => 'ID generazione non valido']);
-        return;
-    }
-    
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'pictosound_generations';
-    
-    $result = $wpdb->update(
-        $table_name,
-        ['is_favorite' => $is_favorite],
-        ['id' => $generation_id, 'user_id' => $user_id],
-        ['%d'],
-        ['%d', '%d']
-    );
-    
-    if ($result === false) {
-        wp_send_json_error(['message' => 'Errore nell\'aggiornamento']);
-        return;
-    }
-    
-    wp_send_json_success([
-        'message' => $is_favorite ? 'Aggiunto ai preferiti!' : 'Rimosso dai preferiti!',
-        'is_favorite' => $is_favorite
-    ]);
-}
-add_action('wp_ajax_pictosound_toggle_generation_favorite', 'pictosound_cm_toggle_generation_favorite');
-
-/**
- * Shortcode per visualizzare l'archivio delle generazioni dell'utente
- */
-/**
- * Shortcode per visualizzare l'archivio delle generazioni dell'utente - SENZA MODAL
- */
-function pictosound_cm_generations_archive_shortcode($atts) {
-    if (!is_user_logged_in()) {
-        return '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 15px; text-align: center; margin: 20px 0;">
-            <h3 style="margin: 0 0 15px 0;">🔒 Accesso Richiesto</h3>
-            <p style="margin: 0 0 20px 0;">Effettua il login per visualizzare le tue generazioni musicali</p>
-            <a href="/wp-login.php" style="background: white; color: #667eea; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">🚀 ACCEDI ORA</a>
-        </div>';
-    }
-    
-    $atts = shortcode_atts([
-        'per_page' => 12,
-        'show_favorites_only' => 'false',
-        'layout' => 'grid' // grid, list
-    ], $atts);
-    
-    $user_id = get_current_user_id();
-    $per_page = max(1, min(50, absint($atts['per_page'])));
-    $page = max(1, absint($_GET['gen_page'] ?? 1));
-    $show_favorites_only = ($atts['show_favorites_only'] === 'true');
-    
-    // Recupera le generazioni dal database
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'pictosound_generations';
-    
-    $where_clause = "WHERE user_id = %d";
-    $where_params = [$user_id];
-    
-    if ($show_favorites_only) {
-        $where_clause .= " AND is_favorite = 1";
-    }
-    
-    $offset = ($page - 1) * $per_page;
-    
-    $generations = $wpdb->get_results($wpdb->prepare(
-        "SELECT * FROM $table_name $where_clause ORDER BY created_at DESC LIMIT %d OFFSET %d",
-        array_merge($where_params, [$per_page, $offset])
-    ));
-    
-    $total_count = $wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $table_name $where_clause",
-        $where_params
-    ));
-    
-    $total_pages = ceil($total_count / $per_page);
-    
-    // Genera HTML
-    ob_start();
-    ?>
-    
-    <div class="pictosound-generations-archive" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-        
-        <!-- HEADER -->
-        <div class="archive-header" style="text-align: center; margin-bottom: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; border-radius: 15px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); pointer-events: none; animation: headerGlow 6s ease-in-out infinite alternate;"></div>
-            <div style="position: relative; z-index: 1;">
-                <div style="font-size: 3rem; margin-bottom: 15px;">🎵</div>
-                <h2 style="margin: 0 0 10px 0; font-size: 2rem; font-weight: 700;">Le Tue Creazioni Musicali</h2>
-                <p style="margin: 0; font-size: 1.1rem; opacity: 0.9;">Archivio delle tue generazioni audio da immagini</p>
-                <div style="margin-top: 20px; background: rgba(255,255,255,0.2); padding: 12px 20px; border-radius: 25px; display: inline-block;">
-                    <strong>Totale creazioni: <?php echo $total_count; ?></strong>
-                </div>
-            </div>
-        </div>
-        
-        <?php if (empty($generations)): ?>
-        
-        <!-- MESSAGGIO VUOTO -->
-        <div style="text-align: center; background: #f8f9fa; padding: 60px 30px; border-radius: 15px; border: 2px dashed #dee2e6;">
-            <div style="font-size: 4rem; margin-bottom: 20px; opacity: 0.5;">🎨</div>
-            <h3 style="color: #6c757d; margin: 0 0 15px 0;">Nessuna creazione trovata</h3>
-            <p style="color: #6c757d; margin: 0 0 25px 0;">Inizia a creare musica dalle tue immagini!</p>
-            <a href="/" style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">🚀 INIZIA A CREARE</a>
-        </div>
-        
-        <?php else: ?>
-        
-        <!-- FILTRI -->
-        <div class="archive-filters" style="margin-bottom: 30px; text-align: center;">
-            <a href="?gen_page=1" style="background: <?php echo !$show_favorites_only ? '#667eea' : '#e9ecef'; ?>; color: <?php echo !$show_favorites_only ? 'white' : '#6c757d'; ?>; padding: 10px 20px; text-decoration: none; border-radius: 25px; margin: 0 5px; font-weight: bold; display: inline-block;">
-                🎵 Tutte (<?php echo $total_count; ?>)
-            </a>
-            <a href="?show_favorites_only=true&gen_page=1" style="background: <?php echo $show_favorites_only ? '#ffc107' : '#e9ecef'; ?>; color: <?php echo $show_favorites_only ? '#333' : '#6c757d'; ?>; padding: 10px 20px; text-decoration: none; border-radius: 25px; margin: 0 5px; font-weight: bold; display: inline-block;">
-                ⭐ Preferiti
-            </a>
-        </div>
-        
-        <!-- LISTA GENERAZIONI -->
-        <div class="generations-list" style="display: grid; gap: 25px; margin-bottom: 40px;">
-            
-            <?php foreach ($generations as $generation): ?>
-            <div class="generation-item" data-generation-id="<?php echo $generation->id; ?>" style="background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid #e9ecef; position: relative; display: grid; grid-template-columns: 300px 1fr; gap: 20px; transition: all 0.3s ease;">
-                
-                <!-- IMMAGINE -->
-                <div class="generation-image-container" style="position: relative; width: 100%; height: 250px; overflow: hidden;">
-                    <img src="<?php echo esc_url($generation->image_url); ?>" alt="Generazione <?php echo $generation->id; ?>" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                    
-                    <!-- BADGE PREFERITO -->
-                    <?php if ($generation->is_favorite): ?>
-                    <div style="position: absolute; top: 10px; right: 10px; background: #ffc107; color: #333; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">
-                        ⭐ Preferito
-                    </div>
-                    <?php endif; ?>
-                </div>
-                
-                <!-- CONTENUTO -->
-                <div class="generation-content" style="padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
-                    
-                    <!-- INFO GENERAZIONE -->
-                    <div>
-                        <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #333; font-weight: 600;">
-                            <?php echo !empty($generation->title) ? esc_html($generation->title) : 'Creazione del ' . date('d/m/Y', strtotime($generation->created_at)); ?>
-                        </h3>
-                        
-                        <div style="font-size: 14px; color: #6c757d; margin-bottom: 15px;">
-                            📅 <?php echo date('d/m/Y H:i', strtotime($generation->created_at)); ?>
-                            <?php if ($generation->duration > 0): ?>
-                            • ⏱️ <?php echo $generation->duration; ?>s
-                            <?php endif; ?>
-                        </div>
-                        
-                        <?php if (!empty($generation->description)): ?>
-                        <p style="margin: 0 0 15px 0; font-size: 14px; color: #666; line-height: 1.5;">
-                            <?php echo esc_html($generation->description); ?>
-                        </p>
-                        <?php endif; ?>
-                        
-                        <?php if (!empty($generation->prompt_used)): ?>
-                        <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                            <strong style="font-size: 12px; color: #666;">Prompt utilizzato:</strong>
-                            <p style="margin: 5px 0 0 0; font-size: 13px; color: #333; font-style: italic;">
-                                "<?php echo esc_html(wp_trim_words($generation->prompt_used, 20)); ?>"
-                            </p>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <!-- CONTROLLI AUDIO -->
-                    <div style="margin-bottom: 20px;">
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
-                            <div style="margin-bottom: 10px; font-weight: bold; color: #333; font-size: 14px;">🎵 Audio Generato</div>
-                            <audio controls style="width: 100%; margin-bottom: 10px;">
-                                <source src="<?php echo esc_url($generation->audio_url); ?>" type="audio/mpeg">
-                                Il tuo browser non supporta l'elemento audio.
-                            </audio>
-                            <div style="font-size: 12px; color: #666;">
-                                <a href="<?php echo esc_url($generation->audio_url); ?>" download="<?php echo esc_attr($generation->audio_filename ?: 'audio_' . $generation->id . '.mp3'); ?>" style="color: #007cba; text-decoration: none; font-weight: bold;">
-                                    📥 Scarica Audio
-                                </a>
-                                •
-                                <a href="<?php echo esc_url($generation->image_url); ?>" download="<?php echo esc_attr($generation->image_filename ?: 'image_' . $generation->id . '.jpg'); ?>" style="color: #007cba; text-decoration: none; font-weight: bold;">
-                                    🖼️ Scarica Immagine
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- AZIONI -->
-                    <div class="generation-actions" style="display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 1px solid #eee;">
-                        <div>
-                            <span style="font-size: 12px; color: #999;">ID: #<?php echo $generation->id; ?></span>
-                        </div>
-                        <div>
-                            <button onclick="toggleGenerationFavorite(<?php echo $generation->id; ?>, <?php echo $generation->is_favorite ? 0 : 1; ?>)" style="background: <?php echo $generation->is_favorite ? '#ffc107' : 'transparent'; ?>; color: <?php echo $generation->is_favorite ? '#333' : '#6c757d'; ?>; border: 1px solid <?php echo $generation->is_favorite ? '#ffc107' : '#dee2e6'; ?>; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-right: 8px;">
-                                <?php echo $generation->is_favorite ? '⭐ Rimuovi dai preferiti' : '☆ Aggiungi ai preferiti'; ?>
-                            </button>
-                            <button onclick="deleteGeneration(<?php echo $generation->id; ?>)" style="background: transparent; color: #dc3545; border: 1px solid #dee2e6; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;" onmouseover="this.style.background='#dc3545'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='#dc3545'">
-                                🗑️ Elimina
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-            
-        </div>
-        
-        <!-- PAGINAZIONE -->
-        <?php if ($total_pages > 1): ?>
-        <div class="archive-pagination" style="text-align: center; margin-top: 40px;">
-            <div style="display: inline-flex; align-items: center; background: white; padding: 5px; border-radius: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                
-                <?php if ($page > 1): ?>
-                <a href="?gen_page=<?php echo $page - 1; ?><?php echo $show_favorites_only ? '&show_favorites_only=true' : ''; ?>" style="background: #667eea; color: white; padding: 10px 15px; text-decoration: none; border-radius: 20px; margin: 0 2px; font-weight: bold;">‹ Prec</a>
-                <?php endif; ?>
-                
-                <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                <a href="?gen_page=<?php echo $i; ?><?php echo $show_favorites_only ? '&show_favorites_only=true' : ''; ?>" style="background: <?php echo $i === $page ? '#667eea' : 'transparent'; ?>; color: <?php echo $i === $page ? 'white' : '#667eea'; ?>; padding: 10px 15px; text-decoration: none; border-radius: 20px; margin: 0 2px; font-weight: bold;">
-                    <?php echo $i; ?>
-                </a>
-                <?php endfor; ?>
-                
-                <?php if ($page < $total_pages): ?>
-                <a href="?gen_page=<?php echo $page + 1; ?><?php echo $show_favorites_only ? '&show_favorites_only=true' : ''; ?>" style="background: #667eea; color: white; padding: 10px 15px; text-decoration: none; border-radius: 20px; margin: 0 2px; font-weight: bold;">Succ ›</a>
-                <?php endif; ?>
-                
-            </div>
-            <div style="margin-top: 15px; color: #6c757d; font-size: 14px;">
-                Pagina <?php echo $page; ?> di <?php echo $total_pages; ?> (<?php echo $total_count; ?> totali)
-            </div>
-        </div>
-        <?php endif; ?>
-        
-        <?php endif; ?>
-        
-    </div>
-    
-    <!-- STILI E SCRIPT SEMPLIFICATI -->
-    <style>
-    @keyframes headerGlow {
-        0% { transform: scale(1) rotate(0deg); }
-        100% { transform: scale(1.1) rotate(5deg); }
-    }
-    
-    .generation-item:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    }
-    
-    @media (max-width: 768px) {
-        .generation-item {
-            grid-template-columns: 1fr !important;
-        }
-        
-        .generation-image-container {
-            height: 200px !important;
-        }
-        
-        .archive-header {
-            padding: 30px 20px !important;
-        }
-        
-        .generation-content {
-            padding: 15px !important;
-        }
-        
-        .generation-actions {
-            flex-direction: column !important;
-            gap: 10px !important;
-            align-items: stretch !important;
-        }
-        
-        .generation-actions div {
-            text-align: center !important;
-        }
-        
-        .generation-actions button {
-            width: 100% !important;
-            margin: 0 0 5px 0 !important;
-        }
-    }
-    </style>
-    
-    <script>
-    function toggleGenerationFavorite(generationId, isFavorite) {
-        if (typeof pictosound_vars === 'undefined') {
-            alert('Errore di configurazione');
-            return;
-        }
-        
-        jQuery.ajax({
-            url: pictosound_vars.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'pictosound_toggle_generation_favorite',
-                generation_id: generationId,
-                is_favorite: isFavorite,
-                nonce: '<?php echo wp_create_nonce("pictosound_favorite_generation_nonce"); ?>'
-            },
-            success: function(response) {
-                if (response.success) {
-                    location.reload(); // Ricarica per aggiornare l'interfaccia
-                } else {
-                    alert(response.data.message || 'Errore nell\'aggiornamento preferiti');
-                }
-            },
-            error: function() {
-                alert('Errore di connessione');
-            }
-        });
-    }
-    
-    function deleteGeneration(generationId) {
-        if (!confirm('Sei sicuro di voler eliminare questa generazione? L\'operazione non può essere annullata.')) {
-            return;
-        }
-        
-        if (typeof pictosound_vars === 'undefined') {
-            alert('Errore di configurazione');
-            return;
-        }
-        
-        jQuery.ajax({
-            url: pictosound_vars.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'pictosound_delete_generation',
-                generation_id: generationId,
-                nonce: '<?php echo wp_create_nonce("pictosound_delete_generation_nonce"); ?>'
-            },
-            success: function(response) {
-                if (response.success) {
-                    location.reload(); // Ricarica per aggiornare l'interfaccia
-                } else {
-                    alert(response.data.message || 'Errore nell\'eliminazione');
-                }
-            },
-            error: function() {
-                alert('Errore di connessione');
-            }
-        });
-    }
-    </script>
-    
-    <?php
-    return ob_get_clean();
-}
-add_shortcode('pictosound_generations_archive', 'pictosound_cm_generations_archive_shortcode');
-
-/**
- * Aggiungi nonce per il salvataggio generazioni ai dati JavaScript
- */
-function pictosound_cm_add_generation_nonces_to_js($script_data) {
-    $script_data['nonce_save_generation'] = wp_create_nonce('pictosound_save_generation_nonce');
-    return $script_data;
-}
-
-// Hook per aggiungere i nonce ai dati JavaScript esistenti
-add_filter('pictosound_frontend_js_data', 'pictosound_cm_add_generation_nonces_to_js');
-
-/**
- * ⚡ GESTIONE AJAX PER LA GENERAZIONE DELLA MUSICA (v3 - ROBUSTA E CON LOGGING DI FALLBACK)
- */
-
+function pictosound_ajax_generate_music() {
+    // Fallback di sicurezza per la funzione di logging
     if (!function_exists('write_log_cm')) {
-        function write_log_cm($message) { error_log('Pictosound Fallback Log: ' . print_r($message, true)); }
+        function write_log_cm($message) {
+            error_log('Pictosound Fallback Log: ' . print_r($message, true));
+        }
     }
-    write_log_cm("--- INIZIO RICHIESTA AJAX v6 (con log percorsi) ---");
+
     if (empty($_POST['action']) || empty($_POST['prompt']) || empty($_POST['duration'])) {
         wp_send_json_error(['error' => 'Richiesta malformata.'], 400);
         wp_die();
     }
+
     $prompt_text = sanitize_textarea_field(stripslashes($_POST['prompt']));
     $duration_seconds = intval($_POST['duration']);
     $user_id = is_user_logged_in() ? get_current_user_id() : null;
+
+    // Blocco di sincronizzazione utente
     if ($user_id) {
         global $wpdb;
         $user_table_name = $wpdb->prefix . 'ps_users';
@@ -3984,36 +3444,43 @@ add_filter('pictosound_frontend_js_data', 'pictosound_cm_add_generation_nonces_t
             }
         }
     }
+
     $audio_dir = WP_CONTENT_DIR . '/pictosound/audio/';
     if (!file_exists($audio_dir) && !mkdir($audio_dir, 0775, true)) {
         wp_send_json_error(['error' => 'Errore permessi directory.'], 500);
         wp_die();
     }
+
     $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // ⚠️ USA LA TUA CHIAVE API VALIDA
     $api_url = 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio';
+
     $fields_to_send = ['prompt' => $prompt_text, 'output_format' => 'mp3', 'duration' => $duration_seconds, 'steps' => 30];
     $boundary = "------------------------" . uniqid();
     $request_body = "";
     foreach ($fields_to_send as $name => $value) { $request_body .= "--" . $boundary . "\r\n" . "Content-Disposition: form-data; name=\"" . $name . "\"\r\n\r\n" . $value . "\r\n"; }
     $request_body .= "--" . $boundary . "--\r\n";
+
     $response = wp_remote_post($api_url, ['method' => 'POST', 'timeout' => 180, 'headers' => ["Authorization" => "Bearer $api_key", "Accept" => "audio/*", "Content-Type" => "multipart/form-data; boundary=" . $boundary], 'body' => $request_body]);
+
     if (is_wp_error($response)) {
         wp_send_json_error(['error' => "Errore API musicale."], 500);
         wp_die();
     }
+
     $http_code = wp_remote_retrieve_response_code($response);
     $response_body_raw = wp_remote_retrieve_body($response);
     $response_content_type = wp_remote_retrieve_header($response, 'content-type');
+
     if ($http_code >= 200 && $http_code < 300 && strpos($response_content_type, 'audio/') !== false) {
         $filename = 'audio_gen_' . time() . '_' . wp_generate_password(8, false) . '.mp3';
         $filepath = $audio_dir . $filename;
         if (file_put_contents($filepath, $response_body_raw)) {
-            // LOG FONDAMENTALE 
-            write_log_cm("DEBUG SALVATAGGIO: File salvato con successo in -> " . $filepath);
             $download_url = content_url("/pictosound/includes/download.php?file=" . urlencode($filename));
+            
             global $wpdb;
             $table_name = $wpdb->prefix . 'ps_generations';
             $wpdb->insert($table_name, ['user_id' => $user_id, 'session_id' => session_id() ?: 'N/A', 'duration' => $duration_seconds, 'credits_used' => 0, 'prompt' => $prompt_text, 'audio_filename' => $filename, 'audio_url' => $download_url, 'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'N/A', 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'N/A', 'created_at' => current_time('mysql')]);
+            
             wp_send_json_success(['audioUrl' => $download_url, 'downloadUrl' => $download_url, 'fileName' => $filename]);
         } else {
             wp_send_json_error(['error' => "Errore scrittura file."], 500);
@@ -4025,161 +3492,96 @@ add_filter('pictosound_frontend_js_data', 'pictosound_cm_add_generation_nonces_t
     }
     wp_die();
 }
-// Assicurati che gli hook siano sempre presenti dopo la funzione
 add_action('wp_ajax_pictosound_generate_music', 'pictosound_ajax_generate_music');
 add_action('wp_ajax_nopriv_pictosound_generate_music', 'pictosound_ajax_generate_music');
+
 
 /**
  * =============================================================
  * SHORTCODE PER L'ARCHIVIO DELLE GENERAZIONI MUSICALI
- * Legge i dati dalla tabella ps_generations e li mostra.
  * =============================================================
  */
 function pictosound_cm_generations_archive_shortcode() {
-    // 1. Controlla se l'utente è loggato. L'archivio è personale.
     if (!is_user_logged_in()) {
-        return '<div class="ps-archive-login-prompt">
-                    <p>Devi effettuare il <a href="' . wp_login_url(get_permalink()) . '">login</a> per vedere le tue creazioni musicali.</p>
-                </div>';
+        return '<div class="ps-archive-login-prompt"><p>Devi effettuare il <a href="' . esc_url(wp_login_url(get_permalink())) . '">login</a> per vedere le tue creazioni musicali.</p></div>';
     }
 
-    // ob_start() cattura tutto l'output HTML in una variabile invece di stamparlo direttamente.
     ob_start();
 
-    // 2. Prepara la query al database
     global $wpdb;
     $user_id = get_current_user_id();
-    $table_name = $wpdb->prefix . 'ps_generations';
-
-    // Prepara e esegui la query in modo sicuro per l'utente corrente, ordinando dalla più recente
-    $generations = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT * FROM %i WHERE user_id = %d ORDER BY created_at DESC",
-            $table_name,
-            $user_id
-        )
+    
+    $query = $wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}ps_generations WHERE user_id = %d ORDER BY created_at DESC",
+        $user_id
     );
+    $generations = $wpdb->get_results($query);
 
-    // 3. Controlla se abbiamo trovato risultati
+    echo '<div class="pictosound-generations-archive-wrapper">';
     if ($generations) {
-        echo '<div class="pictosound-generations-archive">';
         echo '<h3>Le Tue Creazioni Musicali</h3>';
-        echo '<ul>';
+        echo '<ul class="ps-generation-list">';
 
-        // 4. Itera (fa un ciclo) su ogni risultato e crea l'HTML
         foreach ($generations as $generation) {
             echo '<li class="generation-item">';
-            
-            // Dettagli della traccia
             echo '<div class="generation-details">';
             echo '<strong class="generation-prompt">Prompt:</strong> <span>' . esc_html($generation->prompt) . '</span>';
             echo '<div class="generation-meta">';
-            echo '<span><strong>Durata:</strong> ' . esc_html($generation->duration) . 's</span>';
-            // Formatta la data per essere più leggibile
             $formatted_date = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($generation->created_at));
-            echo '<span><strong>Data:</strong> ' . $formatted_date . '</span>';
-            echo '</div>';
-            echo '</div>';
-
-            // Player audio e download
+            echo '<span><strong>Data:</strong> ' . esc_html($formatted_date) . '</span>';
+            echo '<span><strong>Durata:</strong> ' . esc_html($generation->duration) . 's</span>';
+            echo '</div></div>';
             echo '<div class="generation-player-action">';
-            echo '<audio controls src="' . esc_url($generation->audio_url) . '"></audio>';
+            echo '<audio controls preload="none" src="' . esc_url($generation->audio_url) . '"></audio>';
             echo '<a href="' . esc_url($generation->audio_url) . '" class="download-button-archive" download>Scarica</a>';
-            echo '</div>';
-
-            echo '</li>';
+            echo '</div></li>';
         }
 
         echo '</ul>';
-        echo '</div>';
     } else {
-        // Messaggio da mostrare se non ci sono ancora generazioni
-        echo '<div class="pictosound-no-generations">
-                <p>Non hai ancora creato nessuna traccia musicale. <a href="/">Inizia ora!</a></p>
-              </div>';
+        echo '<div class="pictosound-no-generations">';
+        echo '<h3>Nessuna Creazione Trovata</h3>';
+        echo '<p>Non hai ancora creato nessuna traccia musicale. <a href="/">Inizia ora!</a></p>';
+        echo '</div>';
     }
+    echo '</div>';
 
-    // ob_get_clean() restituisce tutto l'HTML catturato e pulisce il buffer.
     return ob_get_clean();
 }
-
-// 5. Registra il nuovo shortcode in WordPress
 add_shortcode('pictosound_generations_archive', 'pictosound_cm_generations_archive_shortcode');
 
 
 /**
  * =============================================================
  * CSS OPZIONALE PER L'ARCHIVIO
- * Aggiunge uno stile di base per rendere l'elenco più leggibile.
  * =============================================================
  */
 function pictosound_cm_archive_styles() {
-    // Aggiungi questi stili solo se la pagina corrente contiene lo shortcode
     global $post;
     if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'pictosound_generations_archive')) {
         ?>
         <style>
-            .pictosound-generations-archive ul {
-                list-style: none;
-                padding: 0;
-                margin: 0;
-            }
-            .generation-item {
-                background: #f9f9f9;
-                border: 1px solid #e5e5e5;
-                border-radius: 8px;
-                padding: 20px;
-                margin-bottom: 20px;
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: space-between;
-                align-items: center;
-                gap: 20px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            }
-            .generation-details {
-                flex: 1;
-                min-width: 300px;
-            }
-            .generation-prompt {
-                font-size: 1.1em;
-                color: #333;
-            }
-            .generation-meta {
-                margin-top: 10px;
-                font-size: 0.9em;
-                color: #666;
-                display: flex;
-                gap: 20px;
-            }
-            .generation-player-action {
-                display: flex;
-                align-items: center;
-                gap: 15px;
-            }
-            .generation-player-action audio {
-                max-width: 300px;
-                height: 40px;
-            }
-            .download-button-archive {
-                background-color: #0073aa;
-                color: white !important;
-                padding: 8px 15px;
-                border-radius: 5px;
-                text-decoration: none;
-                font-size: 14px;
-                font-weight: bold;
-                white-space: nowrap;
-                transition: background-color 0.2s;
-            }
-            .download-button-archive:hover {
-                background-color: #005a87;
+            .pictosound-generations-archive-wrapper { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+            .pictosound-generations-archive-wrapper h3 { margin-bottom: 25px; font-size: 24px; color: #1d2327; }
+            .ps-generation-list { list-style: none; padding: 0; margin: 0; }
+            .generation-item { background: #f6f7f7; border: 1px solid #e0e0e0; border-left: 5px solid #007cba; border-radius: 8px; padding: 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.07); }
+            .generation-details { flex: 1; min-width: 300px; word-break: break-word; }
+            .generation-prompt { font-size: 1.1em; color: #1d2327; display: block; margin-bottom: 12px; }
+            .generation-meta { font-size: 0.9em; color: #50575e; display: flex; flex-wrap: wrap; gap: 10px 25px; }
+            .generation-player-action { display: flex; align-items: center; gap: 15px; }
+            .generation-player-action audio { max-width: 300px; height: 40px; border-radius: 50px; }
+            .download-button-archive { background-color: #007cba; color: white !important; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; white-space: nowrap; transition: background-color 0.2s, transform 0.2s; }
+            .download-button-archive:hover { background-color: #005a87; transform: translateY(-1px); }
+            .pictosound-no-generations, .ps-archive-login-prompt { text-align: center; padding: 40px 20px; background: #f6f7f7; border: 1px dashed #e0e0e0; border-radius: 8px; }
+            @media (max-width: 768px) {
+                .generation-item { flex-direction: column; align-items: flex-start; }
+                .generation-player-action { width: 100%; margin-top: 15px; }
+                .generation-player-action audio { width: 100%; max-width: none; }
             }
         </style>
         <?php
     }
 }
-// Aggancia la funzione all'head di WordPress
 add_action('wp_head', 'pictosound_cm_archive_styles');
 
 ?>
