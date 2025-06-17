@@ -4,7 +4,7 @@
  * Plugin Name:        Pictosound Credits Manager (Modern UI + Hosting-Optimized)
  * Plugin URI:         [Lascia vuoto o metti l'URL del tuo sito se vuoi]
  * Description:        Gestisce i crediti utente, la registrazione, il login e l'integrazione per la generazione musicale di Pictosound. Versione con interfaccia moderna per pacchetti crediti.
- * Version:            1.5.0-modern-ui
+ * Version:            1.5.1-hotfix
  * Author:             [Metti il tuo nome o il nome del tuo sito]
  * Author URI:         [Lascia vuoto o metti l'URL del tuo sito se vuoi]
  * License:            GPL-2.0-or-later
@@ -1118,6 +1118,8 @@ function pictosound_cm_frontend_scripts_and_data() {
         // ⚡ CARICA SOLO JQUERY E STRIPE per le pagine di shortcode
         wp_enqueue_script('jquery');
         
+        $main_script_handle = $load_full_scripts ? 'pictosound-main-script' : 'pictosound-basic-script';
+
         if ($load_full_scripts) {
             // Script completi solo dove servono
             $pictosound_js_base_url = content_url( 'pictosound/js/' ); 
@@ -1129,18 +1131,16 @@ function pictosound_cm_frontend_scripts_and_data() {
             wp_enqueue_script('qrcode-js', $pictosound_js_base_url . 'qrcode.min.js', [], '1.0.0', true);
             wp_enqueue_script('auth-manager-js', $pictosound_js_base_url . 'auth-manager.js', ['jquery'], '1.0.0', true);
 
-            $main_script_handle = 'pictosound-main-script';
             wp_enqueue_script( 
                 $main_script_handle, 
                 $pictosound_js_base_url . 'script.js', 
                 ['jquery', 'stripe-js', 'tf-js', 'coco-ssd-js', 'face-api-js', 'qrcode-js', 'auth-manager-js'], 
-                '1.4.1', 
+                '1.5.1', 
                 true 
             );
         } else {
             // Solo stripe per pagamenti nelle altre pagine
             wp_enqueue_script('stripe-js', 'https://js.stripe.com/v3/', [], '3.0', true);
-            $main_script_handle = 'pictosound-basic-script';
         }
 
         $user_id = get_current_user_id();
@@ -1150,6 +1150,7 @@ function pictosound_cm_frontend_scripts_and_data() {
             'ajax_url'        => admin_url( 'admin-ajax.php' ),
             'nonce_check_credits' => wp_create_nonce( 'pictosound_check_credits_nonce' ),
             'nonce_recharge'  => wp_create_nonce( 'pictosound_recharge_credits_nonce' ),
+            'save_creation_nonce' => wp_create_nonce( 'pictosound_save_creation_nonce' ), // ✅✅✅ NONCE AGGIUNTO QUI ✅✅✅
             'is_user_logged_in' => is_user_logged_in(),
             'user_credits'    => $user_credits,
             'user_id'         => $user_id,
@@ -1182,7 +1183,7 @@ function pictosound_cm_frontend_scripts_and_data() {
     } else {
         write_log_cm("Pictosound scripts NOT enqueued on this page (ID: " . get_the_ID() . "). Page title: " . get_the_title());
     }
-} // ⚡ QUESTA PARENTESI GRAFFA MANCAVA!
+}
 add_action( 'wp_enqueue_scripts', 'pictosound_cm_frontend_scripts_and_data' );
 
 /**
@@ -1508,6 +1509,7 @@ function pictosound_cm_modern_packages_script() {
     <?php
 }
 add_action('wp_footer', 'pictosound_cm_modern_packages_script');
+
 function pictosound_cm_error_safe_styles() {
     ?>
     <style>
@@ -1741,68 +1743,47 @@ function pictosound_ms_load_textdomain() {
 add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
 
 /**
- * ⚡ AJAX Handler per salvare le creazioni musicali
+ * ⚡ AJAX Handler per salvare le creazioni musicali - VERSIONE SICURA E ROBUSTA
  */
 function pictosound_cm_ajax_save_creation() {
-    // Abilita il logging di WordPress per questo test
-    if (!defined('WP_DEBUG')) {
-        define('WP_DEBUG', true);
-    }
-    if (!defined('WP_DEBUG_LOG')) {
-        define('WP_DEBUG_LOG', true);
-    }
-    if (!defined('WP_DEBUG_DISPLAY')) {
-        define('WP_DEBUG_DISPLAY', false);
-    }
+    // 1. Sicurezza: Verifica Nonce e Login
+    check_ajax_referer('pictosound_save_creation_nonce', 'nonce');
 
-    // --- INIZIO BLOCCO DI DEBUG ---
-    $debug_log = [];
-    $debug_log[] = "===========================================================";
-    $debug_log[] = "Inizio processo di salvataggio creazione: " . date('Y-m-d H:i:s');
+    if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => 'Login richiesto per salvare.']);
+        return;
+    }
     
-    // 1. Verifica Nonce
-    $nonce_received = isset($_POST['nonce']) ? sanitize_text_field($_POST['nonce']) : 'NON_RICEVUTO';
-    if (wp_verify_nonce($nonce_received, 'pictosound_save_creation_nonce')) {
-        $debug_log[] = "[OK] Nonce valido ricevuto.";
-    } else {
-        $debug_log[] = "[ERRORE] Nonce non valido o mancante. Ricevuto: " . $nonce_received;
-        error_log(implode("\n", $debug_log)); // Scrivi il log prima di uscire
-        wp_send_json_error(['message' => 'Sessione non valida.']);
-        return;
-    }
-
-    // 2. Verifica Login
-    if (is_user_logged_in()) {
-        $user_id = get_current_user_id();
-        $debug_log[] = "[OK] Utente loggato. User ID: " . $user_id;
-    } else {
-        $debug_log[] = "[ERRORE] Utente non loggato.";
-        error_log(implode("\n", $debug_log));
-        wp_send_json_error(['message' => 'Login richiesto.']);
-        return;
-    }
-
+    $user_id = get_current_user_id();
+    
+    // 2. Verifica Tabella e Prepara Dati
     global $wpdb;
     $table_name = 'aDOtz4PiG8_pictosound_creations';
-    $debug_log[] = "[INFO] Nome tabella target: " . $table_name;
 
-    // 3. Verifica Esistenza Tabella
-    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name) {
-        $debug_log[] = "[OK] La tabella '$table_name' esiste nel database.";
-    } else {
-        $debug_log[] = "[ERRORE FATALE] La tabella '$table_name' NON esiste nel database.";
-        error_log(implode("\n", $debug_log));
-        wp_send_json_error(['message' => "La tabella di destinazione '$table_name' non e' stata trovata."]);
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+        error_log("Pictosound SAVE ERROR: La tabella '$table_name' NON esiste.");
+        wp_send_json_error(['message' => "Errore interno del server: Tabella non trovata."]);
         return;
     }
+    
+    // Gestione dell'immagine: se è un data URL, non salvarlo direttamente
+    $image_src = $_POST['image_url'] ?? '';
+    $image_url_to_save = '';
+    if (filter_var($image_src, FILTER_VALIDATE_URL)) {
+        // Se è un URL valido, lo salviamo
+        $image_url_to_save = esc_url_raw($image_src);
+    } else if (strpos($image_src, 'data:image') === 0) {
+        // Se è un data URL, salviamo un placeholder.
+        // In un sistema avanzato, qui si dovrebbe caricare l'immagine e ottenere un URL vero.
+        $image_url_to_save = 'data:image (placeholder)';
+    }
 
-    // 4. Prepara i dati e logga la loro lunghezza
     $creation_data = [
         'user_id'         => $user_id,
         'title'           => sanitize_text_field($_POST['title'] ?? 'Creazione senza titolo'),
         'prompt'          => sanitize_textarea_field($_POST['prompt'] ?? ''),
         'description'     => sanitize_textarea_field($_POST['description'] ?? ''),
-        'image_url'       => $_POST['image_url'] ?? '', // Lasciamo URL grezzo per il logging
+        'image_url'       => $image_url_to_save,
         'audio_url'       => esc_url_raw($_POST['audio_url'] ?? ''),
         'duration'        => intval($_POST['duration'] ?? 0),
         'style'           => sanitize_text_field($_POST['style'] ?? ''),
@@ -1812,70 +1793,31 @@ function pictosound_cm_ajax_save_creation() {
         'status'          => 'completed'
     ];
 
-    $debug_log[] = "[INFO] Dati pronti per l'inserimento:";
-    foreach ($creation_data as $key => $value) {
-        $debug_log[] = "  - $key: (Lunghezza: " . strlen($value) . ") " . substr($value, 0, 100) . "...";
-    }
-
     $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s'];
     
-    // 5. Esegui l'inserimento
-    $debug_log[] = "[INFO] Tentativo di esecuzione di \$wpdb->insert...";
+    // 3. Esegui Inserimento e Gestisci Risultato
     $result = $wpdb->insert($table_name, $creation_data, $formats);
     
-    // 6. Analizza il risultato
     if ($result === false) {
-        $db_error = $wpdb->last_error;
-        $debug_log[] = "[ERRORE DATABASE] \$wpdb->insert ha fallito.";
-        $debug_log[] = "[ERRORE DATABASE] Messaggio di errore MySQL: " . $db_error;
-        error_log(implode("\n", $debug_log)); // Scrivi log completo dell'errore
+        error_log("Pictosound SAVE DB ERROR: " . $wpdb->last_error);
         wp_send_json_error([
             'message'  => 'Errore del database durante il salvataggio.',
-            'db_error' => $db_error 
+            'db_error' => $wpdb->last_error 
         ]);
         return;
     }
     
-    if ($result > 0) {
-        $creation_id = $wpdb->insert_id;
-        $debug_log[] = "[SUCCESSO] Dati inseriti correttamente. ID Nuova riga: " . $creation_id;
-        error_log(implode("\n", $debug_log)); // Scrivi log completo del successo
-        wp_send_json_success([
-            'message'     => 'Creazione salvata con successo!',
-            'creation_id' => $creation_id
-        ]);
-    } else {
-        $db_error = $wpdb->last_error;
-        $debug_log[] = "[ERRORE SCONOSCIUTO] \$wpdb->insert non ha restituito un errore, ma non ha inserito righe. Result: $result";
-        $debug_log[] = "[INFO] Ultimo errore DB (se presente): " . $db_error;
-        error_log(implode("\n", $debug_log));
-        wp_send_json_error([
-            'message'  => 'Operazione fallita senza un errore specifico del database.',
-            'db_error' => $db_error
-        ]);
-    }
+    $creation_id = $wpdb->insert_id;
+    write_log_cm("Pictosound SAVE SUCCESS: Creazione #$creation_id salvata per user #$user_id.");
+    wp_send_json_success([
+        'message'     => 'Creazione salvata con successo!',
+        'creation_id' => $creation_id
+    ]);
 }
 add_action('wp_ajax_pictosound_save_creation', 'pictosound_cm_ajax_save_creation');
 
-/**
- * ⚡ Hook per aggiungere il nonce di salvataggio alle variabili JavaScript
- * Modifica la funzione esistente pictosound_cm_frontend_scripts_and_data
- */
-function pictosound_cm_add_save_creation_nonce($script_data) {
-    // Aggiungi il nonce per il salvataggio
-    $script_data['save_creation_nonce'] = wp_create_nonce('pictosound_save_creation_nonce');
-    return $script_data;
-}
 
-// Hook per modificare i dati dello script esistente
-add_filter('wp_footer', function() {
-    ?>
-    <script>
-    // Aggiungi il nonce alle variabili esistenti se pictosound_vars è definito
-    if (typeof pictosound_vars !== 'undefined') {
-        pictosound_vars.save_creation_nonce = '<?php echo wp_create_nonce('pictosound_save_creation_nonce'); ?>';
-    }
-    </script>
-    <?php
-}, 5);
+// ❌ RIMOZIONE BLOCCO OBSOLETO CHE AGGIUNGEVA IL NONCE NEL FOOTER ❌
+// La logica è stata spostata in pictosound_cm_frontend_scripts_and_data per coerenza.
+
 ?>
