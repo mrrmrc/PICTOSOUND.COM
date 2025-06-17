@@ -1730,7 +1730,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             title: 'Musica del ' + new Date().toLocaleString('it-IT'),
                             prompt: promptForMusic,
                             description: 'Generato da Pictosound',
-                            image_url: currentImageSrc,
+                            image_url: currentImageSrc.length > 5000 ? 'data:image (placeholder)' : currentImageSrc,
                             audio_url: musicResult.audioUrl,
                             duration: duration,
                             style: (getSelectedGenresForSave() || []).join(', '),
