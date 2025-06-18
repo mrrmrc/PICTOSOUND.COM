@@ -286,4 +286,4 @@ header('Content-Type: application/json');
 write_log("Richiesta con metodo non supportato: " . $_SERVER['REQUEST_METHOD']);
 http_response_code(405);
 echo json_encode(['error' => 'Metodo non supportato.']);
-?>
+// NOTE: Removed closing PHP tag to prevent extra output
