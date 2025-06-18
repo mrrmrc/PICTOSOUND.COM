@@ -3381,8 +3381,7 @@ function pictosound_ms_display_credits_shortcode_callback( $atts ) {
    }
 
    $user_id = get_current_user_id();
-   $credits_meta_key = '_pictosound_user_credits';
-   $credits = get_user_meta( $user_id, $credits_meta_key, true );
+   $credits = pictosound_cm_get_user_credits( $user_id );
    $saldo = ! empty( $credits ) ? absint( $credits ) : 0;
 
    $output = '<span class="pictosound-saldo-display-widget">';
@@ -3416,11 +3415,8 @@ add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
  * =============================================================
  */
 function pictosound_ajax_generate_music() {
-    // Fallback di sicurezza per la funzione di logging
     if (!function_exists('write_log_cm')) {
-        function write_log_cm($message) {
-            error_log('Pictosound Fallback Log: ' . print_r($message, true));
-        }
+        function write_log_cm($message) { error_log('Pictosound Log: ' . print_r($message, true)); }
     }
 
     if (empty($_POST['action']) || empty($_POST['prompt']) || empty($_POST['duration'])) {
@@ -3428,11 +3424,38 @@ function pictosound_ajax_generate_music() {
         wp_die();
     }
 
+    // --- 1. GESTIONE DATI IMMAGINE (LA GRANDE NOVITÀ) ---
+    $image_url_to_save = '';
+    if (!empty($_POST['image_data'])) {
+        // Definiamo la cartella di upload
+        $upload_dir = WP_CONTENT_DIR . '/pictosound/uploads/images/';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+
+        // Riceviamo i dati dell'immagine in formato Base64
+        list($type, $data) = explode(';', $_POST['image_data']);
+        list(, $data)      = explode(',', $data);
+        $decoded_data = base64_decode($data);
+        
+        // Creiamo un nome file unico
+        $image_filename = 'img_gen_' . time() . '.jpg';
+        $image_filepath = $upload_dir . $image_filename;
+
+        // Salviamo il file sul server
+        if (file_put_contents($image_filepath, $decoded_data)) {
+            $image_url_to_save = content_url('/pictosound/uploads/images/' . $image_filename);
+            write_log_cm("Immagine salvata con successo: " . $image_url_to_save);
+        } else {
+            write_log_cm("ERRORE: Impossibile salvare l'immagine sul server.");
+        }
+    }
+
+    // --- 2. GESTIONE ALTRI DATI E SINCRONIZZAZIONE UTENTE ---
     $prompt_text = sanitize_textarea_field(stripslashes($_POST['prompt']));
     $duration_seconds = intval($_POST['duration']);
     $user_id = is_user_logged_in() ? get_current_user_id() : null;
 
-    // Blocco di sincronizzazione utente
     if ($user_id) {
         global $wpdb;
         $user_table_name = $wpdb->prefix . 'ps_users';
@@ -3445,49 +3468,50 @@ function pictosound_ajax_generate_music() {
         }
     }
 
+    // --- 3. CHIAMATA ALL'API AUDIO ---
+    // (Questa parte rimane identica)
     $audio_dir = WP_CONTENT_DIR . '/pictosound/audio/';
-    if (!file_exists($audio_dir) && !mkdir($audio_dir, 0775, true)) {
-        wp_send_json_error(['error' => 'Errore permessi directory.'], 500);
-        wp_die();
-    }
-
+    if (!file_exists($audio_dir)) { mkdir($audio_dir, 0755, true); }
     $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // ⚠️ USA LA TUA CHIAVE API VALIDA
     $api_url = 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio';
-
     $fields_to_send = ['prompt' => $prompt_text, 'output_format' => 'mp3', 'duration' => $duration_seconds, 'steps' => 30];
     $boundary = "------------------------" . uniqid();
     $request_body = "";
     foreach ($fields_to_send as $name => $value) { $request_body .= "--" . $boundary . "\r\n" . "Content-Disposition: form-data; name=\"" . $name . "\"\r\n\r\n" . $value . "\r\n"; }
     $request_body .= "--" . $boundary . "--\r\n";
-
     $response = wp_remote_post($api_url, ['method' => 'POST', 'timeout' => 180, 'headers' => ["Authorization" => "Bearer $api_key", "Accept" => "audio/*", "Content-Type" => "multipart/form-data; boundary=" . $boundary], 'body' => $request_body]);
-
-    if (is_wp_error($response)) {
-        wp_send_json_error(['error' => "Errore API musicale."], 500);
-        wp_die();
-    }
-
+    
+    if (is_wp_error($response)) { wp_send_json_error(['error' => "Errore API musicale."], 500); wp_die(); }
     $http_code = wp_remote_retrieve_response_code($response);
     $response_body_raw = wp_remote_retrieve_body($response);
     $response_content_type = wp_remote_retrieve_header($response, 'content-type');
 
     if ($http_code >= 200 && $http_code < 300 && strpos($response_content_type, 'audio/') !== false) {
-        $filename = 'audio_gen_' . time() . '_' . wp_generate_password(8, false) . '.mp3';
-        $filepath = $audio_dir . $filename;
-        if (file_put_contents($filepath, $response_body_raw)) {
-            $download_url = content_url("/pictosound/includes/download.php?file=" . urlencode($filename));
+        $audio_filename = 'audio_gen_' . time() . '_' . wp_generate_password(8, false) . '.mp3';
+        $audio_filepath = $audio_dir . $audio_filename;
+        if (file_put_contents($audio_filepath, $response_body_raw)) {
+            $download_url = content_url("/pictosound/includes/download.php?file=" . urlencode($audio_filename));
             
+            // --- 4. SALVATAGGIO FINALE NEL DATABASE ---
             global $wpdb;
             $table_name = $wpdb->prefix . 'ps_generations';
-            $wpdb->insert($table_name, ['user_id' => $user_id, 'session_id' => session_id() ?: 'N/A', 'duration' => $duration_seconds, 'credits_used' => 0, 'prompt' => $prompt_text, 'audio_filename' => $filename, 'audio_url' => $download_url, 'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'N/A', 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'N/A', 'created_at' => current_time('mysql')]);
+            $wpdb->insert($table_name, [
+                'user_id' => $user_id,
+                'prompt' => $prompt_text,
+                'duration' => $duration_seconds,
+                'audio_filename' => $audio_filename,
+                'audio_url' => $download_url,
+                'image_url' => $image_url_to_save, // <-- SALVIAMO IL NUOVO URL PERMANENTE
+                'created_at' => current_time('mysql'),
+            ]);
             
-            wp_send_json_success(['audioUrl' => $download_url, 'downloadUrl' => $download_url, 'fileName' => $filename]);
+            wp_send_json_success(['audioUrl' => $download_url, 'downloadUrl' => $download_url, 'fileName' => $audio_filename]);
         } else {
-            wp_send_json_error(['error' => "Errore scrittura file."], 500);
+            wp_send_json_error(['error' => "Errore scrittura file audio."], 500);
         }
     } else {
         $error_data = json_decode($response_body_raw, true);
-        $error_to_send = $error_data['message'] ?? 'Errore API musicale.';
+        $error_to_send = $error_data['message'] ?? 'Errore dall\'API musicale.';
         wp_send_json_error(['error' => "API Error ($http_code): $error_to_send"], $http_code);
     }
     wp_die();
@@ -3496,9 +3520,11 @@ add_action('wp_ajax_pictosound_generate_music', 'pictosound_ajax_generate_music'
 add_action('wp_ajax_nopriv_pictosound_generate_music', 'pictosound_ajax_generate_music');
 
 
+// ... nel file pictosound-credits-manager.php ...
+
 /**
  * =============================================================
- * SHORTCODE PER L'ARCHIVIO DELLE GENERAZIONI MUSICALI
+ * SHORTCODE PER L'ARCHIVIO (v2.1 - Corretto e Semplificato)
  * =============================================================
  */
 function pictosound_cm_generations_archive_shortcode() {
@@ -3510,11 +3536,9 @@ function pictosound_cm_generations_archive_shortcode() {
 
     global $wpdb;
     $user_id = get_current_user_id();
-    
-    $query = $wpdb->prepare(
-        "SELECT * FROM {$wpdb->prefix}ps_generations WHERE user_id = %d ORDER BY created_at DESC",
-        $user_id
-    );
+    $table_name = $wpdb->prefix . 'ps_generations';
+
+    $query = $wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d ORDER BY created_at DESC", $user_id);
     $generations = $wpdb->get_results($query);
 
     echo '<div class="pictosound-generations-archive-wrapper">';
@@ -3524,39 +3548,73 @@ function pictosound_cm_generations_archive_shortcode() {
 
         foreach ($generations as $generation) {
             echo '<li class="generation-item">';
+
+            // --- Logica Immagine Semplificata ---
+            // Se l'URL dell'immagine nel database è vuoto o non valido, usa un'immagine di riserva (placeholder).
+            $image_url = (!empty($generation->image_url) && filter_var($generation->image_url, FILTER_VALIDATE_URL)) 
+                         ? $generation->image_url 
+                         : 'https://pictosound.com/wp-content/uploads/2024/06/placeholder.webp';
+            
+            echo '<div class="generation-thumbnail">';
+            // Il link ora apre il modale e passa i dati corretti.
+            echo '<a href="#" class="open-generation-modal" 
+                   data-full-image-url="' . esc_url($image_url) . '" 
+                   data-audio-url="' . esc_url($generation->audio_url) . '" 
+                   data-prompt="' . esc_attr($generation->prompt) . '">';
+            echo '<img src="' . esc_url($image_url) . '" alt="Miniatura per: ' . esc_attr($generation->prompt) . '" loading="lazy" />';
+            echo '</a>';
+            echo '</div>'; // Chiusura .generation-thumbnail
+
+            // Dettagli della traccia
             echo '<div class="generation-details">';
-            echo '<strong class="generation-prompt">Prompt:</strong> <span>' . esc_html($generation->prompt) . '</span>';
+            echo '<strong class="generation-prompt">' . esc_html($generation->prompt) . '</strong>';
             echo '<div class="generation-meta">';
-            $formatted_date = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($generation->created_at));
+            $formatted_date = date_i18n(get_option('date_format'), strtotime($generation->created_at));
             echo '<span><strong>Data:</strong> ' . esc_html($formatted_date) . '</span>';
             echo '<span><strong>Durata:</strong> ' . esc_html($generation->duration) . 's</span>';
             echo '</div></div>';
+
+            // Player audio e pulsante di download
             echo '<div class="generation-player-action">';
-            echo '<audio controls preload="none" src="' . esc_url($generation->audio_url) . '"></audio>';
+            echo '<audio class="original-audio-player" controls preload="none" src="' . esc_url($generation->audio_url) . '"></audio>';
             echo '<a href="' . esc_url($generation->audio_url) . '" class="download-button-archive" download>Scarica</a>';
             echo '</div></li>';
         }
 
         echo '</ul>';
     } else {
-        echo '<div class="pictosound-no-generations">';
-        echo '<h3>Nessuna Creazione Trovata</h3>';
-        echo '<p>Non hai ancora creato nessuna traccia musicale. <a href="/">Inizia ora!</a></p>';
-        echo '</div>';
+        echo '<div class="pictosound-no-generations"><h3>Nessuna Creazione Trovata</h3><p>Non hai ancora creato nessuna traccia musicale. <a href="/">Inizia ora!</a></p></div>';
     }
-    echo '</div>';
+    echo '</div>'; // Chiusura .pictosound-generations-archive-wrapper
+
+    // HTML per il Contenitore Modale
+    ?>
+    <div id="ps-generation-modal" class="ps-modal-overlay" style="display:none;">
+        <div class="ps-modal-content">
+            <span class="ps-modal-close">&times;</span>
+            <img id="ps-modal-image" src="" alt="Immagine della generazione" />
+            <div id="ps-modal-audio-container">
+                <h4 id="ps-modal-prompt"></h4>
+            </div>
+        </div>
+    </div>
+    <?php
 
     return ob_get_clean();
+}
+// Rimuovi eventuali vecchie registrazioni dello shortcode e aggiungi quella corretta
+if(shortcode_exists('pictosound_generations_archive')) {
+    remove_shortcode('pictosound_generations_archive');
 }
 add_shortcode('pictosound_generations_archive', 'pictosound_cm_generations_archive_shortcode');
 
 
 /**
  * =============================================================
- * CSS OPZIONALE PER L'ARCHIVIO
+ * CSS E SCRIPT PER L'ARCHIVIO (Corretto)
  * =============================================================
  */
-function pictosound_cm_archive_styles() {
+function pictosound_cm_archive_styles_and_scripts() {
     global $post;
     if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'pictosound_generations_archive')) {
         ?>
@@ -3564,24 +3622,90 @@ function pictosound_cm_archive_styles() {
             .pictosound-generations-archive-wrapper { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
             .pictosound-generations-archive-wrapper h3 { margin-bottom: 25px; font-size: 24px; color: #1d2327; }
             .ps-generation-list { list-style: none; padding: 0; margin: 0; }
-            .generation-item { background: #f6f7f7; border: 1px solid #e0e0e0; border-left: 5px solid #007cba; border-radius: 8px; padding: 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.07); }
-            .generation-details { flex: 1; min-width: 300px; word-break: break-word; }
-            .generation-prompt { font-size: 1.1em; color: #1d2327; display: block; margin-bottom: 12px; }
-            .generation-meta { font-size: 0.9em; color: #50575e; display: flex; flex-wrap: wrap; gap: 10px 25px; }
+            .generation-item { background: #f6f7f7; border: 1px solid #e0e0e0; border-left: 5px solid #007cba; border-radius: 8px; padding: 15px; margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.07); }
+            .generation-thumbnail a { display: block; width: 80px; height: 80px; border-radius: 6px; overflow: hidden; flex-shrink: 0; cursor: pointer; }
+            .generation-thumbnail img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s ease-in-out; }
+            .generation-thumbnail a:hover img { transform: scale(1.1); }
+            .generation-details { flex: 1; min-width: 250px; word-break: break-word; }
+            .generation-prompt { font-size: 1.1em; color: #1d2327; display: block; margin-bottom: 8px; font-weight: 600; }
+            .generation-meta { font-size: 0.9em; color: #50575e; display: flex; flex-wrap: wrap; gap: 10px 20px; }
             .generation-player-action { display: flex; align-items: center; gap: 15px; }
-            .generation-player-action audio { max-width: 300px; height: 40px; border-radius: 50px; }
+            .generation-player-action audio { max-width: 250px; height: 40px; border-radius: 50px; }
             .download-button-archive { background-color: #007cba; color: white !important; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; white-space: nowrap; transition: background-color 0.2s, transform 0.2s; }
             .download-button-archive:hover { background-color: #005a87; transform: translateY(-1px); }
             .pictosound-no-generations, .ps-archive-login-prompt { text-align: center; padding: 40px 20px; background: #f6f7f7; border: 1px dashed #e0e0e0; border-radius: 8px; }
+            .ps-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 10000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+            .ps-modal-content { background: #fff; padding: 20px; border-radius: 8px; max-width: 90vw; max-height: 90vh; overflow-y: auto; position: relative; text-align: center; animation: modal-fade-in 0.3s ease; }
+            @keyframes modal-fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+            .ps-modal-close { position: absolute; top: 10px; right: 25px; font-size: 35px; font-weight: bold; color: #aaa; cursor: pointer; line-height: 1; }
+            .ps-modal-close:hover { color: #000; }
+            #ps-modal-image { max-width: 100%; max-height: 70vh; display: block; margin: 0 auto 20px auto; border-radius: 4px; }
+            #ps-modal-prompt { margin: 0 0 15px 0; font-size: 1.2em; color: #333; }
+            #ps-modal-audio-container audio { width: 100%; }
             @media (max-width: 768px) {
                 .generation-item { flex-direction: column; align-items: flex-start; }
                 .generation-player-action { width: 100%; margin-top: 15px; }
                 .generation-player-action audio { width: 100%; max-width: none; }
             }
         </style>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Usiamo un event listener delegato per assicurarci che funzioni sempre
+            document.body.addEventListener('click', function(e) {
+                const trigger = e.target.closest('.open-generation-modal');
+                if (!trigger) return;
+
+                e.preventDefault();
+                
+                const modal = document.getElementById('ps-generation-modal');
+                if (!modal) return;
+
+                const modalImage = document.getElementById('ps-modal-image');
+                const modalPrompt = document.getElementById('ps-modal-prompt');
+                const modalAudioContainer = document.getElementById('ps-modal-audio-container');
+
+                modalImage.src = trigger.dataset.fullImageUrl;
+                modalPrompt.textContent = trigger.dataset.prompt;
+                modalAudioContainer.innerHTML = '';
+                
+                const audioPlayer = document.createElement('audio');
+                audioPlayer.controls = true;
+                audioPlayer.preload = 'auto';
+                audioPlayer.src = trigger.dataset.audioUrl;
+                modalAudioContainer.appendChild(audioPlayer);
+                
+                modal.style.display = 'flex';
+                audioPlayer.play();
+            });
+
+            // Gestione chiusura modale
+            const modal = document.getElementById('ps-generation-modal');
+            if (modal) {
+                const modalClose = modal.querySelector('.ps-modal-close');
+                const closeModal = () => {
+                    modal.style.display = 'none';
+                    const modalPlayer = modal.querySelector('audio');
+                    if (modalPlayer) {
+                        modalPlayer.pause();
+                    }
+                };
+
+                if(modalClose) modalClose.addEventListener('click', closeModal);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal();
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === "Escape" && modal.style.display === 'flex') closeModal();
+                });
+            }
+        });
+        </script>
         <?php
     }
 }
-add_action('wp_head', 'pictosound_cm_archive_styles');
+// Rimuovi eventuali vecchie action e aggiungi quella corretta
+remove_action('wp_footer', 'pictosound_cm_archive_styles_and_scripts');
+remove_action('wp_head', 'pictosound_cm_archive_styles_and_scripts'); // Rimuove anche da head per sicurezza
+add_action('wp_footer', 'pictosound_cm_archive_styles_and_scripts'); // Usa wp_footer per caricare gli script alla fine
 
 ?>

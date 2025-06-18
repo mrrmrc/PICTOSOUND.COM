@@ -2042,8 +2042,10 @@ document.addEventListener('DOMContentLoaded', function () {
         body.append('action', 'pictosound_generate_music');
         body.append('prompt', finalPrompt);
         body.append('duration', selectedDuration);
+        // Aggiungi l'URL dell'immagine visualizzata nell'anteprima
+        const imageUrl = document.getElementById('imagePreview').src;
+        body.append('image_url', imageUrl); // <-- RIGA DA AGGIUNGERE
 
-        // Chiamata AJAX
         fetch(pictosound_vars.ajax_url, {
             method: 'POST',
             body: body
