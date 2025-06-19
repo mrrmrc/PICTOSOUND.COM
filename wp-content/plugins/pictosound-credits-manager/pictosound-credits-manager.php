@@ -3411,4 +3411,294 @@ function pictosound_ms_load_textdomain() {
 }
 add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
 
+
+/**
+ * ⚡ CREAZIONE TABELLA GENERAZIONI MUSICALI
+ */
+function pictosound_cm_create_generations_table() {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'ps_generations';
+    
+    $charset_collate = $wpdb->get_charset_collate();
+    
+    $sql = "CREATE TABLE $table_name (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) NOT NULL,
+        prompt text NOT NULL,
+        image_url text,
+        audio_url text,
+        duration int(11) NOT NULL DEFAULT 40,
+        credits_used int(11) NOT NULL DEFAULT 0,
+        generation_status varchar(20) DEFAULT 'completed',
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY user_id (user_id),
+        KEY created_at (created_at)
+    ) $charset_collate;";
+    
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+    
+    write_log_cm("Tabella generazioni musicali creata/aggiornata: $table_name");
+}
+
+// Registra la creazione della tabella all'attivazione del plugin
+register_activation_hook(__FILE__, 'pictosound_cm_create_generations_table');
+
+/**
+ * ⚡ FUNZIONE PER SALVARE IMMAGINI CARICATE
+ */
+function pictosound_cm_save_uploaded_image($image_data_url) {
+    // Crea la directory se non esiste
+    $upload_dir = WP_CONTENT_DIR . '/uploads/pictosound_images/';
+    if (!file_exists($upload_dir)) {
+        wp_mkdir_p($upload_dir);
+    }
+    
+    // Decodifica l'immagine base64
+    if (strpos($image_data_url, 'data:image/') === 0) {
+        // Estrae il tipo di immagine e i dati
+        preg_match('/data:image\/([a-zA-Z0-9]+);base64,(.+)/', $image_data_url, $matches);
+        
+        if (count($matches) === 3) {
+            $image_type = $matches[1];
+            $image_data = base64_decode($matches[2]);
+            
+            // Genera nome file unico
+            $filename = 'pictosound_' . time() . '_' . wp_generate_uuid4() . '.' . $image_type;
+            $file_path = $upload_dir . $filename;
+            
+            // Salva il file
+            if (file_put_contents($file_path, $image_data)) {
+                // Restituisce l'URL pubblico
+                $image_url = content_url('/uploads/pictosound_images/' . $filename);
+                write_log_cm("Immagine salvata con successo: $image_url");
+                return $image_url;
+            } else {
+                write_log_cm("ERRORE: Impossibile salvare l'immagine in: $file_path");
+                return false;
+            }
+        }
+    }
+    
+    write_log_cm("ERRORE: Formato immagine non valido o dati corrotti");
+    return false;
+}
+
+/**
+ * ⚡ SIMULAZIONE GENERAZIONE AUDIO (da sostituire con API reale)
+ */
+function pictosound_cm_simulate_audio_generation($prompt, $duration) {
+    // Per ora restituiamo un file audio di esempio
+    // In produzione, qui dovresti chiamare l'API di Stable Audio o altro servizio
+    
+    // Simula un delay per la generazione
+    sleep(2);
+    
+    // URL di un file audio di esempio (sostituisci con la tua logica)
+    $sample_audio_url = 'https://www.soundjay.com/misc/sounds-misc-beep-28.wav';
+    
+    // In alternativa, potresti avere file audio di esempio nella tua directory
+    $sample_audio_url = content_url('/uploads/pictosound_audio/sample_' . $duration . 's.mp3');
+    
+    write_log_cm("Audio simulato generato: $sample_audio_url per prompt: $prompt");
+    
+    return $sample_audio_url;
+}
+
+/**
+ * ⚡ HANDLER AJAX PER GENERAZIONE MUSICALE
+ */
+function pictosound_cm_ajax_generate_music() {
+    // Verifica che l'utente sia loggato
+    if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => __('Devi effettuare il login per generare musica.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    $user_id = get_current_user_id();
+    
+    // Rate limiting per generazione musica
+    if (!pictosound_cm_check_rate_limit('generate_music', $user_id, 5, 10 * MINUTE_IN_SECONDS)) {
+        wp_send_json_error(['message' => __('Troppi tentativi di generazione. Riprova tra qualche minuto.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    // Verifica nonce
+    $nonce_received = isset($_POST['nonce']) ? sanitize_text_field($_POST['nonce']) : '';
+    if (!wp_verify_nonce($nonce_received, 'pictosound_check_credits_nonce')) {
+        wp_send_json_error(['message' => __('Sessione scaduta. Ricarica la pagina.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    // Recupera i parametri
+    $prompt = sanitize_text_field($_POST['prompt'] ?? '');
+    $duration = intval($_POST['duration'] ?? 40);
+    $image_url_raw = $_POST['image_url'] ?? '';
+    
+    write_log_cm("Generazione musica richiesta - User: $user_id, Prompt: $prompt, Durata: $duration");
+    
+    // Validazioni
+    if (empty($prompt)) {
+        wp_send_json_error(['message' => __('Prompt musicale mancante.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    if (!in_array($duration, [40, 60, 120, 180, 240, 360])) {
+        wp_send_json_error(['message' => __('Durata non valida.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    // Calcola crediti necessari
+    $duration_costs = pictosound_cm_get_duration_costs();
+    $credits_needed = $duration_costs[$duration] ?? 0;
+    
+    // Verifica e deduce crediti se necessario
+    if ($credits_needed > 0) {
+        $user_credits = pictosound_cm_get_user_credits($user_id);
+        if ($user_credits < $credits_needed) {
+            wp_send_json_error([
+                'message' => sprintf(__('Crediti insufficienti. Hai %d crediti, ne servono %d.', 'pictosound-credits-manager'), $user_credits, $credits_needed),
+                'current_credits' => $user_credits,
+                'credits_needed' => $credits_needed
+            ]);
+            return;
+        }
+        
+        // Deduce i crediti
+        $credits_updated = pictosound_cm_update_user_credits($user_id, $credits_needed, 'deduct');
+        if (!$credits_updated) {
+            wp_send_json_error(['message' => __('Errore nell\'aggiornamento crediti.', 'pictosound-credits-manager')]);
+            return;
+        }
+        
+        write_log_cm("Crediti detratti: $credits_needed per user $user_id");
+    }
+    
+    // Salva l'immagine se fornita
+    $saved_image_url = '';
+    if (!empty($image_url_raw)) {
+        $saved_image_url = pictosound_cm_save_uploaded_image($image_url_raw);
+        if (!$saved_image_url) {
+            write_log_cm("ATTENZIONE: Impossibile salvare l'immagine, continuo senza");
+        }
+    }
+    
+    // Genera l'audio (simulato per ora)
+    $audio_url = pictosound_cm_simulate_audio_generation($prompt, $duration);
+    
+    if (!$audio_url) {
+        // Restituisce i crediti in caso di errore
+        if ($credits_needed > 0) {
+            pictosound_cm_update_user_credits($user_id, $credits_needed, 'add');
+        }
+        wp_send_json_error(['message' => __('Errore durante la generazione audio.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    // Salva la generazione nel database
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'ps_generations';
+    
+    $insert_result = $wpdb->insert(
+        $table_name,
+        [
+            'user_id' => $user_id,
+            'prompt' => $prompt,
+            'image_url' => $saved_image_url,
+            'audio_url' => $audio_url,
+            'duration' => $duration,
+            'credits_used' => $credits_needed,
+            'generation_status' => 'completed',
+            'created_at' => current_time('mysql')
+        ],
+        ['%d', '%s', '%s', '%s', '%d', '%d', '%s', '%s']
+    );
+    
+    if ($insert_result === false) {
+        write_log_cm("ERRORE: Impossibile salvare la generazione nel database per user $user_id");
+        // Restituisce i crediti in caso di errore
+        if ($credits_needed > 0) {
+            pictosound_cm_update_user_credits($user_id, $credits_needed, 'add');
+        }
+        wp_send_json_error(['message' => __('Errore nel salvataggio della generazione.', 'pictosound-credits-manager')]);
+        return;
+    }
+    
+    $generation_id = $wpdb->insert_id;
+    write_log_cm("Generazione salvata con successo - ID: $generation_id, User: $user_id");
+    
+    // Aggiorna attività utente
+    pictosound_cm_update_user_activity($user_id);
+    
+    // Risposta di successo
+    wp_send_json_success([
+        'message' => __('Musica generata con successo!', 'pictosound-credits-manager'),
+        'audioUrl' => $audio_url,
+        'downloadUrl' => $audio_url,
+        'imageUrl' => $saved_image_url,
+        'generationId' => $generation_id,
+        'creditsUsed' => $credits_needed,
+        'remainingCredits' => pictosound_cm_get_user_credits($user_id)
+    ]);
+}
+
+// Registra l'handler AJAX
+add_action('wp_ajax_pictosound_generate_music', 'pictosound_cm_ajax_generate_music');
+add_action('wp_ajax_nopriv_pictosound_generate_music', 'pictosound_cm_ajax_generate_music');
+
+/**
+ * ⚡ FUNZIONE PER CREARE DIRECTORY AUDIO DI ESEMPIO
+ */
+function pictosound_cm_create_sample_audio_files() {
+    $audio_dir = WP_CONTENT_DIR . '/uploads/pictosound_audio/';
+    if (!file_exists($audio_dir)) {
+        wp_mkdir_p($audio_dir);
+        
+        // Crea file audio di esempio vuoti (da sostituire con file reali)
+        $durations = [40, 60, 120, 180, 240, 360];
+        foreach ($durations as $duration) {
+            $sample_file = $audio_dir . "sample_{$duration}s.mp3";
+            if (!file_exists($sample_file)) {
+                // Crea un file vuoto per ora (sostituisci con file audio reali)
+                file_put_contents($sample_file, '');
+                write_log_cm("File audio di esempio creato: $sample_file");
+            }
+        }
+    }
+}
+
+// Crea file di esempio all'attivazione
+register_activation_hook(__FILE__, 'pictosound_cm_create_sample_audio_files');
+
+/**
+ * ⚡ HOOK PER ELIMINARE FILE QUANDO VIENE DISATTIVATO IL PLUGIN (opzionale)
+ */
+function pictosound_cm_cleanup_on_deactivation() {
+    // Opzionalmente, rimuovi i file generati
+    // ATTENZIONE: Questo cancellerà tutti i file degli utenti!
+    
+    /*
+    $upload_dirs = [
+        WP_CONTENT_DIR . '/uploads/pictosound_images/',
+        WP_CONTENT_DIR . '/uploads/pictosound_audio/'
+    ];
+    
+    foreach ($upload_dirs as $dir) {
+        if (file_exists($dir)) {
+            $files = glob($dir . '*');
+            foreach ($files as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
+            }
+            rmdir($dir);
+        }
+    }
+    */
+}
+
+register_deactivation_hook(__FILE__, 'pictosound_cm_cleanup_on_deactivation');
+
 ?>
