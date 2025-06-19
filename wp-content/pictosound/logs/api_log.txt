@@ -5019,38 +5019,485 @@ Content-Length: 475
 [2025-06-13 18:37:08] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
 [2025-06-13 18:37:08] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
 [2025-06-13 18:37:08] Audio salvato con successo: audio_gen_1749832628.mp3
-[2025-06-14 09:54:19] Raw input ricevuto: {"prompt":"acoustic, with guitar, 120 BPM, high quality","duration":40,"steps":30}
-[2025-06-14 09:54:19] Prompt ricevuto dal frontend: 'acoustic, with guitar, 120 BPM, high quality' (Lunghezza UTF-8: 44)
-[2025-06-14 09:54:19] Usando prompt da frontend con formato API stile esempio: 'acoustic, with guitar, 120 BPM, high quality...'
-[2025-06-14 09:54:19] Invio richiesta multipart a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
-[2025-06-14 09:54:19] Struttura dei campi da inviare: Array
+[2025-06-17 13:32:47] Raw input ricevuto: {"prompt":"atmospheric, calm, with guitar, 80 BPM, high quality","duration":40,"steps":30}
+[2025-06-17 13:32:47] Prompt ricevuto dal frontend: 'atmospheric, calm, with guitar, 80 BPM, high quality' (Lunghezza UTF-8: 52)
+[2025-06-17 13:32:47] Usando prompt da frontend con formato API stile esempio: 'atmospheric, calm, with guitar, 80 BPM, high quality...'
+[2025-06-17 13:32:47] Invio richiesta multipart a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-06-17 13:32:47] Struttura dei campi da inviare: Array
 (
-    [prompt] => acoustic, with guitar, 120 BPM, high quality
+    [prompt] => atmospheric, calm, with guitar, 80 BPM, high quality
     [output_format] => mp3
     [duration] => 40
     [steps] => 30
 )
 
-[2025-06-14 09:54:19] Corpo della richiesta multipart costruito manualmente (prime 500 char): --------------------------684d2aab8bb86
+[2025-06-17 13:32:47] Corpo della richiesta multipart costruito manualmente (prime 500 char): --------------------------6851525f74f7f
 Content-Disposition: form-data; name="prompt"
 
-acoustic, with guitar, 120 BPM, high quality
---------------------------684d2aab8bb86
+atmospheric, calm, with guitar, 80 BPM, high quality
+--------------------------6851525f74f7f
 Content-Disposition: form-data; name="output_format"
 
 mp3
---------------------------684d2aab8bb86
+--------------------------6851525f74f7f
 Content-Disposition: form-data; name="duration"
 
 40
---------------------------684d2aab8bb86
+--------------------------6851525f74f7f
 Content-Disposition: form-data; name="steps"
 
 30
---------------------------684d2aab8bb86--
+--------------------------6851525f74f7f--
 ...
-[2025-06-14 09:54:19] Lunghezza corpo richiesta: 470
-[2025-06-14 09:54:28] ===== INIZIO OUTPUT VERBOSO cURL =====
+[2025-06-17 13:32:47] Lunghezza corpo richiesta: 478
+[2025-06-17 13:32:56] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::6812:22e0, 2606:4700:4400::ac40:9920
+* IPv4: 104.18.34.224, 172.64.153.32
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying 104.18.34.224:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Jun 14 07:07:37 2025 GMT
+*  expire date: Sep 12 07:07:36 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E6
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (104.18.34.224) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6851525f74f7f
+Content-Length: 478
+
+* upload completely sent off: 478 bytes
+< HTTP/1.1 200 OK
+< Date: Tue, 17 Jun 2025 11:32:55 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 3735231203
+< x-request-id: 0d4f8bda5dc85cb8f5d97a8ceac7233c
+< Server: cloudflare
+< CF-RAY: 95123a749878ea56-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-06-17 13:32:56] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-06-17 13:32:56] Header della risposta ricevuti: Array
+(
+    [date] => Array
+        (
+            [0] => Tue, 17 Jun 2025 11:32:55 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 3735231203
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => 0d4f8bda5dc85cb8f5d97a8ceac7233c
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 95123a749878ea56-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-06-17 13:32:56] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
+[2025-06-17 13:32:56] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
+[2025-06-17 13:32:56] Audio salvato con successo: audio_gen_1750159976.mp3
+[2025-06-17 14:31:40] Raw input ricevuto: {"prompt":"atmospheric, calm, with guitar, 80 BPM, high quality","duration":40,"steps":30}
+[2025-06-17 14:31:40] Prompt ricevuto dal frontend: 'atmospheric, calm, with guitar, 80 BPM, high quality' (Lunghezza UTF-8: 52)
+[2025-06-17 14:31:40] Usando prompt da frontend con formato API stile esempio: 'atmospheric, calm, with guitar, 80 BPM, high quality...'
+[2025-06-17 14:31:40] Invio richiesta multipart a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-06-17 14:31:40] Struttura dei campi da inviare: Array
+(
+    [prompt] => atmospheric, calm, with guitar, 80 BPM, high quality
+    [output_format] => mp3
+    [duration] => 40
+    [steps] => 30
+)
+
+[2025-06-17 14:31:40] Corpo della richiesta multipart costruito manualmente (prime 500 char): --------------------------6851602c0a370
+Content-Disposition: form-data; name="prompt"
+
+atmospheric, calm, with guitar, 80 BPM, high quality
+--------------------------6851602c0a370
+Content-Disposition: form-data; name="output_format"
+
+mp3
+--------------------------6851602c0a370
+Content-Disposition: form-data; name="duration"
+
+40
+--------------------------6851602c0a370
+Content-Disposition: form-data; name="steps"
+
+30
+--------------------------6851602c0a370--
+...
+[2025-06-17 14:31:40] Lunghezza corpo richiesta: 478
+[2025-06-17 14:31:49] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::6812:22e0, 2606:4700:4400::ac40:9920
+* IPv4: 104.18.34.224, 172.64.153.32
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying 104.18.34.224:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Jun 14 07:07:37 2025 GMT
+*  expire date: Sep 12 07:07:36 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E6
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (104.18.34.224) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------6851602c0a370
+Content-Length: 478
+
+* upload completely sent off: 478 bytes
+< HTTP/1.1 200 OK
+< Date: Tue, 17 Jun 2025 12:31:48 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 392350149
+< x-request-id: bc11146162d74920226ca7d5baee6900
+< Server: cloudflare
+< CF-RAY: 951290b30d87ea6a-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-06-17 14:31:49] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-06-17 14:31:49] Header della risposta ricevuti: Array
+(
+    [date] => Array
+        (
+            [0] => Tue, 17 Jun 2025 12:31:48 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 392350149
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => bc11146162d74920226ca7d5baee6900
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 951290b30d87ea6a-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-06-17 14:31:49] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
+[2025-06-17 14:31:49] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
+[2025-06-17 14:31:49] Audio salvato con successo: audio_gen_1750163509.mp3
+[2025-06-17 14:43:19] Raw input ricevuto: {"prompt":"atmospheric, calm, with guitar, 80 BPM, high quality","duration":40,"steps":30}
+[2025-06-17 14:43:19] Prompt ricevuto dal frontend: 'atmospheric, calm, with guitar, 80 BPM, high quality' (Lunghezza UTF-8: 52)
+[2025-06-17 14:43:19] Usando prompt da frontend con formato API stile esempio: 'atmospheric, calm, with guitar, 80 BPM, high quality...'
+[2025-06-17 14:43:19] Invio richiesta multipart a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-06-17 14:43:19] Struttura dei campi da inviare: Array
+(
+    [prompt] => atmospheric, calm, with guitar, 80 BPM, high quality
+    [output_format] => mp3
+    [duration] => 40
+    [steps] => 30
+)
+
+[2025-06-17 14:43:19] Corpo della richiesta multipart costruito manualmente (prime 500 char): --------------------------685162e7533c0
+Content-Disposition: form-data; name="prompt"
+
+atmospheric, calm, with guitar, 80 BPM, high quality
+--------------------------685162e7533c0
+Content-Disposition: form-data; name="output_format"
+
+mp3
+--------------------------685162e7533c0
+Content-Disposition: form-data; name="duration"
+
+40
+--------------------------685162e7533c0
+Content-Disposition: form-data; name="steps"
+
+30
+--------------------------685162e7533c0--
+...
+[2025-06-17 14:43:19] Lunghezza corpo richiesta: 478
+[2025-06-17 14:43:28] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::ac40:9920, 2606:4700:4400::6812:22e0
+* IPv4: 172.64.153.32, 104.18.34.224
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying 172.64.153.32:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Jun 14 07:07:37 2025 GMT
+*  expire date: Sep 12 07:07:36 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E6
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (172.64.153.32) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------685162e7533c0
+Content-Length: 478
+
+* upload completely sent off: 478 bytes
+< HTTP/1.1 200 OK
+< Date: Tue, 17 Jun 2025 12:43:27 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 1467627651
+< x-request-id: bd9701f48468799e0fd0dc7d728b66ad
+< Server: cloudflare
+< CF-RAY: 9512a1c5ef65ea3d-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-06-17 14:43:28] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-06-17 14:43:28] Header della risposta ricevuti: Array
+(
+    [date] => Array
+        (
+            [0] => Tue, 17 Jun 2025 12:43:27 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 1467627651
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => bd9701f48468799e0fd0dc7d728b66ad
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 9512a1c5ef65ea3d-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-06-17 14:43:28] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
+[2025-06-17 14:43:28] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
+[2025-06-17 14:43:28] Audio salvato con successo: audio_gen_1750164208.mp3
+[2025-06-17 15:47:29] Raw input ricevuto: {"prompt":"atmospheric, calm, with guitar, 80 BPM, high quality","duration":40,"steps":30}
+[2025-06-17 15:47:29] Prompt ricevuto dal frontend: 'atmospheric, calm, with guitar, 80 BPM, high quality' (Lunghezza UTF-8: 52)
+[2025-06-17 15:47:29] Usando prompt da frontend con formato API stile esempio: 'atmospheric, calm, with guitar, 80 BPM, high quality...'
+[2025-06-17 15:47:29] Invio richiesta multipart a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-06-17 15:47:29] Struttura dei campi da inviare: Array
+(
+    [prompt] => atmospheric, calm, with guitar, 80 BPM, high quality
+    [output_format] => mp3
+    [duration] => 40
+    [steps] => 30
+)
+
+[2025-06-17 15:47:29] Corpo della richiesta multipart costruito manualmente (prime 500 char): --------------------------685171f17f866
+Content-Disposition: form-data; name="prompt"
+
+atmospheric, calm, with guitar, 80 BPM, high quality
+--------------------------685171f17f866
+Content-Disposition: form-data; name="output_format"
+
+mp3
+--------------------------685171f17f866
+Content-Disposition: form-data; name="duration"
+
+40
+--------------------------685171f17f866
+Content-Disposition: form-data; name="steps"
+
+30
+--------------------------685171f17f866--
+...
+[2025-06-17 15:47:29] Lunghezza corpo richiesta: 478
+[2025-06-17 15:47:38] ===== INIZIO OUTPUT VERBOSO cURL =====
 * Host api.stability.ai:443 was resolved.
 * IPv6: 2606:4700:4400::ac40:9920, 2606:4700:4400::6812:22e0
 * IPv4: 104.18.34.224, 172.64.153.32
@@ -5066,10 +5513,10 @@ Content-Disposition: form-data; name="steps"
 * ALPN: server accepted http/1.1
 * Server certificate:
 *  subject: CN=api.stability.ai
-*  start date: Apr 16 07:27:01 2025 GMT
-*  expire date: Jul 15 07:27:00 2025 GMT
+*  start date: Jun 14 07:07:37 2025 GMT
+*  expire date: Sep 12 07:07:36 2025 GMT
 *  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
-*  issuer: C=US; O=Let's Encrypt; CN=E5
+*  issuer: C=US; O=Let's Encrypt; CN=E6
 *  SSL certificate verify ok.
 *   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
 *   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
@@ -5080,32 +5527,32 @@ Content-Disposition: form-data; name="steps"
 Host: api.stability.ai
 Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
 Accept: audio/*
-Content-Type: multipart/form-data; boundary=------------------------684d2aab8bb86
-Content-Length: 470
+Content-Type: multipart/form-data; boundary=------------------------685171f17f866
+Content-Length: 478
 
-* upload completely sent off: 470 bytes
+* upload completely sent off: 478 bytes
 < HTTP/1.1 200 OK
-< Date: Sat, 14 Jun 2025 07:54:27 GMT
+< Date: Tue, 17 Jun 2025 13:47:37 GMT
 < Content-Type: audio/mpeg
 < Content-Length: 640984
 < Connection: keep-alive
 < Access-Control-Allow-Origin: *
 < Cache-Control: public, max-age=86400
 < Finish-Reason: SUCCESS
-< Seed: 960459933
-< x-request-id: ce1eb518e47a65013bd5453e8d80b148
+< Seed: 1779074682
+< x-request-id: 6ad3f5f73eaa55956d698da4dd1836ac
 < Server: cloudflare
-< CF-RAY: 94f842510ebae889-FCO
+< CF-RAY: 9512ffc59e76ea3b-FCO
 < alt-svc: h3=":443"; ma=86400
 < 
 * Connection #0 to host api.stability.ai left intact
 ===== FINE OUTPUT VERBOSO cURL =====
-[2025-06-14 09:54:28] Risposta da Stability API - HTTP Code: 200, Curl Error: None
-[2025-06-14 09:54:28] Header della risposta ricevuti: Array
+[2025-06-17 15:47:38] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-06-17 15:47:38] Header della risposta ricevuti: Array
 (
     [date] => Array
         (
-            [0] => Sat, 14 Jun 2025 07:54:27 GMT
+            [0] => Tue, 17 Jun 2025 13:47:37 GMT
         )
 
     [content-type] => Array
@@ -5140,12 +5587,12 @@ Content-Length: 470
 
     [seed] => Array
         (
-            [0] => 960459933
+            [0] => 1779074682
         )
 
     [x-request-id] => Array
         (
-            [0] => ce1eb518e47a65013bd5453e8d80b148
+            [0] => 6ad3f5f73eaa55956d698da4dd1836ac
         )
 
     [server] => Array
@@ -5155,7 +5602,7 @@ Content-Length: 470
 
     [cf-ray] => Array
         (
-            [0] => 94f842510ebae889-FCO
+            [0] => 9512ffc59e76ea3b-FCO
         )
 
     [alt-svc] => Array
@@ -5165,14 +5612,163 @@ Content-Length: 470
 
 )
 
-[2025-06-14 09:54:28] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
-[2025-06-14 09:54:28] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
-[2025-06-14 09:54:28] Audio salvato con successo: audio_gen_1749887668.mp3
-[2025-06-15 13:38:21] Raw input ricevuto: {"prompt":"atmospheric, calm, with guitar, 80 BPM, high quality","duration":40,"steps":30}
-[2025-06-15 13:38:21] Prompt ricevuto dal frontend: 'atmospheric, calm, with guitar, 80 BPM, high quality' (Lunghezza UTF-8: 52)
-[2025-06-15 13:38:21] Usando prompt da frontend con formato API stile esempio: 'atmospheric, calm, with guitar, 80 BPM, high quality...'
-[2025-06-15 13:38:21] Invio richiesta multipart a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
-[2025-06-15 13:38:21] Struttura dei campi da inviare: Array
+[2025-06-17 15:47:38] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
+[2025-06-17 15:47:38] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
+[2025-06-17 15:47:38] Audio salvato con successo: audio_gen_1750168058.mp3
+[2025-06-18 23:13:48] Raw input ricevuto: {"prompt":"acoustic, calm, with guitar, 80 BPM, high quality","duration":40,"steps":30}
+[2025-06-18 23:13:48] Prompt ricevuto dal frontend: 'acoustic, calm, with guitar, 80 BPM, high quality' (Lunghezza UTF-8: 49)
+[2025-06-18 23:13:48] Usando prompt da frontend con formato API stile esempio: 'acoustic, calm, with guitar, 80 BPM, high quality...'
+[2025-06-18 23:13:48] Invio richiesta multipart a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-06-18 23:13:48] Struttura dei campi da inviare: Array
+(
+    [prompt] => acoustic, calm, with guitar, 80 BPM, high quality
+    [output_format] => mp3
+    [duration] => 40
+    [steps] => 30
+)
+
+[2025-06-18 23:13:48] Corpo della richiesta multipart costruito manualmente (prime 500 char): --------------------------68532c0c3c060
+Content-Disposition: form-data; name="prompt"
+
+acoustic, calm, with guitar, 80 BPM, high quality
+--------------------------68532c0c3c060
+Content-Disposition: form-data; name="output_format"
+
+mp3
+--------------------------68532c0c3c060
+Content-Disposition: form-data; name="duration"
+
+40
+--------------------------68532c0c3c060
+Content-Disposition: form-data; name="steps"
+
+30
+--------------------------68532c0c3c060--
+...
+[2025-06-18 23:13:48] Lunghezza corpo richiesta: 475
+[2025-06-18 23:13:56] ===== INIZIO OUTPUT VERBOSO cURL =====
+* Host api.stability.ai:443 was resolved.
+* IPv6: 2606:4700:4400::6812:22e0, 2606:4700:4400::ac40:9920
+* IPv4: 104.18.34.224, 172.64.153.32
+*   Trying [2606:4700:4400::6812:22e0]:443...
+* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
+*   Trying [2606:4700:4400::ac40:9920]:443...
+* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
+*   Trying 104.18.34.224:443...
+* ALPN: curl offers http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+*  CApath: none
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=api.stability.ai
+*  start date: Jun 14 07:07:37 2025 GMT
+*  expire date: Sep 12 07:07:36 2025 GMT
+*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
+*  issuer: C=US; O=Let's Encrypt; CN=E6
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to api.stability.ai (104.18.34.224) port 443
+* using HTTP/1.x
+> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
+Host: api.stability.ai
+Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
+Accept: audio/*
+Content-Type: multipart/form-data; boundary=------------------------68532c0c3c060
+Content-Length: 475
+
+* upload completely sent off: 475 bytes
+< HTTP/1.1 200 OK
+< Date: Wed, 18 Jun 2025 21:13:56 GMT
+< Content-Type: audio/mpeg
+< Content-Length: 640984
+< Connection: keep-alive
+< Access-Control-Allow-Origin: *
+< Cache-Control: public, max-age=86400
+< Finish-Reason: SUCCESS
+< Seed: 2283451002
+< x-request-id: 81f3521e22eabd0f2fda7624f05cf293
+< Server: cloudflare
+< CF-RAY: 951dcaed8b17ea61-FCO
+< alt-svc: h3=":443"; ma=86400
+< 
+* Connection #0 to host api.stability.ai left intact
+===== FINE OUTPUT VERBOSO cURL =====
+[2025-06-18 23:13:56] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-06-18 23:13:56] Header della risposta ricevuti: Array
+(
+    [date] => Array
+        (
+            [0] => Wed, 18 Jun 2025 21:13:56 GMT
+        )
+
+    [content-type] => Array
+        (
+            [0] => audio/mpeg
+        )
+
+    [content-length] => Array
+        (
+            [0] => 640984
+        )
+
+    [connection] => Array
+        (
+            [0] => keep-alive
+        )
+
+    [access-control-allow-origin] => Array
+        (
+            [0] => *
+        )
+
+    [cache-control] => Array
+        (
+            [0] => public, max-age=86400
+        )
+
+    [finish-reason] => Array
+        (
+            [0] => SUCCESS
+        )
+
+    [seed] => Array
+        (
+            [0] => 2283451002
+        )
+
+    [x-request-id] => Array
+        (
+            [0] => 81f3521e22eabd0f2fda7624f05cf293
+        )
+
+    [server] => Array
+        (
+            [0] => cloudflare
+        )
+
+    [cf-ray] => Array
+        (
+            [0] => 951dcaed8b17ea61-FCO
+        )
+
+    [alt-svc] => Array
+        (
+            [0] => h3=":443"; ma=86400
+        )
+
+)
+
+[2025-06-18 23:13:56] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
+[2025-06-18 23:13:56] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
+[2025-06-18 23:13:56] Audio salvato con successo: audio_gen_1750281236.mp3
+[2025-06-18 23:16:58] Raw input ricevuto: {"prompt":"atmospheric, calm, with guitar, 80 BPM, high quality","duration":40,"steps":30}
+[2025-06-18 23:16:58] Prompt ricevuto dal frontend: 'atmospheric, calm, with guitar, 80 BPM, high quality' (Lunghezza UTF-8: 52)
+[2025-06-18 23:16:58] Usando prompt da frontend con formato API stile esempio: 'atmospheric, calm, with guitar, 80 BPM, high quality...'
+[2025-06-18 23:16:58] Invio richiesta multipart a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+[2025-06-18 23:16:58] Struttura dei campi da inviare: Array
 (
     [prompt] => atmospheric, calm, with guitar, 80 BPM, high quality
     [output_format] => mp3
@@ -5180,26 +5776,26 @@ Content-Length: 470
     [steps] => 30
 )
 
-[2025-06-15 13:38:21] Corpo della richiesta multipart costruito manualmente (prime 500 char): --------------------------684eb0ad7afc8
+[2025-06-18 23:16:58] Corpo della richiesta multipart costruito manualmente (prime 500 char): --------------------------68532cca99de7
 Content-Disposition: form-data; name="prompt"
 
 atmospheric, calm, with guitar, 80 BPM, high quality
---------------------------684eb0ad7afc8
+--------------------------68532cca99de7
 Content-Disposition: form-data; name="output_format"
 
 mp3
---------------------------684eb0ad7afc8
+--------------------------68532cca99de7
 Content-Disposition: form-data; name="duration"
 
 40
---------------------------684eb0ad7afc8
+--------------------------68532cca99de7
 Content-Disposition: form-data; name="steps"
 
 30
---------------------------684eb0ad7afc8--
+--------------------------68532cca99de7--
 ...
-[2025-06-15 13:38:21] Lunghezza corpo richiesta: 478
-[2025-06-15 13:38:30] ===== INIZIO OUTPUT VERBOSO cURL =====
+[2025-06-18 23:16:58] Lunghezza corpo richiesta: 478
+[2025-06-18 23:17:06] ===== INIZIO OUTPUT VERBOSO cURL =====
 * Host api.stability.ai:443 was resolved.
 * IPv6: 2606:4700:4400::ac40:9920, 2606:4700:4400::6812:22e0
 * IPv4: 172.64.153.32, 104.18.34.224
@@ -5229,32 +5825,32 @@ Content-Disposition: form-data; name="steps"
 Host: api.stability.ai
 Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
 Accept: audio/*
-Content-Type: multipart/form-data; boundary=------------------------684eb0ad7afc8
+Content-Type: multipart/form-data; boundary=------------------------68532cca99de7
 Content-Length: 478
 
 * upload completely sent off: 478 bytes
 < HTTP/1.1 200 OK
-< Date: Sun, 15 Jun 2025 11:38:29 GMT
+< Date: Wed, 18 Jun 2025 21:17:05 GMT
 < Content-Type: audio/mpeg
 < Content-Length: 640984
 < Connection: keep-alive
 < Access-Control-Allow-Origin: *
 < Cache-Control: public, max-age=86400
 < Finish-Reason: SUCCESS
-< Seed: 2187724249
-< x-request-id: 2bfed12be16dd243ad8e42ab26869800
+< Seed: 671645522
+< x-request-id: e63cc2b65e87c4b01751be8b0efce7fe
 < Server: cloudflare
-< CF-RAY: 9501c7dd1a39bb8e-FCO
+< CF-RAY: 951dcf924ed3a0f9-FCO
 < alt-svc: h3=":443"; ma=86400
 < 
 * Connection #0 to host api.stability.ai left intact
 ===== FINE OUTPUT VERBOSO cURL =====
-[2025-06-15 13:38:30] Risposta da Stability API - HTTP Code: 200, Curl Error: None
-[2025-06-15 13:38:30] Header della risposta ricevuti: Array
+[2025-06-18 23:17:06] Risposta da Stability API - HTTP Code: 200, Curl Error: None
+[2025-06-18 23:17:06] Header della risposta ricevuti: Array
 (
     [date] => Array
         (
-            [0] => Sun, 15 Jun 2025 11:38:29 GMT
+            [0] => Wed, 18 Jun 2025 21:17:05 GMT
         )
 
     [content-type] => Array
@@ -5289,12 +5885,12 @@ Content-Length: 478
 
     [seed] => Array
         (
-            [0] => 2187724249
+            [0] => 671645522
         )
 
     [x-request-id] => Array
         (
-            [0] => 2bfed12be16dd243ad8e42ab26869800
+            [0] => e63cc2b65e87c4b01751be8b0efce7fe
         )
 
     [server] => Array
@@ -5304,7 +5900,7 @@ Content-Length: 478
 
     [cf-ray] => Array
         (
-            [0] => 9501c7dd1a39bb8e-FCO
+            [0] => 951dcf924ed3a0f9-FCO
         )
 
     [alt-svc] => Array
@@ -5314,155 +5910,6 @@ Content-Length: 478
 
 )
 
-[2025-06-15 13:38:30] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
-[2025-06-15 13:38:30] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
-[2025-06-15 13:38:30] Audio salvato con successo: audio_gen_1749987510.mp3
-[2025-06-15 17:48:43] Raw input ricevuto: {"prompt":"acoustic, upbeat, with guitar, 130 BPM, high quality","duration":40,"steps":30}
-[2025-06-15 17:48:43] Prompt ricevuto dal frontend: 'acoustic, upbeat, with guitar, 130 BPM, high quality' (Lunghezza UTF-8: 52)
-[2025-06-15 17:48:43] Usando prompt da frontend con formato API stile esempio: 'acoustic, upbeat, with guitar, 130 BPM, high quality...'
-[2025-06-15 17:48:43] Invio richiesta multipart a Stability API: https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
-[2025-06-15 17:48:43] Struttura dei campi da inviare: Array
-(
-    [prompt] => acoustic, upbeat, with guitar, 130 BPM, high quality
-    [output_format] => mp3
-    [duration] => 40
-    [steps] => 30
-)
-
-[2025-06-15 17:48:43] Corpo della richiesta multipart costruito manualmente (prime 500 char): --------------------------684eeb5b3e7c5
-Content-Disposition: form-data; name="prompt"
-
-acoustic, upbeat, with guitar, 130 BPM, high quality
---------------------------684eeb5b3e7c5
-Content-Disposition: form-data; name="output_format"
-
-mp3
---------------------------684eeb5b3e7c5
-Content-Disposition: form-data; name="duration"
-
-40
---------------------------684eeb5b3e7c5
-Content-Disposition: form-data; name="steps"
-
-30
---------------------------684eeb5b3e7c5--
-...
-[2025-06-15 17:48:43] Lunghezza corpo richiesta: 478
-[2025-06-15 17:48:52] ===== INIZIO OUTPUT VERBOSO cURL =====
-* Host api.stability.ai:443 was resolved.
-* IPv6: 2606:4700:4400::6812:22e0, 2606:4700:4400::ac40:9920
-* IPv4: 172.64.153.32, 104.18.34.224
-*   Trying [2606:4700:4400::6812:22e0]:443...
-* Immediate connect fail for 2606:4700:4400::6812:22e0: Network is unreachable
-*   Trying [2606:4700:4400::ac40:9920]:443...
-* Immediate connect fail for 2606:4700:4400::ac40:9920: Network is unreachable
-*   Trying 172.64.153.32:443...
-* ALPN: curl offers http/1.1
-*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
-*  CApath: none
-* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
-* ALPN: server accepted http/1.1
-* Server certificate:
-*  subject: CN=api.stability.ai
-*  start date: Jun 14 07:07:37 2025 GMT
-*  expire date: Sep 12 07:07:36 2025 GMT
-*  subjectAltName: host "api.stability.ai" matched cert's "api.stability.ai"
-*  issuer: C=US; O=Let's Encrypt; CN=E6
-*  SSL certificate verify ok.
-*   Certificate level 0: Public key type ? (256/128 Bits/secBits), signed using ecdsa-with-SHA384
-*   Certificate level 1: Public key type ? (384/192 Bits/secBits), signed using sha256WithRSAEncryption
-*   Certificate level 2: Public key type ? (4096/128 Bits/secBits), signed using sha256WithRSAEncryption
-* Connected to api.stability.ai (172.64.153.32) port 443
-* using HTTP/1.x
-> POST /v2beta/audio/stable-audio-2/text-to-audio HTTP/1.1
-Host: api.stability.ai
-Authorization: Bearer sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA
-Accept: audio/*
-Content-Type: multipart/form-data; boundary=------------------------684eeb5b3e7c5
-Content-Length: 478
-
-* upload completely sent off: 478 bytes
-< HTTP/1.1 200 OK
-< Date: Sun, 15 Jun 2025 15:48:51 GMT
-< Content-Type: audio/mpeg
-< Content-Length: 640984
-< Connection: keep-alive
-< Access-Control-Allow-Origin: *
-< Cache-Control: public, max-age=86400
-< Finish-Reason: SUCCESS
-< Seed: 3902308138
-< x-request-id: 1f26e77604463f845119b0efdf99e443
-< Server: cloudflare
-< CF-RAY: 9503369c0e52ea5c-FCO
-< alt-svc: h3=":443"; ma=86400
-< 
-* Connection #0 to host api.stability.ai left intact
-===== FINE OUTPUT VERBOSO cURL =====
-[2025-06-15 17:48:52] Risposta da Stability API - HTTP Code: 200, Curl Error: None
-[2025-06-15 17:48:52] Header della risposta ricevuti: Array
-(
-    [date] => Array
-        (
-            [0] => Sun, 15 Jun 2025 15:48:51 GMT
-        )
-
-    [content-type] => Array
-        (
-            [0] => audio/mpeg
-        )
-
-    [content-length] => Array
-        (
-            [0] => 640984
-        )
-
-    [connection] => Array
-        (
-            [0] => keep-alive
-        )
-
-    [access-control-allow-origin] => Array
-        (
-            [0] => *
-        )
-
-    [cache-control] => Array
-        (
-            [0] => public, max-age=86400
-        )
-
-    [finish-reason] => Array
-        (
-            [0] => SUCCESS
-        )
-
-    [seed] => Array
-        (
-            [0] => 3902308138
-        )
-
-    [x-request-id] => Array
-        (
-            [0] => 1f26e77604463f845119b0efdf99e443
-        )
-
-    [server] => Array
-        (
-            [0] => cloudflare
-        )
-
-    [cf-ray] => Array
-        (
-            [0] => 9503369c0e52ea5c-FCO
-        )
-
-    [alt-svc] => Array
-        (
-            [0] => h3=":443"; ma=86400
-        )
-
-)
-
-[2025-06-15 17:48:52] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
-[2025-06-15 17:48:52] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
-[2025-06-15 17:48:52] Audio salvato con successo: audio_gen_1750002532.mp3
+[2025-06-18 23:17:06] Corpo della risposta grezza (lunghezza: 640984, Content-Type: audio/mpeg): [DATI BINARI LUNGHI, NON MOSTRATI COMPLETAMENTE NEL LOG STANDARD]
+[2025-06-18 23:17:06] Content-Type della risposta è audio (audio/mpeg). Tento salvataggio diretto.
+[2025-06-18 23:17:06] Audio salvato con successo: audio_gen_1750281426.mp3

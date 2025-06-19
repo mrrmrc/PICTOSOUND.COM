@@ -1,0 +1,167 @@
+<!-- Modal Login/Register -->
+<div id="authModal" class="ps-modal" style="display: none;">
+    <div class="ps-modal-content">
+        <div class="ps-modal-header">
+            <h3 id="authModalTitle">Accedi a PictoSound</h3>
+            <span class="ps-modal-close">&times;</span>
+        </div>
+        
+        <div class="ps-modal-body">
+            <!-- Tabs -->
+            <div class="ps-auth-tabs">
+                <button class="ps-tab-btn active" data-tab="login">Accedi</button>
+                <button class="ps-tab-btn" data-tab="register">Registrati</button>
+            </div>
+            
+            <!-- Login Form -->
+            <div id="loginForm" class="ps-auth-form active">
+                <form id="loginFormElement">
+                    <div class="ps-form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" name="email" required placeholder="tua@email.com">
+                    </div>
+                    
+                    <div class="ps-form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" name="password" required placeholder="Password">
+                    </div>
+                    
+                    <div class="ps-form-actions">
+                        <button type="submit" class="ps-btn ps-btn-primary" id="loginBtn">
+                            <span class="ps-btn-text">Accedi</span>
+                            <span class="ps-spinner" style="display: none;"></span>
+                        </button>
+                        
+                        <a href="#" class="ps-forgot-password">Password dimenticata?</a>
+                    </div>
+                </form>
+                
+                <div id="loginError" class="ps-error-message" style="display: none;"></div>
+            </div>
+            
+            <!-- Register Form -->
+            <div id="registerForm" class="ps-auth-form">
+                <form id="registerFormElement">
+                    <div class="ps-form-group">
+                        <label for="registerName">Nome (opzionale)</label>
+                        <input type="text" id="registerName" name="name" placeholder="Il tuo nome">
+                    </div>
+                    
+                    <div class="ps-form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" name="email" required placeholder="tua@email.com">
+                    </div>
+                    
+                    <div class="ps-form-group">
+                        <label for="registerPassword">Password</label>
+                        <input type="password" id="registerPassword" name="password" required placeholder="Minimo 6 caratteri">
+                        <div class="ps-password-strength" id="passwordStrength"></div>
+                    </div>
+                    
+                    <div class="ps-form-group">
+                        <label for="registerPasswordConfirm">Conferma Password</label>
+                        <input type="password" id="registerPasswordConfirm" name="password_confirm" required placeholder="Ripeti password">
+                    </div>
+                    
+                    <div class="ps-form-group ps-checkbox-group">
+                        <label class="ps-checkbox-label">
+                            <input type="checkbox" id="acceptTerms" required>
+                            <span class="ps-checkbox-custom"></span>
+                            Accetto i <a href="#" target="_blank">Termini di Servizio</a> e la <a href="#" target="_blank">Privacy Policy</a>
+                        </label>
+                    </div>
+                    
+                    <div class="ps-form-actions">
+                        <button type="submit" class="ps-btn ps-btn-primary" id="registerBtn">
+                            <span class="ps-btn-text">Registrati</span>
+                            <span class="ps-spinner" style="display: none;"></span>
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="registerError" class="ps-error-message" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Acquisto Crediti -->
+<div id="creditsModal" class="ps-modal" style="display: none;">
+    <div class="ps-modal-content ps-credits-modal">
+        <div class="ps-modal-header">
+            <h3>Crediti Insufficienti</h3>
+            <span class="ps-modal-close">&times;</span>
+        </div>
+        
+        <div class="ps-modal-body">
+            <div class="ps-credits-info">
+                <p>Ti servono <strong id="creditsNeeded">0</strong> crediti per generare questo brano.</p>
+                <p>Crediti disponibili: <strong id="creditsAvailable">0</strong></p>
+            </div>
+            
+            <div class="ps-credit-packages">
+                <div class="ps-package" data-credits="5" data-price="3.00">
+                    <div class="ps-package-header">
+                        <h4>Mini</h4>
+                        <div class="ps-package-price">€3</div>
+                    </div>
+                    <div class="ps-package-credits">5 Crediti</div>
+                    <div class="ps-package-description">Perfetto per iniziare</div>
+                    <button class="ps-btn ps-btn-outline ps-package-btn">Acquista</button>
+                </div>
+                
+                <div class="ps-package ps-package-popular" data-credits="15" data-price="8.00">
+                    <div class="ps-package-badge">Popolare</div>
+                    <div class="ps-package-header">
+                        <h4>Standard</h4>
+                        <div class="ps-package-price">€8</div>
+                    </div>
+                    <div class="ps-package-credits">15 Crediti</div>
+                    <div class="ps-package-description">Risparmia il 33%</div>
+                    <button class="ps-btn ps-btn-primary ps-package-btn">Acquista</button>
+                </div>
+                
+                <div class="ps-package" data-credits="40" data-price="20.00">
+                    <div class="ps-package-header">
+                        <h4>Pro</h4>
+                        <div class="ps-package-price">€20</div>
+                    </div>
+                    <div class="ps-package-credits">40 Crediti</div>
+                    <div class="ps-package-description">Risparmia il 50%</div>
+                    <button class="ps-btn ps-btn-outline ps-package-btn">Acquista</button>
+                </div>
+                
+                <div class="ps-package" data-credits="100" data-price="40.00">
+                    <div class="ps-package-header">
+                        <h4>Business</h4>
+                        <div class="ps-package-price">€40</div>
+                    </div>
+                    <div class="ps-package-credits">100 Crediti</div>
+                    <div class="ps-package-description">Massimo risparmio</div>
+                    <button class="ps-btn ps-btn-outline ps-package-btn">Acquista</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Widget Crediti (sempre visibile quando loggato) -->
+<div id="creditsWidget" class="ps-credits-widget" style="display: none;">
+    <div class="ps-credits-info-widget">
+        <span class="ps-credits-icon">💳</span>
+        <span class="ps-credits-count" id="creditsCount">0</span>
+        <span class="ps-credits-label">crediti</span>
+    </div>
+    <button class="ps-credits-buy-btn" id="buyCreditsBtn">Acquista</button>
+    <div class="ps-user-menu">
+        <button class="ps-user-menu-btn" id="userMenuBtn">
+            <span id="userNameDisplay">Utente</span>
+            <span class="ps-dropdown-arrow">▼</span>
+        </button>
+        <div class="ps-user-dropdown" id="userDropdown">
+            <a href="#" id="userProfileBtn">Profilo</a>
+            <a href="#" id="userHistoryBtn">Cronologia</a>
+            <a href="#" id="logoutBtn">Logout</a>
+        </div>
+    </div>
+</div>
