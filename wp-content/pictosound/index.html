@@ -626,10 +626,15 @@
         .bpm-slider-container {
             margin-top: 15px;
             margin-bottom: 10px;
+            display: block;
+            /* ← Cambiato da 'none' a 'block' */
+        }
+
+        .bpm-slider-container.in-mood-section {
             display: none;
         }
 
-        .collapsible-cue-header.open~.bpm-slider-container {
+        .collapsible-cue-header.open~.bpm-slider-container.in-mood-section {
             display: block;
         }
 
@@ -884,6 +889,16 @@
                         style="font-weight:normal; font-size:0.8em; color:var(--light-text);">(opzionale)</span></h3>
                 <p class="info-text-cues-main">L'IA genererà la musica anche senza selezioni, basandosi sull'immagine.
                     Le tue scelte aiuteranno a guidare l'interpretazione.</p>
+                <div class="bpm-slider-container"
+                    style="background-color: var(--light-bg); padding: 15px; border-radius: var(--border-radius); margin-bottom: 20px;">
+                    <label for="bpmSlider"
+                        style="font-weight: 600; color: var(--dark-text); font-size: 1.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                        🎵 Velocità (BPM): <span id="bpmValue"
+                            style="color: var(--primary-color); font-weight: 700;">120</span>
+                    </label>
+                    <input type="range" id="bpmSlider" name="bpm" min="40" max="200" value="120" step="5"
+                        style="width: 100%; cursor: pointer; accent-color: var(--primary-color);">
+                </div>
                 <div class="cues-grid-container">
                     <!-- Column 1: Mood -->
                     <div class="cues-column">
@@ -898,10 +913,6 @@
                                 <span class="toggle-icon-cues"></span>
                             </label>
                             <div class="checkbox-pills-group" id="moodPills"></div>
-                            <div class="bpm-slider-container">
-                                <label for="bpmSlider">BPM: <span id="bpmValue">120</span></label>
-                                <input type="range" id="bpmSlider" name="bpm" min="40" max="200" value="120" step="5">
-                            </div>
                         </div>
                     </div>
                     <!-- Column 2: Genre -->
