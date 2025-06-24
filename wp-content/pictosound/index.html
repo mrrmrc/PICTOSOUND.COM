@@ -627,7 +627,6 @@
             margin-top: 15px;
             margin-bottom: 10px;
             display: block;
-            /* ← Cambiato da 'none' a 'block' */
         }
 
         .bpm-slider-container.in-mood-section {
@@ -770,7 +769,7 @@
 <body>
     <div class="container">
         <div class="logo-container">
-            <img src="icone/logo.png" alt="PictoSound Logo" class="logo"
+            <img src="/wp-content/pictosound/icone/logo.png" alt="PictoSound Logo" class="logo"
                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCAyMDAgODAiPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjIiIGZpbGw9IiNjY2MiPkxvZ288L3RleHQ+PC9zdmc+'; this.onerror=null;">
         </div>
         <h1>TRASFORMA L'IMMAGINE IN MUSICA</h1>
@@ -900,7 +899,6 @@
                         style="width: 100%; cursor: pointer; accent-color: var(--primary-color);">
                 </div>
                 <div class="cues-grid-container">
-                    <!-- Column 1: Mood -->
                     <div class="cues-column">
                         <div class="cues-selection-container">
                             <label class="group-label collapsible-cue-header" for="moodPills">
@@ -915,7 +913,6 @@
                             <div class="checkbox-pills-group" id="moodPills"></div>
                         </div>
                     </div>
-                    <!-- Column 2: Genre -->
                     <div class="cues-column">
                         <div class="cues-selection-container">
                             <label class="group-label collapsible-cue-header" for="genrePills">
@@ -930,7 +927,6 @@
                             <div class="checkbox-pills-group" id="genrePills"></div>
                         </div>
                     </div>
-                    <!-- Column 3: Instruments -->
                     <div class="cues-column">
                         <div class="cues-selection-container">
                             <label class="group-label collapsible-cue-header" for="instrumentPills">
@@ -945,7 +941,6 @@
                             <div class="checkbox-pills-group" id="instrumentPills"></div>
                         </div>
                     </div>
-                    <!-- Column 4: Rhythm -->
                     <div class="cues-column">
                         <div class="cues-selection-container">
                             <label class="group-label collapsible-cue-header" for="rhythmPills">
@@ -969,11 +964,10 @@
     <canvas id="compositeImageCanvas" style="display:none;"></canvas>
     <textarea id="additionalCuesTextarea" style="display:none;"></textarea>
 
-    <!-- Use correct paths for your JS libraries -->
-    <script src="js/tf.min.js"></script>
-    <script src="js/coco-ssd.min.js"></script>
-    <script src="js/face-api.min.js"></script>
-    <script src="js/qrcode.min.js"></script>
+    <script src="/wp-content/pictosound/js/tf.min.js"></script>
+    <script src="/wp-content/pictosound/js/coco-ssd.min.js"></script>
+    <script src="/wp-content/pictosound/js/face-api.min.js"></script>
+    <script src="/wp-content/pictosound/js/qrcode.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1057,37 +1051,37 @@
                 const style = document.createElement('style');
                 style.id = 'pictosound-camera-styles';
                 style.innerHTML = `
-            body.camera-active {
-                overflow: hidden;
-            }
-            #cameraViewContainer {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: #000;
-                z-index: 1000;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-            }
-            #cameraFeed {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-            }
-            .camera-controls {
-                position: absolute;
-                bottom: 20px;
-                width: 100%;
-                display: flex;
-                justify-content: space-around;
-                align-items: center;
-                z-index: 1001;
-            }
-        `;
+                body.camera-active {
+                    overflow: hidden;
+                }
+                #cameraViewContainer {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: #000;
+                    z-index: 1000;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                }
+                #cameraFeed {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+                .camera-controls {
+                    position: absolute;
+                    bottom: 20px;
+                    width: 100%;
+                    display: flex;
+                    justify-content: space-around;
+                    align-items: center;
+                    z-index: 1001;
+                }
+            `;
                 document.head.appendChild(style);
             }
 
@@ -1235,7 +1229,7 @@
             }
 
             // ===================================================================
-            // 🧠 FUNZIONI REALI DI ANALISI AI (NON PIÙ MOCK!)
+            // 🧠 FUNZIONI REALI DI ANALISI AI
             // ===================================================================
 
             async function loadModels() {
@@ -1273,7 +1267,6 @@
                 domElements.statusDiv.style.display = message ? 'block' : 'none';
             }
 
-            // ANALISI COLORI REALE (NON PIÙ MOCK!)
             function analyzeImageAdvanced(imageElement) {
                 console.log("🎨 ANALISI COLORI REALE in corso...");
 
@@ -1367,7 +1360,6 @@
                 return result;
             }
 
-            // OBJECT DETECTION REALE (NON PIÙ MOCK!)
             async function detectObjectsInImage(imageElement) {
                 if (!cocoSsdModel) {
                     console.warn("⚠️ Modello COCO-SSD non ancora caricato");
@@ -1376,29 +1368,20 @@
 
                 try {
                     console.log("🔍 OBJECT DETECTION REALE in corso...");
-
                     const predictions = await cocoSsdModel.detect(imageElement);
-
                     const detectedObjects = predictions
                         .filter(prediction => prediction.score > 0.3)
                         .map(prediction => prediction.class)
                         .filter((value, index, self) => self.indexOf(value) === index);
 
                     console.log("✅ OGGETTI REALI rilevati:", detectedObjects);
-
-                    if (detectedObjects.length === 0) {
-                        return ["scena_generica"];
-                    }
-
-                    return detectedObjects;
-
+                    return detectedObjects.length > 0 ? detectedObjects : ["scena_generica"];
                 } catch (error) {
                     console.error("❌ Errore nel rilevamento oggetti:", error);
                     return ["oggetto_generico"];
                 }
             }
 
-            // EMOTION DETECTION REALE (NON PIÙ MOCK!)
             async function analyzeFacesInImage(imageElement) {
                 if (!faceApiModelsLoaded) {
                     console.warn("⚠️ Modelli Face-API non ancora caricati");
@@ -1407,7 +1390,6 @@
 
                 try {
                     console.log("😊 EMOTION DETECTION REALE in corso...");
-
                     const detections = await faceapi
                         .detectAllFaces(imageElement, new faceapi.TinyFaceDetectorOptions())
                         .withFaceExpressions();
@@ -1417,27 +1399,21 @@
                         return ["no_face"];
                     }
 
-                    const emotions = [];
-                    detections.forEach(detection => {
+                    const emotions = detections.map(detection => {
                         const expressions = detection.expressions;
-
                         let maxExpression = 'neutral';
                         let maxScore = 0;
-
                         Object.entries(expressions).forEach(([emotion, score]) => {
                             if (score > maxScore && score > 0.3) {
                                 maxScore = score;
                                 maxExpression = emotion;
                             }
                         });
-
-                        emotions.push(maxExpression);
+                        return maxExpression;
                     });
 
                     console.log("✅ EMOZIONI REALI rilevate:", emotions);
-
                     return [...new Set(emotions)];
-
                 } catch (error) {
                     console.error("❌ Errore nell'analisi delle espressioni:", error);
                     return ["neutral"];
@@ -1525,10 +1501,6 @@
                         if (pillsGroup && pillsGroup.classList.contains('checkbox-pills-group')) {
                             pillsGroup.classList.toggle('open');
                         }
-                        const bpmSliderContainer = header.parentElement.querySelector('.bpm-slider-container');
-                        if (bpmSliderContainer) {
-                            bpmSliderContainer.style.display = header.classList.contains('open') ? 'block' : 'none';
-                        }
                     });
                 });
             }
@@ -1562,34 +1534,20 @@
                 }
 
                 if (userInputs.selectedGenres.length === 0) {
-                    if (objects.some(obj => ['bird', 'tree', 'grass', 'mountain', 'sky'].includes(obj))) {
-                        cues.genres.push("ambient", "folk", "soundtrack");
-                    }
+                    if (objects.some(obj => ['bird', 'tree', 'grass', 'mountain', 'sky'].includes(obj))) cues.genres.push("ambient", "folk", "soundtrack");
                     if (objects.includes("person")) {
                         if (emotions.includes("happy")) cues.genres.push("pop", "dance");
                         else cues.genres.push("folk", "jazz");
                     }
-                    if (objects.some(obj => ['car', 'bus', 'motorbike'].includes(obj))) {
-                        cues.genres.push("rock", "elettronica");
-                    }
-                    if (objects.some(obj => ['bottle', 'wine glass', 'cake'].includes(obj))) {
-                        cues.genres.push("jazz");
-                    }
+                    if (objects.some(obj => ['car', 'bus', 'motorbike'].includes(obj))) cues.genres.push("rock", "elettronica");
+                    if (objects.some(obj => ['bottle', 'wine glass', 'cake'].includes(obj))) cues.genres.push("jazz");
                 }
 
                 if (userInputs.selectedInstruments.length === 0) {
-                    if (cues.moods.some(m => ['triste', 'malinconico', 'riflessivo'].includes(m))) {
-                        cues.instruments.push("pianoforte", "violoncello", "archi lenti");
-                    }
-                    if (cues.moods.some(m => ['felice', 'energico'].includes(m))) {
-                        cues.instruments.push("chitarra elettrica", "batteria", "sintetizzatore");
-                    }
-                    if (cues.genres.includes("jazz")) {
-                        cues.instruments.push("sassofono", "pianoforte", "basso");
-                    }
-                    if (cues.genres.includes("folk")) {
-                        cues.instruments.push("chitarra acustica", "violino");
-                    }
+                    if (cues.moods.some(m => ['triste', 'malinconico', 'riflessivo'].includes(m))) cues.instruments.push("pianoforte", "violoncello", "archi lenti");
+                    if (cues.moods.some(m => ['felice', 'energico'].includes(m))) cues.instruments.push("chitarra elettrica", "batteria", "sintetizzatore");
+                    if (cues.genres.includes("jazz")) cues.instruments.push("sassofono", "pianoforte", "basso");
+                    if (cues.genres.includes("folk")) cues.instruments.push("chitarra acustica", "violino");
                 }
 
                 for (const key in cues) {
@@ -1597,35 +1555,28 @@
                         cues[key] = [...new Set(cues[key])];
                     }
                 }
-
                 return cues;
             }
 
             function preselectCuesFromAnalysis(musicalCues) {
                 if (!musicalCues) return;
-
-                const preselectGroup = (groupItems, cueValues, groupName) => {
+                const preselectGroup = (items, cueValues, groupName) => {
                     const container = domElements[groupName + 'PillsContainer'];
                     if (!container) return;
-
                     let hasSelection = false;
                     const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-
                     checkboxes.forEach(checkbox => {
                         const pillLabel = checkbox.closest('.checkbox-pill');
                         const shouldBeChecked = cueValues.map(cv => cv.toLowerCase()).includes(checkbox.value.toLowerCase());
-
                         checkbox.checked = shouldBeChecked;
                         pillLabel.classList.toggle('selected', shouldBeChecked);
                         if (shouldBeChecked) hasSelection = true;
                     });
-
                     const header = container.previousElementSibling;
                     if (hasSelection && header && header.classList.contains('collapsible-cue-header') && !header.classList.contains('open')) {
                         header.click();
                     }
                 };
-
                 preselectGroup(moodItems, musicalCues.moods || [], 'mood');
                 preselectGroup(genreItems, musicalCues.genres || [], 'genre');
                 preselectGroup(instrumentItems, musicalCues.instruments || [], 'instrument');
@@ -1637,6 +1588,7 @@
                 if (cues.moods.length > 0) parts.push(...cues.moods);
                 if (cues.genres.length > 0) parts.push(...cues.genres);
                 if (cues.instruments.length > 0) parts.push(...cues.instruments);
+                if (cues.rhythms.length > 0) parts.push(...cues.rhythms);
                 parts.push(`${cues.tempoBPM} BPM`);
                 return [...new Set(parts)].join(', ') + ", high quality audio";
             }
@@ -1645,11 +1597,10 @@
                 const { colors, objects, emotions } = analysis;
                 const existingDetails = domElements.aiInsightsContent.querySelectorAll('h4, ul, #finalPromptForAI');
                 existingDetails.forEach(el => el.remove());
-
                 let html = "<h4>🔍 Analisi Immagine Reale:</h4><ul>";
                 html += `<li><strong>Oggetti rilevati:</strong> ${objects.join(', ')}</li>`;
                 html += `<li><strong>Emozioni facciali:</strong> ${emotions.join(', ')}</li>`;
-                if (colors && colors.dominantColors) {
+                if (colors && colors.dominantColors && colors.dominantColors.length > 0) {
                     html += "<li><strong>Colori dominanti:</strong><ul>";
                     colors.dominantColors.forEach(c => {
                         html += `<li><span class="color-swatch-inline" style="background-color: rgb(${c.r},${c.g},${c.b});"></span>rgb(${c.r},${c.g},${c.b}) - ${c.percentage}%</li>`;
@@ -1661,7 +1612,6 @@
                 }
                 html += "</ul>";
                 html += `<div id="finalPromptForAI"><strong>🎵 Prompt Musicale Finale:</strong><br>${finalPrompt}</div>`;
-
                 domElements.aiInsightsContent.insertAdjacentHTML('beforeend', html);
             }
 
@@ -1671,7 +1621,6 @@
                 if (!imageAnalysisResults) {
                     domElements.aiProcessingSimulationDiv.style.display = 'block';
                     domElements.aiProcessingSimulationDiv.innerHTML = '<p>🧠 Analisi AI REALE in corso...</p>';
-
                     try {
                         imageAnalysisResults = {
                             colors: analyzeImageAdvanced(currentImage),
@@ -1687,7 +1636,6 @@
                             emotions: ["neutral"]
                         };
                     }
-
                     domElements.aiProcessingSimulationDiv.style.display = 'none';
                     initialPreselectionDoneForCurrentImage = false;
                 }
@@ -1721,18 +1669,17 @@
             }
 
             async function processNewImage(imageSrc) {
+                currentImageSrc = imageSrc;
                 domElements.imagePreview.src = imageSrc;
                 domElements.imagePreview.style.display = 'block';
                 currentImage = new Image();
-
                 currentImage.onload = async () => {
                     imageAnalysisResults = null;
                     initialPreselectionDoneForCurrentImage = false;
-
                     document.querySelectorAll('.checkbox-pill.selected').forEach(pill => pill.classList.remove('selected'));
                     document.querySelectorAll('.checkbox-pills-group input').forEach(cb => cb.checked = false);
-                    document.querySelectorAll('.collapsible-cue-header.open').forEach(header => header.click());
-
+                    document.querySelectorAll('.collapsible-cue-header.open').forEach(header => header.classList.remove('open'));
+                    document.querySelectorAll('.checkbox-pills-group.open').forEach(group => group.classList.remove('open'));
                     setStatusMessage("🎨 Immagine caricata! Analisi AI REALE in corso...", "info");
                     await updateAIDisplayAndStablePrompt();
                     setStatusMessage("✅ Analisi REALE completata! Ora puoi generare la musica.", "success");
@@ -1758,9 +1705,79 @@
                 }
             });
 
+            // GESTORE CLICK PER LA GENERAZIONE MUSICALE - UNICO E CORRETTO
             domElements.generateMusicButton.addEventListener('click', async () => {
-                console.log("🎵 Click su 'Genera Musica' con prompt:", stableAudioPromptForMusic);
-                // La tua logica originale di generazione musicale va qui
+                console.log("🎵 Avvio generazione musica con prompt:", stableAudioPromptForMusic);
+
+                if (!stableAudioPromptForMusic || !currentImage) {
+                    setStatusMessage("⚠️ Prima devi caricare e analizzare un'immagine!", "error");
+                    return;
+                }
+
+                // Ottieni la durata selezionata
+                const selectedDurationInput = document.querySelector('input[name="musicDuration"]:checked');
+                const selectedDuration = selectedDurationInput ? selectedDurationInput.value : '40';
+
+                // Disabilita il bottone e mostra lo spinner
+                domElements.generateMusicButton.disabled = true;
+                const originalButtonText = "Avvia generazione musica";
+                domElements.generateMusicButton.innerHTML = `Generazione in corso... <span class="spinner" id="musicSpinner" style="display:inline-block;"></span>`;
+
+                // Mostra la barra di progresso
+                domElements.progressAndPlayerContainer.style.display = 'block';
+                domElements.audioPlayerContainer.style.display = 'none';
+                domElements.progressMessage.textContent = 'Richiesta inviata al server...';
+                domElements.progressBarContainer.style.display = 'block';
+                domElements.progressBarAnimated.style.width = '25%';
+
+                try {
+                    // Prepara i dati per l'invio (assumendo che il backend li gestisca, come da codice precedente)
+                    const formData = new FormData();
+                    formData.append('action', 'pictosound_generate_music');
+                    if (typeof pictosound_vars !== 'undefined') {
+                        formData.append('nonce', pictosound_vars.nonce_generate);
+                    }
+                    formData.append('prompt', stableAudioPromptForMusic);
+                    formData.append('duration', selectedDuration);
+
+                    const imageResponse = await fetch(currentImageSrc);
+                    const imageBlob = await imageResponse.blob();
+                    formData.append('image_file', imageBlob, 'image.jpg');
+
+                    // Chiamata AJAX
+                    const fetchResponse = await fetch(pictosound_vars.ajax_url, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await fetchResponse.json();
+                    domElements.progressBarAnimated.style.width = '100%';
+
+                    if (result.success) {
+                        domElements.progressMessage.textContent = '✅ Musica generata con successo!';
+                        domElements.audioPlayerContainer.style.display = 'block';
+                        domElements.audioPlayer.src = result.data.audioUrl;
+                        domElements.audioInfo.textContent = `Durata: ${selectedDuration}s - File: ${result.data.fileName}`;
+                        domElements.downloadAudioLink.href = result.data.downloadUrl;
+                        domElements.downloadAudioLink.style.display = 'inline-flex';
+                        setStatusMessage("🎵 Musica generata! Puoi ascoltarla e scaricarla.", "success");
+                    } else {
+                        const errorMsg = result.data?.message || 'Errore sconosciuto durante la generazione';
+                        setStatusMessage(`❌ ${errorMsg}`, "error");
+                        domElements.progressMessage.textContent = `❌ Errore: ${errorMsg}`;
+                    }
+
+                } catch (error) {
+                    console.error('Errore grave nella chiamata AJAX:', error);
+                    setStatusMessage("❌ Errore di connessione o script. Controlla la console del browser per dettagli (F12).", "error");
+                    domElements.progressMessage.textContent = '❌ Errore di connessione o script.';
+                } finally {
+                    // Ripristina il bottone
+                    domElements.generateMusicButton.disabled = false;
+                    domElements.generateMusicButton.innerHTML = originalButtonText;
+                    domElements.progressBarContainer.style.display = 'none';
+                    domElements.progressBarAnimated.style.width = '0%';
+                }
             });
 
             // ===================================================================
@@ -1775,7 +1792,21 @@
 
             domElements.bpmSlider.addEventListener('input', () => {
                 domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
-                if (currentImage) updateAIDisplayAndStablePrompt();
+                if (currentImage) {
+                    // Non serve rieseguire tutta l'analisi, solo aggiornare il prompt
+                    const finalCues = {
+                        moods: getSelectedCheckboxValues('mood'),
+                        genres: getSelectedCheckboxValues('genre'),
+                        instruments: getSelectedCheckboxValues('instrument'),
+                        rhythms: getSelectedCheckboxValues('rhythm'),
+                        tempoBPM: domElements.bpmSlider.value,
+                    };
+                    stableAudioPromptForMusic = generateStableAudioPrompt(finalCues);
+                    const finalPromptDiv = document.getElementById('finalPromptForAI');
+                    if (finalPromptDiv) {
+                        finalPromptDiv.innerHTML = `<strong>🎵 Prompt Musicale Finale:</strong><br>${stableAudioPromptForMusic}`;
+                    }
+                }
             });
 
             await loadModels();
@@ -1786,3 +1817,4 @@
 </body>
 
 </html>
+```
