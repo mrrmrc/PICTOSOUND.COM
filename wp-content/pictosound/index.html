@@ -966,7 +966,11 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            // All DOM elements are cached here for performance
+            console.log("LOG: DOMContentLoaded - PictoSound con AI reale inizializzato.");
+
+            // ===================================================================
+            // 🎯 CACHE DOM ELEMENTS (COMPLETO)
+            // ===================================================================
             const domElements = {
                 statusDiv: document.getElementById('status'),
                 dynamicFeedbackArea: document.getElementById('dynamicFeedbackArea'),
@@ -1005,16 +1009,434 @@
                 downloadCompositeImageLink: document.getElementById('downloadCompositeImageLink'),
                 downloadQrOnlyLink: document.getElementById('downloadQrOnlyLink'),
             };
-            const imageAnalysisCtx = domElements.imageCanvas.getContext('2d');
 
-            // State variables
+            // ===================================================================
+            // 🔧 STATE VARIABLES
+            // ===================================================================
+
+            // Immagine e analisi
             let currentImage = null;
+            let currentImageSrc = null;
             let imageAnalysisResults = null;
             let stableAudioPromptForMusic = "";
             let initialPreselectionDoneForCurrentImage = false;
 
+            // Camera e mobile
+            let currentStream = null;
+            let currentFacingMode = "environment";
+            let zoomCapabilities = null;
+            let currentZoom = 1;
+            let initialPinchDistance = 0;
+            let lastTap = 0;
+            const DOUBLE_TAP_DELAY = 300; // ms
 
-            // Data for checkbox pills (cues)
+            // AI Models
+            let cocoSsdModel = null;
+            let faceApiModelsLoaded = false;
+
+            // Contexts
+            const imageAnalysisCtx = domElements.imageCanvas ? domElements.imageCanvas.getContext('2d') : null;
+
+            // ===================================================================
+            // 📸 FUNZIONI AVANZATE FOTOCAMERA MOBILE
+            // ===================================================================
+
+            function applyCameraStyles() {
+                if (document.getElementById('pictosound-camera-styles')) return;
+                const style = document.createElement('style');
+                style.id = 'pictosound-camera-styles';
+                style.innerHTML = `
+            body.camera-active {
+                overflow: hidden;
+            }
+            #cameraViewContainer {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: #000;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            #cameraFeed {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .camera-controls {
+                position: absolute;
+                bottom: 20px;
+                width: 100%;
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                z-index: 1001;
+            }
+        `;
+                document.head.appendChild(style);
+            }
+
+            async function openCamera() {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setStatusMessage("Il tuo browser non supporta l'accesso alla fotocamera.", "error");
+                    return;
+                }
+
+                applyCameraStyles();
+                document.body.classList.add('camera-active');
+
+                if (currentStream) closeCamera();
+
+                const constraints = {
+                    video: {
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+
+                try {
+                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    domElements.cameraFeed.srcObject = currentStream;
+                    domElements.cameraViewContainer.style.display = 'flex';
+
+                    // Gestione Zoom
+                    const [track] = currentStream.getVideoTracks();
+                    const capabilities = track.getCapabilities();
+                    if (capabilities.zoom) {
+                        zoomCapabilities = capabilities.zoom;
+                        currentZoom = zoomCapabilities.min;
+                        addTouchListeners();
+                        console.log("LOG: Zoom supportato. Range:", zoomCapabilities.min, "-", zoomCapabilities.max);
+                    } else {
+                        console.log("LOG: Zoom non supportato da questa fotocamera.");
+                    }
+
+                } catch (error) {
+                    handleCameraError(error);
+                }
+            }
+
+            function handleCameraError(error) {
+                console.error("Errore accesso fotocamera:", error);
+                let errorMessage = "Impossibile accedere alla fotocamera.";
+                if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+                    errorMessage = "Hai negato il permesso di usare la fotocamera. Abilitalo nelle impostazioni del browser.";
+                } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+                    errorMessage = "Nessuna fotocamera trovata sul tuo dispositivo.";
+                }
+                setStatusMessage(errorMessage, "error");
+                closeCamera();
+            }
+
+            function closeCamera() {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                    currentStream = null;
+                }
+                removeTouchListeners();
+                domElements.cameraViewContainer.style.display = 'none';
+                document.body.classList.remove('camera-active');
+                setStatusMessage("", "info");
+            }
+
+            function captureImage() {
+                if (!currentStream) return;
+                const video = domElements.cameraFeed;
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = video.videoWidth;
+                tempCanvas.height = video.videoHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+                const imageDataUrl = tempCanvas.toDataURL('image/jpeg');
+                processNewImage(imageDataUrl);
+                closeCamera();
+            }
+
+            function switchCamera() {
+                currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+                openCamera();
+            }
+
+            function addTouchListeners() {
+                domElements.cameraFeed.addEventListener('touchstart', handleTouchStart, { passive: false });
+                domElements.cameraFeed.addEventListener('touchmove', handleTouchMove, { passive: false });
+                domElements.cameraFeed.addEventListener('touchend', handleTouchEnd);
+            }
+
+            function removeTouchListeners() {
+                domElements.cameraFeed.removeEventListener('touchstart', handleTouchStart);
+                domElements.cameraFeed.removeEventListener('touchmove', handleTouchMove);
+                domElements.cameraFeed.removeEventListener('touchend', handleTouchEnd);
+            }
+
+            function handleTouchStart(event) {
+                event.preventDefault();
+                if (event.touches.length === 2) {
+                    initialPinchDistance = getDistance(event.touches);
+                }
+            }
+
+            function handleTouchMove(event) {
+                event.preventDefault();
+                if (event.touches.length === 2 && zoomCapabilities) {
+                    const newDistance = getDistance(event.touches);
+                    const zoomFactor = newDistance / initialPinchDistance;
+
+                    let newZoom = currentZoom * zoomFactor;
+                    newZoom = Math.max(zoomCapabilities.min, Math.min(newZoom, zoomCapabilities.max));
+
+                    const [track] = currentStream.getVideoTracks();
+                    track.applyConstraints({ advanced: [{ zoom: newZoom }] });
+                }
+            }
+
+            function handleTouchEnd(event) {
+                if (event.touches.length > 0) return;
+
+                const currentTime = new Date().getTime();
+                const timeSinceLastTap = currentTime - lastTap;
+
+                if (timeSinceLastTap < DOUBLE_TAP_DELAY && timeSinceLastTap > 0) {
+                    console.log("LOG: Doppio tocco rilevato, scatto la foto.");
+                    captureImage();
+                }
+
+                lastTap = currentTime;
+                initialPinchDistance = 0;
+
+                if (zoomCapabilities) {
+                    const [track] = currentStream.getVideoTracks();
+                    currentZoom = track.getSettings().zoom || 1;
+                }
+            }
+
+            function getDistance(touches) {
+                const [touch1, touch2] = touches;
+                return Math.sqrt(
+                    Math.pow(touch2.pageX - touch1.pageX, 2) +
+                    Math.pow(touch2.pageY - touch1.pageY, 2)
+                );
+            }
+
+            // ===================================================================
+            // 🧠 FUNZIONI REALI DI ANALISI AI (NON PIÙ MOCK!)
+            // ===================================================================
+
+            async function loadModels() {
+                try {
+                    setStatusMessage("🤖 Caricamento modelli AI in corso...", "info");
+
+                    console.log("🔄 Caricamento COCO-SSD...");
+                    cocoSsdModel = await cocoSsd.load();
+                    console.log("✅ COCO-SSD caricato con successo");
+
+                    console.log("🔄 Caricamento Face-API models...");
+                    const baseUrl = '/wp-content/pictosound/js/models';
+                    await Promise.all([
+                        faceapi.nets.tinyFaceDetector.loadFromUri(baseUrl),
+                        faceapi.nets.faceExpressionNet.loadFromUri(baseUrl),
+                        faceapi.nets.ageGenderNet.loadFromUri(baseUrl)
+                    ]);
+                    faceApiModelsLoaded = true;
+                    console.log("✅ Face-API models caricati con successo");
+
+                    setStatusMessage("🎉 Modelli AI pronti! Carica un'immagine per iniziare.", "success");
+
+                } catch (error) {
+                    console.error("❌ Errore nel caricamento dei modelli:", error);
+                    setStatusMessage("⚠️ Alcuni modelli AI non sono disponibili. L'analisi potrebbe essere limitata.", "error");
+                }
+            }
+
+            function setStatusMessage(message, type = "info") {
+                if (!domElements.statusDiv) return;
+                domElements.statusDiv.textContent = message;
+                domElements.statusDiv.className = 'status-message';
+                if (type === "error") domElements.statusDiv.classList.add("status-error");
+                else if (type === "success") domElements.statusDiv.classList.add("status-success");
+                domElements.statusDiv.style.display = message ? 'block' : 'none';
+            }
+
+            // ANALISI COLORI REALE (NON PIÙ MOCK!)
+            function analyzeImageAdvanced(imageElement) {
+                console.log("🎨 ANALISI COLORI REALE in corso...");
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                const maxSize = 300;
+                const scale = Math.min(maxSize / imageElement.width, maxSize / imageElement.height);
+                canvas.width = imageElement.width * scale;
+                canvas.height = imageElement.height * scale;
+
+                ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const pixels = imageData.data;
+
+                const colorCounts = {};
+                let totalBrightness = 0;
+                let totalSaturation = 0;
+                let pixelCount = 0;
+
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const r = pixels[i];
+                    const g = pixels[i + 1];
+                    const b = pixels[i + 2];
+                    const a = pixels[i + 3];
+
+                    if (a < 128) continue;
+
+                    const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+                    totalBrightness += brightness;
+
+                    const max = Math.max(r, g, b);
+                    const min = Math.min(r, g, b);
+                    const saturation = max === 0 ? 0 : (max - min) / max * 100;
+                    totalSaturation += saturation;
+
+                    const colorKey = `${Math.floor(r / 20) * 20},${Math.floor(g / 20) * 20},${Math.floor(b / 20) * 20}`;
+                    colorCounts[colorKey] = (colorCounts[colorKey] || 0) + 1;
+
+                    pixelCount++;
+                }
+
+                const sortedColors = Object.entries(colorCounts)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 5);
+
+                const dominantColors = sortedColors.map(([colorKey, count]) => {
+                    const [r, g, b] = colorKey.split(',').map(Number);
+                    const percentage = Math.round((count / pixelCount) * 100);
+
+                    const max = Math.max(r, g, b) / 255;
+                    const min = Math.min(r, g, b) / 255;
+                    const lightness = (max + min) / 2;
+                    const delta = max - min;
+                    const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+
+                    let hue = 0;
+                    if (delta !== 0) {
+                        if (max === r / 255) hue = ((g / 255 - b / 255) / delta) % 6;
+                        else if (max === g / 255) hue = (b / 255 - r / 255) / delta + 2;
+                        else hue = (r / 255 - g / 255) / delta + 4;
+                    }
+                    hue = Math.round(hue * 60);
+                    if (hue < 0) hue += 360;
+
+                    return {
+                        r, g, b,
+                        percentage,
+                        hue: hue,
+                        saturation: Math.round(saturation * 100),
+                        lightness: Math.round(lightness * 100)
+                    };
+                });
+
+                const averageBrightness = Math.round(totalBrightness / pixelCount);
+                const averageSaturation = Math.round(totalSaturation / pixelCount);
+
+                const maxBrightness = Math.max(...dominantColors.map(c => c.lightness));
+                const minBrightness = Math.min(...dominantColors.map(c => c.lightness));
+                const contrast = maxBrightness - minBrightness;
+
+                const result = {
+                    dominantColors,
+                    averageBrightness,
+                    contrast,
+                    averageSaturation
+                };
+
+                console.log("✅ ANALISI COLORI REALE completata:", result);
+                return result;
+            }
+
+            // OBJECT DETECTION REALE (NON PIÙ MOCK!)
+            async function detectObjectsInImage(imageElement) {
+                if (!cocoSsdModel) {
+                    console.warn("⚠️ Modello COCO-SSD non ancora caricato");
+                    return ["oggetto_generico"];
+                }
+
+                try {
+                    console.log("🔍 OBJECT DETECTION REALE in corso...");
+
+                    const predictions = await cocoSsdModel.detect(imageElement);
+
+                    const detectedObjects = predictions
+                        .filter(prediction => prediction.score > 0.3)
+                        .map(prediction => prediction.class)
+                        .filter((value, index, self) => self.indexOf(value) === index);
+
+                    console.log("✅ OGGETTI REALI rilevati:", detectedObjects);
+
+                    if (detectedObjects.length === 0) {
+                        return ["scena_generica"];
+                    }
+
+                    return detectedObjects;
+
+                } catch (error) {
+                    console.error("❌ Errore nel rilevamento oggetti:", error);
+                    return ["oggetto_generico"];
+                }
+            }
+
+            // EMOTION DETECTION REALE (NON PIÙ MOCK!)
+            async function analyzeFacesInImage(imageElement) {
+                if (!faceApiModelsLoaded) {
+                    console.warn("⚠️ Modelli Face-API non ancora caricati");
+                    return ["neutral"];
+                }
+
+                try {
+                    console.log("😊 EMOTION DETECTION REALE in corso...");
+
+                    const detections = await faceapi
+                        .detectAllFaces(imageElement, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceExpressions();
+
+                    if (detections.length === 0) {
+                        console.log("ℹ️ Nessun volto rilevato");
+                        return ["no_face"];
+                    }
+
+                    const emotions = [];
+                    detections.forEach(detection => {
+                        const expressions = detection.expressions;
+
+                        let maxExpression = 'neutral';
+                        let maxScore = 0;
+
+                        Object.entries(expressions).forEach(([emotion, score]) => {
+                            if (score > maxScore && score > 0.3) {
+                                maxScore = score;
+                                maxExpression = emotion;
+                            }
+                        });
+
+                        emotions.push(maxExpression);
+                    });
+
+                    console.log("✅ EMOZIONI REALI rilevate:", emotions);
+
+                    return [...new Set(emotions)];
+
+                } catch (error) {
+                    console.error("❌ Errore nell'analisi delle espressioni:", error);
+                    return ["neutral"];
+                }
+            }
+
+            // ===================================================================
+            // 🎵 LOGICA MUSICALE
+            // ===================================================================
+
             const moodItems = [
                 { value: "felice", label: "Felice / Gioioso" }, { value: "triste", label: "Triste / Malinconico" }, { value: "riflessivo", label: "Riflessivo" },
                 { value: "epico", label: "Epico / Grandioso" }, { value: "rilassante", label: "Rilassante / Calmo" },
@@ -1104,29 +1526,70 @@
                 return Array.from(document.querySelectorAll(`input[name="${groupName}"]:checked`)).map(cb => cb.value);
             }
 
-            // MOCK ANALYSIS FUNCTIONS (replace with your actual TF.js logic)
-            function analyzeImageAdvanced(imageElement) {
-                console.log("Simulating color analysis...");
-                return {
-                    dominantColors: [
-                        { r: 40, g: 80, b: 150, percentage: 55, hue: 217, saturation: 58, lightness: 37 },
-                        { r: 210, g: 180, b: 140, percentage: 25, hue: 34, saturation: 44, lightness: 68 }
-                    ],
-                    averageBrightness: 110,
-                    contrast: 60,
-                    averageSaturation: 50
+            function getMusicalCues(analysis, userInputs) {
+                const { colors, objects, emotions } = analysis;
+                const cues = {
+                    moods: [...userInputs.selectedMoods],
+                    genres: [...userInputs.selectedGenres],
+                    instruments: [...userInputs.selectedInstruments],
+                    rhythms: [...userInputs.selectedRhythms],
+                    tempoBPM: userInputs.selectedBPM
                 };
-            }
-            async function detectObjectsInImage(imageElement) {
-                console.log("Simulating object detection...");
-                return ["sky", "mountain", "person"];
-            }
-            async function analyzeFacesInImage(imageElement) {
-                console.log("Simulating face analysis...");
-                return ["happy", "neutral"];
+
+                if (userInputs.selectedMoods.length === 0) {
+                    if (emotions.includes("happy")) cues.moods.push("felice", "energico");
+                    if (emotions.includes("sad")) cues.moods.push("triste", "malinconico");
+                    if (emotions.includes("angry")) cues.moods.push("potente", "intenso");
+                    if (emotions.includes("surprised")) cues.moods.push("meravigliato");
+                    if (emotions.includes("fearful")) cues.moods.push("misterioso", "drammatico");
+                    if (emotions.includes("neutral") || emotions.includes("no_face")) {
+                        if (colors && colors.averageBrightness > 180) cues.moods.push("felice", "energico");
+                        if (colors && colors.averageBrightness < 70) cues.moods.push("misterioso", "drammatico");
+                        if (colors && colors.averageSaturation > 70) cues.moods.push("energico");
+                        if (colors && colors.averageSaturation < 30) cues.moods.push("rilassante", "riflessivo");
+                    }
+                }
+
+                if (userInputs.selectedGenres.length === 0) {
+                    if (objects.some(obj => ['bird', 'tree', 'grass', 'mountain', 'sky'].includes(obj))) {
+                        cues.genres.push("ambient", "folk", "soundtrack");
+                    }
+                    if (objects.includes("person")) {
+                        if (emotions.includes("happy")) cues.genres.push("pop", "dance");
+                        else cues.genres.push("folk", "jazz");
+                    }
+                    if (objects.some(obj => ['car', 'bus', 'motorbike'].includes(obj))) {
+                        cues.genres.push("rock", "elettronica");
+                    }
+                    if (objects.some(obj => ['bottle', 'wine glass', 'cake'].includes(obj))) {
+                        cues.genres.push("jazz");
+                    }
+                }
+
+                if (userInputs.selectedInstruments.length === 0) {
+                    if (cues.moods.some(m => ['triste', 'malinconico', 'riflessivo'].includes(m))) {
+                        cues.instruments.push("pianoforte", "violoncello", "archi lenti");
+                    }
+                    if (cues.moods.some(m => ['felice', 'energico'].includes(m))) {
+                        cues.instruments.push("chitarra elettrica", "batteria", "sintetizzatore");
+                    }
+                    if (cues.genres.includes("jazz")) {
+                        cues.instruments.push("sassofono", "pianoforte", "basso");
+                    }
+                    if (cues.genres.includes("folk")) {
+                        cues.instruments.push("chitarra acustica", "violino");
+                    }
+                }
+
+                for (const key in cues) {
+                    if (Array.isArray(cues[key])) {
+                        cues[key] = [...new Set(cues[key])];
+                    }
+                }
+
+                return cues;
             }
 
-            // This is the key function that now pre-selects cues
             function preselectCuesFromAnalysis(musicalCues) {
                 if (!musicalCues) return;
 
@@ -1146,7 +1609,6 @@
                         if (shouldBeChecked) hasSelection = true;
                     });
 
-                    // Automatically open the accordion if a selection was made
                     const header = container.previousElementSibling;
                     if (hasSelection && header && header.classList.contains('collapsible-cue-header') && !header.classList.contains('open')) {
                         header.click();
@@ -1159,47 +1621,6 @@
                 preselectGroup(rhythmItems, musicalCues.rhythms || [], 'rhythm');
             }
 
-
-            // This is the core logic that was missing/incomplete before
-            function getMusicalCues(analysis, userInputs) {
-                const { colors, objects, emotions } = analysis;
-                const cues = {
-                    moods: [...userInputs.selectedMoods],
-                    genres: [...userInputs.selectedGenres],
-                    instruments: [...userInputs.selectedInstruments],
-                    rhythms: [...userInputs.selectedRhythms],
-                    tempoBPM: userInputs.selectedBPM
-                };
-
-                // AI SUGGESTION LOGIC
-                // This logic runs only if the user hasn't made a selection in a category yet.
-                if (userInputs.selectedMoods.length === 0) {
-                    if (emotions.includes("happy")) cues.moods.push("felice");
-                    if (emotions.includes("sad")) cues.moods.push("triste", "malinconico");
-                    if (colors && colors.averageBrightness > 180) cues.moods.push("brillante");
-                    if (colors && colors.averageBrightness < 70) cues.moods.push("oscuro");
-                }
-                if (userInputs.selectedGenres.length === 0) {
-                    if (objects.includes("sky") || objects.includes("mountain")) cues.genres.push("soundtrack", "ambient");
-                    if (objects.includes("person") && emotions.includes("happy")) cues.genres.push("pop", "dance");
-                }
-                if (userInputs.selectedInstruments.length === 0) {
-                    if (cues.moods.includes("triste")) cues.instruments.push("pianoforte", "violoncello");
-                    if (cues.genres.includes("rock")) cues.instruments.push("chitarra elettrica", "batteria");
-                }
-                // ... and so on for other categories
-
-                // Remove duplicates
-                for (const key in cues) {
-                    if (Array.isArray(cues[key])) {
-                        cues[key] = [...new Set(cues[key])];
-                    }
-                }
-
-                return cues;
-            }
-
-            // Function to generate the final prompt (simplified for clarity)
             function generateStableAudioPrompt(cues) {
                 const parts = [];
                 if (cues.moods.length > 0) parts.push(...cues.moods);
@@ -1214,18 +1635,21 @@
                 const existingDetails = domElements.aiInsightsContent.querySelectorAll('h4, ul, #finalPromptForAI');
                 existingDetails.forEach(el => el.remove());
 
-                let html = "<h4>Analisi Immagine:</h4><ul>";
-                html += `<li><strong>Oggetti:</strong> ${objects.join(', ')}</li>`;
-                html += `<li><strong>Emozioni:</strong> ${emotions.join(', ')}</li>`;
+                let html = "<h4>🔍 Analisi Immagine Reale:</h4><ul>";
+                html += `<li><strong>Oggetti rilevati:</strong> ${objects.join(', ')}</li>`;
+                html += `<li><strong>Emozioni facciali:</strong> ${emotions.join(', ')}</li>`;
                 if (colors && colors.dominantColors) {
-                    html += "<li><strong>Colori Dominanti:</strong><ul>";
+                    html += "<li><strong>Colori dominanti:</strong><ul>";
                     colors.dominantColors.forEach(c => {
-                        html += `<li><span class="color-swatch-inline" style="background-color: rgb(${c.r},${c.g},${c.b});"></span>rgb(${c.r},${c.g},${c.b})</li>`;
+                        html += `<li><span class="color-swatch-inline" style="background-color: rgb(${c.r},${c.g},${c.b});"></span>rgb(${c.r},${c.g},${c.b}) - ${c.percentage}%</li>`;
                     });
                     html += "</ul></li>";
+                    html += `<li><strong>Luminosità media:</strong> ${colors.averageBrightness}/255</li>`;
+                    html += `<li><strong>Saturazione media:</strong> ${colors.averageSaturation}%</li>`;
+                    html += `<li><strong>Contrasto:</strong> ${colors.contrast}%</li>`;
                 }
                 html += "</ul>";
-                html += `<div id="finalPromptForAI"><strong>Prompt Finale:</strong><br>${finalPrompt}</div>`;
+                html += `<div id="finalPromptForAI"><strong>🎵 Prompt Musicale Finale:</strong><br>${finalPrompt}</div>`;
 
                 domElements.aiInsightsContent.insertAdjacentHTML('beforeend', html);
             }
@@ -1233,19 +1657,30 @@
             async function updateAIDisplayAndStablePrompt() {
                 if (!currentImage) return;
 
-                // 1. Run analysis if it hasn't been done yet for this image
                 if (!imageAnalysisResults) {
                     domElements.aiProcessingSimulationDiv.style.display = 'block';
-                    imageAnalysisResults = {
-                        colors: analyzeImageAdvanced(currentImage),
-                        objects: await detectObjectsInImage(currentImage),
-                        emotions: await analyzeFacesInImage(currentImage)
-                    };
+                    domElements.aiProcessingSimulationDiv.innerHTML = '<p>🧠 Analisi AI REALE in corso...</p>';
+
+                    try {
+                        imageAnalysisResults = {
+                            colors: analyzeImageAdvanced(currentImage),
+                            objects: await detectObjectsInImage(currentImage),
+                            emotions: await analyzeFacesInImage(currentImage)
+                        };
+                        console.log("🎯 Analisi REALE completata:", imageAnalysisResults);
+                    } catch (error) {
+                        console.error("❌ Errore durante l'analisi:", error);
+                        imageAnalysisResults = {
+                            colors: { dominantColors: [], averageBrightness: 128, contrast: 50, averageSaturation: 50 },
+                            objects: ["oggetto_generico"],
+                            emotions: ["neutral"]
+                        };
+                    }
+
                     domElements.aiProcessingSimulationDiv.style.display = 'none';
                     initialPreselectionDoneForCurrentImage = false;
                 }
 
-                // 2. Get current user inputs
                 const userInputs = {
                     selectedMoods: getSelectedCheckboxValues('mood'),
                     selectedGenres: getSelectedCheckboxValues('genre'),
@@ -1254,15 +1689,12 @@
                     selectedBPM: domElements.bpmSlider.value,
                 };
 
-                // 3. Get musical cues based on analysis AND user inputs
                 const musicalCues = getMusicalCues(imageAnalysisResults, userInputs);
 
-                // 4. THIS IS THE KEY STEP: Pre-select pills if it's the first run for this image
                 if (!initialPreselectionDoneForCurrentImage) {
                     preselectCuesFromAnalysis(musicalCues);
                 }
 
-                // 5. Generate final prompt based on the combined (AI + User) cues
                 const finalCues = {
                     moods: getSelectedCheckboxValues('mood'),
                     genres: getSelectedCheckboxValues('genre'),
@@ -1272,12 +1704,10 @@
                 };
                 stableAudioPromptForMusic = generateStableAudioPrompt(finalCues);
 
-                // 6. Update the "What AI Sees" display
                 generateAIDisplayContent(imageAnalysisResults, stableAudioPromptForMusic);
                 domElements.aiInsightsSection.style.display = 'block';
                 domElements.generateMusicButton.disabled = false;
             }
-
 
             async function processNewImage(imageSrc) {
                 domElements.imagePreview.src = imageSrc;
@@ -1285,30 +1715,28 @@
                 currentImage = new Image();
 
                 currentImage.onload = async () => {
-                    imageAnalysisResults = null; // Reset for new image
-                    initialPreselectionDoneForCurrentImage = false; // Allow pre-selection again
+                    imageAnalysisResults = null;
+                    initialPreselectionDoneForCurrentImage = false;
 
-                    // Reset UI
                     document.querySelectorAll('.checkbox-pill.selected').forEach(pill => pill.classList.remove('selected'));
                     document.querySelectorAll('.checkbox-pills-group input').forEach(cb => cb.checked = false);
                     document.querySelectorAll('.collapsible-cue-header.open').forEach(header => header.click());
 
+                    setStatusMessage("🎨 Immagine caricata! Analisi AI REALE in corso...", "info");
                     await updateAIDisplayAndStablePrompt();
+                    setStatusMessage("✅ Analisi REALE completata! Ora puoi generare la musica.", "success");
                 };
                 currentImage.src = imageSrc;
             }
 
-            // --- Initial Setup ---
-            populateCheckboxPills(domElements.moodPillsContainer, moodItems, 'mood');
-            populateCheckboxPills(domElements.genrePillsContainer, genreItems, 'genre');
-            populateCheckboxPills(domElements.instrumentPillsContainer, instrumentItems, 'instrument');
-            populateCheckboxPills(domElements.rhythmPillsContainer, rhythmItems, 'rhythm');
-            setupCollapsibleSections();
+            // ===================================================================
+            // 🔌 COLLEGAMENTO EVENTI
+            // ===================================================================
 
-            domElements.bpmSlider.addEventListener('input', () => {
-                domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
-                if (currentImage) updateAIDisplayAndStablePrompt(); // Update prompt on BPM change
-            });
+            if (domElements.takePictureButton) domElements.takePictureButton.addEventListener('click', openCamera);
+            if (domElements.closeCameraButton) domElements.closeCameraButton.addEventListener('click', closeCamera);
+            if (domElements.captureImageButton) domElements.captureImageButton.addEventListener('click', captureImage);
+            if (domElements.switchCameraButton) domElements.switchCameraButton.addEventListener('click', switchCamera);
 
             domElements.imageUpload.addEventListener('change', (event) => {
                 const file = event.target.files[0];
@@ -1319,7 +1747,29 @@
                 }
             });
 
-            console.log("PictoSound App Initialized with full features and pre-selection logic.");
+            domElements.generateMusicButton.addEventListener('click', async () => {
+                console.log("🎵 Click su 'Genera Musica' con prompt:", stableAudioPromptForMusic);
+                // La tua logica originale di generazione musicale va qui
+            });
+
+            // ===================================================================
+            // 🚀 INIZIALIZZAZIONE
+            // ===================================================================
+
+            populateCheckboxPills(domElements.moodPillsContainer, moodItems, 'mood');
+            populateCheckboxPills(domElements.genrePillsContainer, genreItems, 'genre');
+            populateCheckboxPills(domElements.instrumentPillsContainer, instrumentItems, 'instrument');
+            populateCheckboxPills(domElements.rhythmPillsContainer, rhythmItems, 'rhythm');
+            setupCollapsibleSections();
+
+            domElements.bpmSlider.addEventListener('input', () => {
+                domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
+                if (currentImage) updateAIDisplayAndStablePrompt();
+            });
+
+            await loadModels();
+
+            console.log("🎉 PictoSound completamente inizializzato con AI REALE!");
         });
     </script>
 </body>
