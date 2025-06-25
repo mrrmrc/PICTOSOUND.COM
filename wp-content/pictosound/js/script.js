@@ -1,9 +1,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("LOG: DOMContentLoaded - PictoSound con AI reale inizializzato.");
+    console.log("LOG: DOMContentLoaded - Pagina pronta e script principale in esecuzione.");
 
-    // ===================================================================
-    // 🎯 CACHE DOM ELEMENTS (COMPLETO)
-    // ===================================================================
+    const CREATIVITY_LEVEL = 50;
+
+    // Cache DOM elements for performance and convenience
     const domElements = {
         statusDiv: document.getElementById('status'),
         dynamicFeedbackArea: document.getElementById('dynamicFeedbackArea'),
@@ -41,493 +41,518 @@ document.addEventListener('DOMContentLoaded', async () => {
         downloadAudioLink: document.getElementById('downloadAudioLink'),
         downloadCompositeImageLink: document.getElementById('downloadCompositeImageLink'),
         downloadQrOnlyLink: document.getElementById('downloadQrOnlyLink'),
+        fullscreenImageModal: document.getElementById('fullscreenImageModal'),
+        fullscreenImage: document.getElementById('fullscreenImage'),
+        closeFullscreenButton: document.getElementById('closeFullscreenButton')
     };
 
-    // ===================================================================
-    // 🔧 STATE VARIABLES
-    // ===================================================================
+    // --- SISTEMA AUTO-RECOVERY PER NONCE SCADUTI ---
+    function handleNonceExpiredError(originalAjaxCall, originalData) {
+        console.log('Pictosound: Nonce scaduto rilevato, aggiornamento automatico...');
 
-    // Immagine e analisi
-    let currentImage = null;
-    let currentImageSrc = null;
-    let imageAnalysisResults = null;
-    let stableAudioPromptForMusic = "";
-    let initialPreselectionDoneForCurrentImage = false;
+        // Richiedi nuovi nonce
+        jQuery.ajax({
+            url: pictosound_vars.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'pictosound_regenerate_nonce'
+            },
+            success: function (response) {
+                if (response.success) {
+                    console.log('Pictosound: Nonce aggiornati, ripetizione richiesta...');
 
-    // Camera e mobile
-    let currentStream = null;
-    let currentFacingMode = "environment";
-    let zoomCapabilities = null;
-    let currentZoom = 1;
-    let initialPinchDistance = 0;
-    let lastTap = 0;
-    const DOUBLE_TAP_DELAY = 300; // ms
+                    // Aggiorna i nonce globali
+                    pictosound_vars.nonce_recharge = response.data.nonce_recharge;
+                    pictosound_vars.nonce_check_credits = response.data.nonce_check_credits;
 
-    // AI Models
-    let cocoSsdModel = null;
-    let faceApiModelsLoaded = false;
+                    // Aggiorna i dati della richiesta originale
+                    if (originalData.recharge_nonce) {
+                        originalData.recharge_nonce = response.data.nonce_recharge;
+                    }
+                    if (originalData.nonce) {
+                        originalData.nonce = response.data.nonce_check_credits;
+                    }
 
-    // Contexts
-    const imageAnalysisCtx = domElements.imageCanvas ? domElements.imageCanvas.getContext('2d') : null;
-
-    // ===================================================================
-    // 📸 FUNZIONI AVANZATE FOTOCAMERA MOBILE (DAL TUO FILE JS)
-    // ===================================================================
-
-    /**
-     * Applica stili CSS per un'esperienza a schermo intero su mobile.
-     */
-    function applyCameraStyles() {
-        if (document.getElementById('pictosound-camera-styles')) return;
-        const style = document.createElement('style');
-        style.id = 'pictosound-camera-styles';
-        style.innerHTML = `
-            body.camera-active {
-                overflow: hidden;
+                    // Ripeti la richiesta originale
+                    originalAjaxCall(originalData);
+                } else {
+                    console.error('Pictosound: Impossibile aggiornare i nonce');
+                    alert('Sessione scaduta. Ricarica la pagina e riprova.');
+                    location.reload();
+                }
+            },
+            error: function () {
+                console.error('Pictosound: Errore nel refresh dei nonce');
+                alert('Sessione scaduta. Ricarica la pagina e riprova.');
+                location.reload();
             }
-            #cameraViewContainer {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: #000;
-                z-index: 1000;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-            }
-            #cameraFeed {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-            }
-            .camera-controls {
-                position: absolute;
-                bottom: 20px;
-                width: 100%;
-                display: flex;
-                justify-content: space-around;
-                align-items: center;
-                z-index: 1001;
-            }
-        `;
-        document.head.appendChild(style);
+        });
     }
 
-    /**
-     * Apre la visualizzazione della fotocamera e avvia lo stream video.
-     */
-    async function openCamera() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            setStatusMessage("Il tuo browser non supporta l'accesso alla fotocamera.", "error");
+    // Funzione per ricarica crediti con auto-recovery
+    // Sostituisci la funzione rechargeCredits esistente con questa versione PayPal
+    function rechargeCredits(packageKey) {
+        const requestData = {
+            action: 'pictosound_recharge_credits',
+            recharge_nonce: pictosound_vars.nonce_recharge,
+            credits_package_key: packageKey
+        };
+
+        function makeRechargeRequest(data) {
+            jQuery.ajax({
+                url: pictosound_vars.ajax_url,
+                type: 'POST',
+                data: data,
+                success: function (response) {
+                    if (response.success) {
+                        // Controlla se è un redirect PayPal
+                        if (response.data.is_redirect && response.data.redirect_url) {
+                            console.log('PayPal redirect URL:', response.data.redirect_url);
+
+                            // Mostra messaggio e reindirizza a PayPal
+                            const rechargeStatusDiv = document.getElementById('rechargeStatusMessage');
+                            if (rechargeStatusDiv) {
+                                setStatusMessage(rechargeStatusDiv, 'Reindirizzamento a PayPal...', "info");
+                            }
+
+                            // Reindirizza a PayPal dopo un breve delay
+                            setTimeout(() => {
+                                window.location.href = response.data.redirect_url;
+                            }, 1000);
+
+                        } else {
+                            // Gestisci risposta normale (non dovrebbe succedere con PayPal)
+                            console.log('Ricarica completata:', response.data);
+                            const rechargeStatusDiv = document.getElementById('rechargeStatusMessage');
+                            if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, response.data.message, "success");
+
+                            if (response.data.new_balance) {
+                                pictosound_vars.user_credits = response.data.new_balance;
+                                updateCreditsDisplay(response.data.new_balance);
+                                if (typeof updateDurationOptionsUI === 'function') {
+                                    updateDurationOptionsUI();
+                                }
+                            }
+                        }
+                    } else {
+                        console.error('Errore ricarica:', response.data);
+                        const rechargeStatusDiv = document.getElementById('rechargeStatusMessage');
+                        if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, response.data.message || 'Errore durante la ricarica', "error");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.data && response.data.code === 'nonce_expired') {
+                            // Gestisci automaticamente il nonce scaduto
+                            handleNonceExpiredError(makeRechargeRequest, data);
+                            return;
+                        }
+                    } catch (e) {
+                        // Ignora errori di parsing
+                    }
+
+                    console.error('ERRORE: Risposta JSON dal server (WP AJAX Ricarica) indica fallimento:', xhr.responseText);
+                    const rechargeStatusDiv = document.getElementById('rechargeStatusMessage');
+                    if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, 'Errore durante la ricarica. Riprova.', "error");
+                }
+            });
+        }
+
+        makeRechargeRequest(requestData);
+    }
+
+    // Funzione per check crediti con auto-recovery
+    function checkCredits(duration) {
+        const requestData = {
+            action: 'pictosound_check_credits',
+            nonce: pictosound_vars.nonce_check_credits,
+            duration: duration
+        };
+
+        function makeCheckRequest(data) {
+            jQuery.ajax({
+                url: pictosound_vars.ajax_url,
+                type: 'POST',
+                data: data,
+                success: function (response) {
+                    if (response.success) {
+                        console.log('Check crediti completato:', response.data);
+                        // Gestisci il successo
+                        if (response.data.can_proceed) {
+                            // Aggiorna crediti rimanenti se forniti
+                            if (typeof response.data.remaining_credits !== 'undefined') {
+                                pictosound_vars.user_credits = response.data.remaining_credits;
+                                if (typeof updateDurationOptionsUI === 'function') updateDurationOptionsUI();
+                            }
+                            // Procedi con la generazione
+                            if (typeof window.startMusicGeneration === 'function') {
+                                window.startMusicGeneration();
+                            }
+                        } else {
+                            // Crediti insufficienti o altro errore
+                            if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, response.data.message || 'Impossibile procedere', "error");
+                            updateProgressMessage("", false);
+                            if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = false;
+                            if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'none';
+                        }
+                    } else {
+                        console.error('Errore check crediti:', response.data);
+                        if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, response.data.message || 'Errore nella verifica crediti', "error");
+                        updateProgressMessage("", false);
+                        if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = false;
+                        if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'none';
+                    }
+                },
+                error: function (xhr, status, error) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.data && response.data.code === 'nonce_expired') {
+                            // Gestisci automaticamente il nonce scaduto
+                            handleNonceExpiredError(makeCheckRequest, data);
+                            return;
+                        }
+                    } catch (e) {
+                        // Ignora errori di parsing
+                    }
+
+                    console.error('ERRORE: Risposta JSON dal server (WP AJAX Check) indica fallimento:', xhr.responseText);
+                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, 'Errore durante la verifica crediti. Riprova.', "error");
+                    updateProgressMessage("", false);
+                    if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = false;
+                    if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'none';
+                }
+            });
+        }
+
+        makeCheckRequest(requestData);
+    }
+
+    // Funzione di utilità per aggiornare il display dei crediti
+    function updateCreditsDisplay(newBalance) {
+        // Aggiorna tutti gli elementi che mostrano il saldo crediti
+        jQuery('.pictosound-saldo-display-widget').each(function () {
+            const $element = jQuery(this);
+            const text = $element.text();
+            const newText = text.replace(/\d+/, newBalance);
+            $element.text(newText);
+        });
+
+        // Aggiorna anche le variabili globali
+        pictosound_vars.user_credits = newBalance;
+    }
+
+    // Funzione per popolare le opzioni dei pacchetti di ricarica
+    function populateCreditPackages() {
+        if (typeof pictosound_vars === 'undefined' || !pictosound_vars.credit_packages) {
+            console.warn("WARN: pictosound_vars.credit_packages non definito. Impossibile popolare i pacchetti di ricarica.");
+            if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore: Opzioni di ricarica non disponibili.", "error");
             return;
         }
 
-        applyCameraStyles();
-        document.body.classList.add('camera-active');
+        const packagesContainer = document.getElementById('creditPackagesContainer');
+        if (!packagesContainer) {
+            console.warn("WARN: Elemento 'creditPackagesContainer' non trovato nel DOM per i pacchetti di ricarica.");
+            return;
+        }
+        packagesContainer.innerHTML = ''; // Pulisci opzioni esistenti
 
-        if (currentStream) closeCamera();
+        let firstPackage = true;
+        for (const key in pictosound_vars.credit_packages) {
+            if (pictosound_vars.credit_packages.hasOwnProperty(key)) {
+                const packageInfo = pictosound_vars.credit_packages[key];
+                const label = document.createElement('label');
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'creditPackageOption'; // Nome gruppo radio
+                radio.value = key; // Il valore sarà la chiave del pacchetto (es. '20', '40')
 
-        const constraints = {
-            video: {
-                facingMode: currentFacingMode,
-                width: { ideal: 1920 },
-                height: { ideal: 1080 }
+                if (firstPackage) {
+                    radio.checked = true;
+                    firstPackage = false;
+                }
+
+                label.appendChild(radio);
+                label.appendChild(document.createTextNode(` ${packageInfo.credits} Crediti (${packageInfo.price_simulated})`));
+                packagesContainer.appendChild(label);
+                packagesContainer.appendChild(document.createElement('br'));
             }
-        };
+        }
+        console.log("LOG: Pacchetti di ricarica crediti popolati.");
+    }
 
-        try {
-            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-            domElements.cameraFeed.srcObject = currentStream;
-            domElements.cameraViewContainer.style.display = 'flex';
-
-            // Gestione Zoom
-            const [track] = currentStream.getVideoTracks();
-            const capabilities = track.getCapabilities();
-            if (capabilities.zoom) {
-                zoomCapabilities = capabilities.zoom;
-                currentZoom = zoomCapabilities.min;
-                addTouchListeners();
-                console.log("LOG: Zoom supportato. Range:", zoomCapabilities.min, "-", zoomCapabilities.max);
+    // Chiama la funzione per popolare i pacchetti se pictosound_vars è disponibile
+    if (typeof pictosound_vars !== 'undefined' && pictosound_vars !== null) {
+        populateCreditPackages();
+    } else {
+        // Se pictosound_vars non è pronto subito, attendi e riprova.
+        setTimeout(() => {
+            if (typeof pictosound_vars !== 'undefined' && pictosound_vars !== null) {
+                populateCreditPackages();
             } else {
-                console.log("LOG: Zoom non supportato da questa fotocamera.");
+                console.error("ERRORE CRITICO: pictosound_vars non definito per popolare pacchetti.");
+            }
+        }, 600); // Un leggero ritardo maggiore rispetto all'altro timeout
+    }
+
+    // Event Listener per il pulsante di ricarica con auto-recovery
+    const rechargeButton = document.getElementById('rechargeCreditsButton');
+    const rechargeStatusDiv = document.getElementById('rechargeStatusMessage');
+
+    if (rechargeButton) {
+        rechargeButton.addEventListener('click', async () => {
+            console.log("LOG: Pulsante 'Ricarica Crediti' cliccato (con auto-recovery).");
+
+            if (typeof pictosound_vars === 'undefined' || pictosound_vars === null) {
+                console.error("ERRORE CRITICO: pictosound_vars non definito!");
+                if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, "Errore di configurazione.", "error");
+                return;
+            }
+            if (!pictosound_vars.is_user_logged_in) {
+                if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, pictosound_vars.text_login_required || "Devi effettuare il login.", "error");
+                return;
             }
 
-        } catch (error) {
-            handleCameraError(error);
-        }
-    }
-
-    /**
-     * Gestisce gli errori di accesso alla fotocamera.
-     */
-    function handleCameraError(error) {
-        console.error("Errore accesso fotocamera:", error);
-        let errorMessage = "Impossibile accedere alla fotocamera.";
-        if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-            errorMessage = "Hai negato il permesso di usare la fotocamera. Abilitalo nelle impostazioni del browser.";
-        } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-            errorMessage = "Nessuna fotocamera trovata sul tuo dispositivo.";
-        }
-        setStatusMessage(errorMessage, "error");
-        closeCamera();
-    }
-
-    /**
-     * Chiude la fotocamera.
-     */
-    function closeCamera() {
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-            currentStream = null;
-        }
-        removeTouchListeners();
-        domElements.cameraViewContainer.style.display = 'none';
-        document.body.classList.remove('camera-active');
-        setStatusMessage("", "info");
-    }
-
-    /**
-     * Cattura un frame dal video e lo processa.
-     */
-    function captureImage() {
-        if (!currentStream) return;
-        const video = domElements.cameraFeed;
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = video.videoWidth;
-        tempCanvas.height = video.videoHeight;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-        const imageDataUrl = tempCanvas.toDataURL('image/jpeg');
-        processNewImage(imageDataUrl);
-        closeCamera();
-    }
-
-    /**
-     * Cambia fotocamera (frontale/posteriore).
-     */
-    function switchCamera() {
-        currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
-        openCamera();
-    }
-
-    // --- Funzioni per Gesti Touch (DAL TUO FILE JS) ---
-
-    function addTouchListeners() {
-        domElements.cameraFeed.addEventListener('touchstart', handleTouchStart, { passive: false });
-        domElements.cameraFeed.addEventListener('touchmove', handleTouchMove, { passive: false });
-        domElements.cameraFeed.addEventListener('touchend', handleTouchEnd);
-    }
-
-    function removeTouchListeners() {
-        domElements.cameraFeed.removeEventListener('touchstart', handleTouchStart);
-        domElements.cameraFeed.removeEventListener('touchmove', handleTouchMove);
-        domElements.cameraFeed.removeEventListener('touchend', handleTouchEnd);
-    }
-
-    function handleTouchStart(event) {
-        event.preventDefault();
-        if (event.touches.length === 2) {
-            initialPinchDistance = getDistance(event.touches);
-        }
-    }
-
-    function handleTouchMove(event) {
-        event.preventDefault();
-        if (event.touches.length === 2 && zoomCapabilities) {
-            const newDistance = getDistance(event.touches);
-            const zoomFactor = newDistance / initialPinchDistance;
-
-            // Calcola il nuovo livello di zoom
-            let newZoom = currentZoom * zoomFactor;
-
-            // Limita lo zoom entro i valori min/max supportati
-            newZoom = Math.max(zoomCapabilities.min, Math.min(newZoom, zoomCapabilities.max));
-
-            // Applica lo zoom
-            const [track] = currentStream.getVideoTracks();
-            track.applyConstraints({ advanced: [{ zoom: newZoom }] });
-        }
-    }
-
-    function handleTouchEnd(event) {
-        if (event.touches.length > 0) return; // Se ci sono ancora dita sullo schermo, non fare nulla
-
-        const currentTime = new Date().getTime();
-        const timeSinceLastTap = currentTime - lastTap;
-
-        if (timeSinceLastTap < DOUBLE_TAP_DELAY && timeSinceLastTap > 0) {
-            // È un doppio tocco!
-            console.log("LOG: Doppio tocco rilevato, scatto la foto.");
-            captureImage();
-        }
-
-        lastTap = currentTime;
-        initialPinchDistance = 0; // Resetta la distanza del pinch
-
-        // Salva il livello di zoom corrente dopo il pinch
-        if (zoomCapabilities) {
-            const [track] = currentStream.getVideoTracks();
-            currentZoom = track.getSettings().zoom || 1;
-        }
-    }
-
-    function getDistance(touches) {
-        const [touch1, touch2] = touches;
-        return Math.sqrt(
-            Math.pow(touch2.pageX - touch1.pageX, 2) +
-            Math.pow(touch2.pageY - touch1.pageY, 2)
-        );
-    }
-
-    // ===================================================================
-    // 🧠 FUNZIONI REALI DI ANALISI AI
-    // ===================================================================
-
-    /**
-     * Carica tutti i modelli AI necessari
-     */
-    async function loadModels() {
-        try {
-            setStatusMessage("🤖 Caricamento modelli AI in corso...", "info");
-
-            // Carica il modello COCO-SSD per object detection
-            console.log("🔄 Caricamento COCO-SSD...");
-            cocoSsdModel = await cocoSsd.load();
-            console.log("✅ COCO-SSD caricato con successo");
-
-            // Carica i modelli Face-API
-            console.log("🔄 Caricamento Face-API models...");
-            const baseUrl = '/wp-content/pictosound/js/models';
-            await Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri(baseUrl),
-                faceapi.nets.faceExpressionNet.loadFromUri(baseUrl),
-                faceapi.nets.ageGenderNet.loadFromUri(baseUrl)
-            ]);
-            faceApiModelsLoaded = true;
-            console.log("✅ Face-API models caricati con successo");
-
-            setStatusMessage("🎉 Modelli AI pronti! Carica un'immagine per iniziare.", "success");
-
-        } catch (error) {
-            console.error("❌ Errore nel caricamento dei modelli:", error);
-            setStatusMessage("⚠️ Alcuni modelli AI non sono disponibili. L'analisi potrebbe essere limitata.", "error");
-        }
-    }
-
-    /**
-     * Funzione helper per i messaggi di stato
-     */
-    function setStatusMessage(message, type = "info") {
-        if (!domElements.statusDiv) return;
-        domElements.statusDiv.textContent = message;
-        domElements.statusDiv.className = 'status-message';
-        if (type === "error") domElements.statusDiv.classList.add("status-error");
-        else if (type === "success") domElements.statusDiv.classList.add("status-success");
-        domElements.statusDiv.style.display = message ? 'block' : 'none';
-    }
-
-    /**
-     * Analisi avanzata dei colori dell'immagine
-     */
-    function analyzeImageAdvanced(imageElement) {
-        console.log("🎨 Analisi avanzata colori in corso...");
-
-        // Crea un canvas temporaneo per l'analisi dei colori
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // Ridimensiona per performance (max 300px)
-        const maxSize = 300;
-        const scale = Math.min(maxSize / imageElement.width, maxSize / imageElement.height);
-        canvas.width = imageElement.width * scale;
-        canvas.height = imageElement.height * scale;
-
-        ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
-
-        // Ottieni i pixel
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const pixels = imageData.data;
-
-        // Analizza i colori
-        const colorCounts = {};
-        let totalBrightness = 0;
-        let totalSaturation = 0;
-        let pixelCount = 0;
-
-        for (let i = 0; i < pixels.length; i += 4) {
-            const r = pixels[i];
-            const g = pixels[i + 1];
-            const b = pixels[i + 2];
-            const a = pixels[i + 3];
-
-            if (a < 128) continue; // Salta pixel trasparenti
-
-            // Calcola luminosità
-            const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
-            totalBrightness += brightness;
-
-            // Calcola saturazione (HSV)
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
-            const saturation = max === 0 ? 0 : (max - min) / max * 100;
-            totalSaturation += saturation;
-
-            // Raggruppa colori simili (riduce precisione per clustering)
-            const colorKey = `${Math.floor(r / 20) * 20},${Math.floor(g / 20) * 20},${Math.floor(b / 20) * 20}`;
-            colorCounts[colorKey] = (colorCounts[colorKey] || 0) + 1;
-
-            pixelCount++;
-        }
-
-        // Trova i colori dominanti
-        const sortedColors = Object.entries(colorCounts)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 5);
-
-        const dominantColors = sortedColors.map(([colorKey, count]) => {
-            const [r, g, b] = colorKey.split(',').map(Number);
-            const percentage = Math.round((count / pixelCount) * 100);
-
-            // Calcola HSL
-            const max = Math.max(r, g, b) / 255;
-            const min = Math.min(r, g, b) / 255;
-            const lightness = (max + min) / 2;
-            const delta = max - min;
-            const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
-
-            let hue = 0;
-            if (delta !== 0) {
-                if (max === r / 255) hue = ((g / 255 - b / 255) / delta) % 6;
-                else if (max === g / 255) hue = (b / 255 - r / 255) / delta + 2;
-                else hue = (r / 255 - g / 255) / delta + 4;
+            const selectedPackageRadio = document.querySelector('input[name="creditPackageOption"]:checked');
+            if (!selectedPackageRadio) {
+                if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, "Seleziona un pacchetto di crediti.", "warn");
+                return;
             }
-            hue = Math.round(hue * 60);
-            if (hue < 0) hue += 360;
+            const packageKey = selectedPackageRadio.value;
 
-            return {
-                r, g, b,
-                percentage,
-                hue: hue,
-                saturation: Math.round(saturation * 100),
-                lightness: Math.round(lightness * 100)
-            };
+            if (rechargeStatusDiv) setStatusMessage(rechargeStatusDiv, "Processo di ricarica in corso...", "info");
+            rechargeButton.disabled = true;
+
+            // Usa la funzione rechargeCredits con auto-recovery
+            rechargeCredits(packageKey);
+
+            // Re-abilita il pulsante dopo un breve delay
+            setTimeout(() => {
+                rechargeButton.disabled = false;
+            }, 2000);
+        });
+    } else {
+        console.warn("WARN: Pulsante 'rechargeCreditsButton' non trovato nel DOM.");
+    }
+
+    function updateDurationOptionsUI() {
+        if (typeof pictosound_vars === 'undefined' || pictosound_vars === null) {
+            console.warn("WARN: pictosound_vars non è definito o è null. Impossibile aggiornare le opzioni di durata.");
+            if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore: Dati di configurazione utente non caricati.", "error");
+
+            const durationRadiosFallback = document.querySelectorAll('input[name="musicDuration"]');
+            durationRadiosFallback.forEach(radio => {
+                const label = document.querySelector(`label[for="${radio.id}"]`);
+                if (radio.value !== "40") { // Assumendo 40s sia sempre FREE
+                    radio.disabled = true;
+                    if (label) {
+                        label.style.opacity = '0.5';
+                        label.title = "Informazioni sui costi non disponibili.";
+                    }
+                } else {
+                    radio.disabled = false;
+                    if (label) {
+                        label.style.opacity = '1';
+                        label.title = "Gratuito";
+                    }
+                }
+            });
+            return;
+        }
+
+        const durationRadios = document.querySelectorAll('input[name="musicDuration"]');
+        durationRadios.forEach(radio => {
+            const durationValue = radio.value;
+            const cost = pictosound_vars.duration_costs && pictosound_vars.duration_costs[durationValue] !== undefined
+                ? pictosound_vars.duration_costs[durationValue]
+                : (durationValue === "40" ? 0 : 999);
+
+            const label = document.querySelector(`label[for="${radio.id}"]`);
+            let reason = '';
+            let enableOption = true;
+
+            if (cost > 0) {
+                if (!pictosound_vars.is_user_logged_in) {
+                    enableOption = false;
+                    reason = pictosound_vars.text_login_required || "Login richiesto";
+                } else if (pictosound_vars.user_credits < cost) {
+                    enableOption = false;
+                    reason = (pictosound_vars.text_insufficient_credits || "Crediti insufficienti") + ` (Servono ${cost}, hai ${pictosound_vars.user_credits})`;
+                } else {
+                    reason = `Costo: ${cost} cr.`;
+                }
+            } else if (cost === 0) {
+                reason = 'FREE';
+            } else {
+                enableOption = false;
+                reason = 'Opzione non disponibile';
+            }
+
+            radio.disabled = !enableOption;
+            if (label) {
+                const creditSpan = label.querySelector('.duration-credit');
+                if (creditSpan) {
+                    if (!label.dataset.originalCreditText && creditSpan.textContent) {
+                        label.dataset.originalCreditText = creditSpan.textContent;
+                    }
+
+                    if (!enableOption && cost > 0) {
+                        creditSpan.textContent = reason.split('(')[0].trim();
+                    } else {
+                        if (label.dataset.originalCreditText) creditSpan.textContent = label.dataset.originalCreditText;
+                    }
+                }
+                label.title = reason;
+                label.style.opacity = enableOption ? '1' : '0.5';
+                if (!enableOption) {
+                    label.classList.add('disabled-option-custom');
+                } else {
+                    label.classList.remove('disabled-option-custom');
+                }
+            }
         });
 
-        const averageBrightness = Math.round(totalBrightness / pixelCount);
-        const averageSaturation = Math.round(totalSaturation / pixelCount);
-
-        // Calcola contrasto
-        const maxBrightness = Math.max(...dominantColors.map(c => c.lightness));
-        const minBrightness = Math.min(...dominantColors.map(c => c.lightness));
-        const contrast = maxBrightness - minBrightness;
-
-        const result = {
-            dominantColors,
-            averageBrightness,
-            contrast,
-            averageSaturation
-        };
-
-        console.log("✅ Analisi colori completata:", result);
-        return result;
-    }
-
-    /**
-     * Detecta oggetti nell'immagine usando COCO-SSD
-     */
-    async function detectObjectsInImage(imageElement) {
-        if (!cocoSsdModel) {
-            console.warn("⚠️ Modello COCO-SSD non ancora caricato");
-            return ["oggetto_generico"];
-        }
-
-        try {
-            console.log("🔍 Rilevamento oggetti in corso...");
-
-            // Esegui la predizione
-            const predictions = await cocoSsdModel.detect(imageElement);
-
-            // Estrai le classi rilevate (con confidenza > 0.3)
-            const detectedObjects = predictions
-                .filter(prediction => prediction.score > 0.3)
-                .map(prediction => prediction.class)
-                .filter((value, index, self) => self.indexOf(value) === index); // Rimuovi duplicati
-
-            console.log("✅ Oggetti rilevati:", detectedObjects);
-
-            // Se non trova nulla, ritorna una categoria generica
-            if (detectedObjects.length === 0) {
-                return ["scena_generica"];
+        const currentlySelectedRadio = document.querySelector('input[name="musicDuration"]:checked');
+        if (currentlySelectedRadio && currentlySelectedRadio.disabled) {
+            const freeOption = document.getElementById('duration40');
+            if (freeOption && !freeOption.disabled) {
+                freeOption.checked = true;
             }
-
-            return detectedObjects;
-
-        } catch (error) {
-            console.error("❌ Errore nel rilevamento oggetti:", error);
-            return ["oggetto_generico"];
         }
+        console.log("LOG: UI opzioni durata aggiornata. Crediti utente:", pictosound_vars.user_credits, "Login:", pictosound_vars.is_user_logged_in);
     }
 
-    /**
-     * Analizza le espressioni facciali usando Face-API
-     */
-    async function analyzeFacesInImage(imageElement) {
-        if (!faceApiModelsLoaded) {
-            console.warn("⚠️ Modelli Face-API non ancora caricati");
-            return ["neutral"];
-        }
-
-        try {
-            console.log("😊 Analisi espressioni facciali in corso...");
-
-            // Rileva volti con espressioni
-            const detections = await faceapi
-                .detectAllFaces(imageElement, new faceapi.TinyFaceDetectorOptions())
-                .withFaceExpressions();
-
-            if (detections.length === 0) {
-                console.log("ℹ️ Nessun volto rilevato");
-                return ["no_face"];
-            }
-
-            // Estrai le emozioni dominanti
-            const emotions = [];
-            detections.forEach(detection => {
-                const expressions = detection.expressions;
-
-                // Trova l'espressione con confidenza maggiore
-                let maxExpression = 'neutral';
-                let maxScore = 0;
-
-                Object.entries(expressions).forEach(([emotion, score]) => {
-                    if (score > maxScore && score > 0.3) { // Soglia di confidenza
-                        maxScore = score;
-                        maxExpression = emotion;
-                    }
-                });
-
-                emotions.push(maxExpression);
-            });
-
-            console.log("✅ Emozioni rilevate:", emotions);
-
-            // Rimuovi duplicati
-            return [...new Set(emotions)];
-
-        } catch (error) {
-            console.error("❌ Errore nell'analisi delle espressioni:", error);
-            return ["neutral"];
-        }
+    // Contexts for canvases (con controllo di esistenza)
+    let detectionCtx = null;
+    if (domElements.detectionCanvas) {
+        detectionCtx = domElements.detectionCanvas.getContext('2d');
     }
 
-    // ===================================================================
-    // 🎵 LOGICA MUSICALE (DAL TUO HTML ORIGINALE)
-    // ===================================================================
+    let imageAnalysisCtx = null;
+    if (domElements.imageCanvas) {
+        imageAnalysisCtx = domElements.imageCanvas.getContext('2d');
+    }
 
-    // Data for checkbox pills (mantieni i tuoi dati originali)
+    // State variables
+    let currentImage = null;
+    let currentImageSrc = null;
+    let currentStream = null;
+    let currentFacingMode = "environment";
+    let imageAnalysisResults = null;
+    let stableAudioPromptForMusic = "";
+    let cocoSsdModel = null;
+    let faceApiModelLoaded = false;
+    const showDetections = false;
+    let initialPreselectionDoneForCurrentImage = false;
+
+    // Italian to English translations for objects and emotions
+    const objectTranslations = {
+        "person": "persona", "cat": "gatto", "dog": "cane", "car": "auto", "tree": "albero",
+        "book": "libro", "toothbrush": "spazzolino", "laptop": "laptop", "cell phone": "cellulare",
+        "keyboard": "tastiera", "mouse": "mouse", "remote": "telecomando", "tv": "televisione",
+        "bicycle": "bicicletta", "motorcycle": "motocicletta", "airplane": "aeroplano", "bus": "autobus",
+        "train": "treno", "truck": "camion", "boat": "barca", "traffic light": "semaforo",
+        "fire hydrant": "idrante", "stop sign": "segnale di stop", "parking meter": "parchimetro",
+        "bench": "panchina", "bird": "uccello", "horse": "cavallo", "sheep": "pecora",
+        "cow": "mucca", "elephant": "elefante", "bear": "orso", "zebra": "zebra", "giraffe": "giraffa",
+        "backpack": "zaino", "umbrella": "ombrello", "handbag": "borsetta", "tie": "cravatta",
+        "suitcase": "valigia", "frisbee": "frisbee", "skis": "sci", "snowboard": "snowboard",
+        "sports ball": "palla sportiva", "kite": "aquilone", "baseball bat": "mazza da baseball",
+        "baseball glove": "guanto da baseball", "skateboard": "skateboard", "surfboard": "tavola da surf",
+        "tennis racket": "racchetta da tennis", "bottle": "bottiglia", "wine glass": "bicchiere da vino",
+        "cup": "tazza", "fork": "forchetta", "knife": "coltello", "spoon": "cucchiaio", "bowl": "ciotola",
+        "banana": "banana", "apple": "mela", "sandwich": "panino", "orange": "arancia",
+        "broccoli": "broccoli", "carrot": "carota", "hot dog": "hot dog", "pizza": "pizza",
+        "donut": "ciambella", "cake": "torta", "chair": "sedia", "couch": "divano",
+        "potted plant": "pianta in vaso", "bed": "letto", "dining table": "tavolo da pranzo", "toilet": "toilette"
+    };
+
+    const emotionTranslations = {
+        "neutral": "neutrale", "happy": "felice", "sad": "triste", "angry": "arrabbiato/a",
+        "fearful": "impaurito/a", "disgusted": "disgustato/a", "surprised": "sorpreso/a"
+    };
+
+    // Cue translations for building the English prompt for the music API
+    const cueTranslationsITtoEN = {
+        mood: {
+            "felice": "happy", "gioioso": "joyful", "triste": "sad", "malinconico": "melancholic", "riflessivo": "reflective",
+            "epico": "epic", "grandioso": "grandiose", "rilassante": "relaxing", "calmo": "calm",
+            "energico": "energetic", "vivace": "lively", "misterioso": "mysterious", "inquietante": "eerie",
+            "sognante": "dreamy", "etereo": "ethereal", "romantico": "romantic", "drammatico": "dramatic",
+            "futuristico": "futuristic", "sci-fi": "sci-fi", "nostalgico": "nostalgic", "potente": "powerful", "intenso": "intense",
+            "descrittivo": "descriptive", "oscuro": "dark", "profondo": "deep", "brillante": "bright", "luminoso": "luminous",
+            "tenue": "muted", "desaturato": "desaturated", "vibrante": "vibrant", "saturo": "saturated",
+            "morbido": "soft", "sfumato": "blurred", "netto": "sharp", "dinamico": "dynamic",
+            "atmosferico": "atmospheric", "contemplativo": "contemplative", "meravigliato": "wondrous", "anticipatorio": "anticipatory",
+            "sospeso": "suspenseful"
+        },
+        genre: {
+            "elettronica": "electronic", "dance": "dance", "edm": "EDM", "rock": "rock", "pop": "pop", "jazz": "jazz",
+            "classica": "classical", "ambient": "ambient", "soundtrack": "soundtrack", "cinematografica": "cinematic",
+            "folk": "folk", "acustica": "acoustic", "lo-fi": "lo-fi", "chillhop": "chillhop", "hip-hop": "hip hop",
+            "funk": "funk", "soul": "soul", "metal": "metal", "reggae": "reggae", "blues": "blues",
+            "world": "world music", "etnica": "ethnic music", "folk acustico": "acoustic folk", "ambient naturale": "natural ambient",
+            "urban jazz": "urban jazz", "lo-fi hip hop": "lo-fi hip hop"
+        },
+        instrument: {
+            "pianoforte": "piano", "chitarra acustica": "acoustic guitar", "chitarra elettrica": "electric guitar",
+            "basso": "bass", "batteria": "drums", "percussioni": "percussion", "violino": "violin", "archi": "strings",
+            "violoncello": "cello", "sassofono": "saxophone", "tromba": "trumpet", "ottoni": "brass instruments", "flauto": "flute",
+            "sintetizzatore": "synthesizer", "tastiere": "keyboards", "organo": "organ", "arpa": "harp", "ukulele": "ukulele",
+            "voce umana (cori o effetti)": "human voice (choir or effects)", "voce solista (da definire)": "solo voice", "voce solista": "solo voice",
+            "nessuno strumento specifico": "",
+            "basso profondo": "deep bass", "flauto brillante": "bright flute", "glockenspiel": "glockenspiel",
+            "pad eterei": "ethereal pads", "chitarra con riverbero": "guitar with reverb",
+            "chitarra elettrica con overdrive leggero": "electric guitar with light overdrive", "sassofono contralto": "alto saxophone",
+            "sintetizzatore lead malinconico": "melancholic lead synthesizer", "archi lenti": "slow strings", "clarinetto": "clarinet"
+        },
+        rhythm: {
+            "no_rhythm": "no distinct rhythm", "ambientale": "ambient rhythm",
+            "slow_rhythm": "slow rhythm", "rilassato": "relaxed rhythm",
+            "moderate_groove": "moderate groove", "orecchiabile": "catchy rhythm",
+            "upbeat_energetic": "upbeat energetic rhythm",
+            "complex_experimental_rhythm": "complex experimental rhythm"
+        },
+        object: {},
+        tonality: {
+            "maggiore": "major", "minore": "minor", "misto": ""
+        },
+        general: {
+            "descrittivo": "descriptive",
+            "lento": "slow",
+            "moderato": "moderate",
+            "veloce": "fast",
+            "strumentale": "instrumental",
+            "medium": "medium",
+            "low": "low",
+            "high": "high"
+        }
+    };
+
+    // Populate object translations for cue system
+    for (const key in objectTranslations) {
+        cueTranslationsITtoEN.object[objectTranslations[key].toLowerCase()] = key.replace("_en", "");
+    }
+
+    // Helper function to translate cues to English for the API prompt
+    function translateCueToEnglish(italianCue, type) {
+        if (!italianCue) return "";
+        const lowerCue = String(italianCue).toLowerCase();
+
+        if (type === 'object' && cueTranslationsITtoEN.object[lowerCue]) {
+            return cueTranslationsITtoEN.object[lowerCue];
+        }
+        if (cueTranslationsITtoEN[type] && cueTranslationsITtoEN[type][lowerCue]) {
+            return cueTranslationsITtoEN[type][lowerCue];
+        }
+        if (cueTranslationsITtoEN.general[lowerCue]) {
+            return cueTranslationsITtoEN.general[lowerCue];
+        }
+        console.warn(`No English translation for '${italianCue}' of type '${type}'. Using original.`);
+        return italianCue;
+    }
+
+    // Data for checkbox pills (cues)
     const moodItems = [
         { value: "felice", label: "Felice / Gioioso" }, { value: "triste", label: "Triste / Malinconico" }, { value: "riflessivo", label: "Riflessivo" },
         { value: "epico", label: "Epico / Grandioso" }, { value: "rilassante", label: "Rilassante / Calmo" },
@@ -537,6 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { value: "nostalgico", label: "Nostalgico" }, { value: "potente", label: "Potente / Intenso" },
         { value: "meravigliato", label: "Meravigliato" }, { value: "anticipatorio", label: "Anticipatorio" }, { value: "sospeso", label: "Sospeso" }
     ];
+
     const genreItems = [
         { value: "elettronica", label: "Elettronica" }, { value: "dance", label: "Dance / EDM" },
         { value: "rock", label: "Rock" }, { value: "pop", label: "Pop" }, { value: "jazz", label: "Jazz" },
@@ -547,6 +573,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { value: "reggae", label: "Reggae" }, { value: "blues", label: "Blues" },
         { value: "world", label: "World Music / Etnica" }, { value: "urban jazz", label: "Urban Jazz" }
     ];
+
     const instrumentItems = [
         { value: "pianoforte", label: "Pianoforte" }, { value: "chitarra acustica", label: "Chitarra Acustica" },
         { value: "chitarra elettrica", label: "Chitarra Elettrica" }, { value: "basso", label: "Basso" }, { value: "basso profondo", label: "Basso Profondo" },
@@ -560,6 +587,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { value: "chitarra con riverbero", label: "Chitarra con Riverbero" }, { value: "chitarra elettrica con overdrive leggero", label: "Chitarra Elettrica Overdrive Leggero" },
         { value: "nessuno strumento specifico", label: "Nessuno strumento specifico" }
     ];
+
     const rhythmItems = [
         { value: "no_rhythm", label: "Nessun ritmo evidente (Ambientale)" },
         { value: "slow_rhythm", label: "Ritmo Lento e Rilassato" },
@@ -568,6 +596,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         { value: "complex_experimental_rhythm", label: "Ritmo Complesso / Sperimentale" }
     ];
 
+    // AI Processing Simulation Text
+    let simulatedProcessingInterval;
+    const simulatedProcessingMessages = [
+        "Analisi contorni e forme...", "Estrazione pattern visivi...", "Valutazione composizione cromatica...",
+        "Identificazione elementi chiave...", "Interpretazione atmosfera generale...", "Ricerca corrispondenze emotive...",
+        "Elaborazione palette sonora...", "Definizione struttura armonica...", "Sviluppo linea melodica...",
+        "Costruzione del paesaggio sonoro..."
+    ];
+    let currentMessageIndex = 0;
+
+    function startAISimulationText() {
+        const simulationDiv = domElements.aiInsightsContent.querySelector('.ai-processing-simulation');
+        if (!simulationDiv && domElements.aiInsightsContent) {
+            const newSimDiv = document.createElement('div');
+            newSimDiv.classList.add('ai-processing-simulation');
+            newSimDiv.id = 'aiProcessingSimulation';
+            domElements.aiInsightsContent.prepend(newSimDiv);
+            domElements.aiProcessingSimulationDiv = newSimDiv;
+        } else if (simulationDiv) {
+            simulationDiv.innerHTML = '';
+        }
+
+        if (domElements.aiProcessingSimulationDiv) {
+            domElements.aiProcessingSimulationDiv.style.display = 'block';
+            let line1 = document.createElement('p');
+            let line2 = document.createElement('p');
+            domElements.aiProcessingSimulationDiv.appendChild(line1);
+            domElements.aiProcessingSimulationDiv.appendChild(line2);
+
+            currentMessageIndex = 0;
+            line1.textContent = simulatedProcessingMessages[currentMessageIndex % simulatedProcessingMessages.length];
+            line2.textContent = simulatedProcessingMessages[(currentMessageIndex + 1) % simulatedProcessingMessages.length];
+
+            simulatedProcessingInterval = setInterval(() => {
+                currentMessageIndex++;
+                line1.textContent = simulatedProcessingMessages[currentMessageIndex % simulatedProcessingMessages.length];
+                line2.textContent = simulatedProcessingMessages[(currentMessageIndex + 1) % simulatedProcessingMessages.length];
+            }, 1500);
+        }
+    }
+
+    function stopAISimulationText() {
+        clearInterval(simulatedProcessingInterval);
+        if (domElements.aiProcessingSimulationDiv) {
+            domElements.aiProcessingSimulationDiv.style.display = 'none';
+        }
+    }
+
+    // Function to populate checkbox pills
     function populateCheckboxPills(container, items, groupName) {
         if (!container) return;
         container.innerHTML = '';
@@ -591,296 +668,1570 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function setupCollapsibleSections() {
-        if (domElements.detailsAccordionHeader) {
-            domElements.detailsAccordionHeader.addEventListener('click', () => {
-                const isOpen = domElements.detailsAccordionHeader.classList.toggle('open');
-                domElements.aiInsightsContent.style.display = isOpen ? 'block' : 'none';
-            });
-        }
-        document.querySelectorAll('.collapsible-cue-header').forEach(header => {
-            header.addEventListener('click', () => {
-                header.classList.toggle('open');
-                const pillsGroup = header.nextElementSibling;
-                if (pillsGroup && pillsGroup.classList.contains('checkbox-pills-group')) {
-                    pillsGroup.classList.toggle('open');
-                }
-                const bpmSliderContainer = header.parentElement.querySelector('.bpm-slider-container');
-                if (bpmSliderContainer) {
-                    bpmSliderContainer.style.display = header.classList.contains('open') ? 'block' : 'none';
-                }
-            });
-        });
-    }
+    // Populate all cue sections
+    populateCheckboxPills(domElements.moodPillsContainer, moodItems, 'mood');
+    populateCheckboxPills(domElements.genrePillsContainer, genreItems, 'genre');
+    populateCheckboxPills(domElements.instrumentPillsContainer, instrumentItems, 'instrument');
+    populateCheckboxPills(domElements.rhythmPillsContainer, rhythmItems, 'rhythm');
 
+    // Helper to get selected checkbox values
     function getSelectedCheckboxValues(groupName) {
         return Array.from(document.querySelectorAll(`input[name="${groupName}"]:checked`)).map(cb => cb.value);
     }
 
-    // LOGICA MUSICALE MIGLIORATA CON AI REALE
-    function getMusicalCues(analysis, userInputs) {
-        const { colors, objects, emotions } = analysis;
+    // Helper to convert RGB to HSL
+    function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return { h: h * 360, s: s * 100, l: l * 100 };
+    }
+
+    // Helper to translate object class from English (COCO-SSD) to Italian
+    function translateObject(objectClass) {
+        return objectTranslations[objectClass.toLowerCase()] || objectClass;
+    }
+
+    // Helper to translate emotion from English (FaceAPI) to Italian
+    function translateEmotion(emotion) {
+        return emotionTranslations[emotion.toLowerCase()] || emotion;
+    }
+
+    // Toggle visibility of detection canvas
+    function toggleDetectionCanvasVisibility() {
+        domElements.detectionCanvas.style.display = showDetections ? 'block' : 'none';
+    }
+
+    // Core logic to determine musical cues based on analysis and user input
+    function getMusicalCues(analysis, detectedObjects, detectedEmotions, creativityLevel, userInputs) {
         const cues = {
             moods: [...userInputs.selectedMoods],
             genres: [...userInputs.selectedGenres],
             instruments: [...userInputs.selectedInstruments],
             rhythms: [...userInputs.selectedRhythms],
-            tempoBPM: userInputs.selectedBPM
+            tempoBPM: userInputs.selectedBPM,
+            tempoDescription: userInputs.selectedBPM <= 76 ? "lento" : userInputs.selectedBPM <= 120 ? "moderato" : "veloce",
+            energy: "medium",
+            tonality: "misto",
+            keywords: [],
+            vocalPresence: "strumentale",
+            creativityLevel: creativityLevel
         };
 
-        // SUGGERIMENTI AI BASATI SU ANALISI REALE
-        if (userInputs.selectedMoods.length === 0) {
-            // Basato su emozioni rilevate
-            if (emotions.includes("happy")) cues.moods.push("felice", "energico");
-            if (emotions.includes("sad")) cues.moods.push("triste", "malinconico");
-            if (emotions.includes("angry")) cues.moods.push("potente", "intenso");
-            if (emotions.includes("surprised")) cues.moods.push("meravigliato");
-            if (emotions.includes("fearful")) cues.moods.push("misterioso", "drammatico");
-            if (emotions.includes("neutral") || emotions.includes("no_face")) {
-                // Basato su colori se non ci sono emozioni
-                if (colors && colors.averageBrightness > 180) cues.moods.push("felice", "energico");
-                if (colors && colors.averageBrightness < 70) cues.moods.push("misterioso", "drammatico");
-                if (colors && colors.averageSaturation > 70) cues.moods.push("energico");
-                if (colors && colors.averageSaturation < 30) cues.moods.push("rilassante", "riflessivo");
+        cues.keywords.push(...userInputs.selectedMoods, ...userInputs.selectedGenres, ...userInputs.selectedInstruments, ...userInputs.selectedRhythms);
+
+        // ✅ SISTEMA SEMPLIFICATO - AI-driven suggestions if no user input for a category AND initial preselection hasn't happened
+        if (!initialPreselectionDoneForCurrentImage) {
+            console.log("🔍 Auto-suggestion attiva - Oggetti:", detectedObjects, "Emozioni:", detectedEmotions);
+
+            // MOOD: Suggerimenti semplificati basati su emozioni
+            if (cues.moods.length === 0 && detectedEmotions && detectedEmotions.length > 0) {
+                const primaryEmotion = detectedEmotions.find(e => e !== "neutrale") || detectedEmotions[0];
+                console.log("🎭 Emozione primaria rilevata:", primaryEmotion);
+
+                if (primaryEmotion) {
+                    switch (primaryEmotion) {
+                        case "felice":
+                            cues.moods.push("energico");
+                            console.log("➡️ Aggiunto mood: energico");
+                            break;
+                        case "triste":
+                            cues.moods.push("malinconico");
+                            console.log("➡️ Aggiunto mood: malinconico");
+                            break;
+                        case "arrabbiato/a":
+                            cues.moods.push("drammatico");
+                            console.log("➡️ Aggiunto mood: drammatico");
+                            break;
+                        case "sorpreso/a":
+                            cues.moods.push("energico");
+                            console.log("➡️ Aggiunto mood: energico");
+                            break;
+                        case "impaurito/a":
+                            cues.moods.push("misterioso");
+                            console.log("➡️ Aggiunto mood: misterioso");
+                            break;
+                        default:
+                            cues.moods.push("rilassante");
+                            console.log("➡️ Aggiunto mood default: rilassante");
+                            break;
+                    }
+                }
             }
+
+            // MOOD ALTERNATIVO: Basato su luminosità se ancora vuoto
+            if (cues.moods.length === 0 && analysis) {
+                if (analysis.averageBrightness < 80) {
+                    cues.moods.push("misterioso");
+                    console.log("➡️ Aggiunto mood da luminosità bassa: misterioso");
+                } else if (analysis.averageBrightness > 170) {
+                    cues.moods.push("energico");
+                    console.log("➡️ Aggiunto mood da luminosità alta: energico");
+                } else {
+                    cues.moods.push("rilassante");
+                    console.log("➡️ Aggiunto mood da luminosità media: rilassante");
+                }
+            }
+
+            // GENERI: Suggerimenti semplificati basati su oggetti
+            if (cues.genres.length === 0 && detectedObjects && detectedObjects.length > 0) {
+                console.log("🎼 Determinazione genere da oggetti...");
+
+                if (detectedObjects.includes("persona")) {
+                    cues.genres.push("folk");
+                    console.log("➡️ Rilevata persona → genere: folk");
+                } else if (detectedObjects.some(o => ["natura", "albero", "montagna", "fiore", "foresta", "lago", "animale", "uccello"].includes(o))) {
+                    cues.genres.push("ambient");
+                    console.log("➡️ Rilevata natura → genere: ambient");
+                } else if (detectedObjects.some(o => ["auto", "città", "strada", "edificio", "semaforo", "autobus"].includes(o))) {
+                    cues.genres.push("elettronica");
+                    console.log("➡️ Rilevato urbano → genere: elettronica");
+                } else if (detectedObjects.some(o => ["libro", "sedia", "tavolo", "divano", "letto"].includes(o))) {
+                    cues.genres.push("classica");
+                    console.log("➡️ Rilevato ambiente domestico → genere: classica");
+                } else {
+                    cues.genres.push("ambient");
+                    console.log("➡️ Genere default: ambient");
+                }
+            }
+
+            // STRUMENTI: Suggerimenti semplificati basati su genere
+            if (cues.instruments.length === 0) {
+                console.log("🎸 Determinazione strumenti da genere...");
+
+                if (cues.genres.includes("folk")) {
+                    cues.instruments.push("chitarra acustica");
+                    console.log("➡️ Folk → strumento: chitarra acustica");
+                } else if (cues.genres.includes("elettronica")) {
+                    cues.instruments.push("sintetizzatore");
+                    console.log("➡️ Elettronica → strumento: sintetizzatore");
+                } else if (cues.genres.includes("classica")) {
+                    cues.instruments.push("archi");
+                    console.log("➡️ Classica → strumento: archi");
+                } else {
+                    cues.instruments.push("pianoforte");
+                    console.log("➡️ Default → strumento: pianoforte");
+                }
+            }
+
+            // RITMO: Suggerimento semplificato basato su mood
+            if (cues.rhythms.length === 0) {
+                if (cues.moods.includes("energico")) {
+                    cues.rhythms.push("upbeat_energetic");
+                    console.log("➡️ Energico → ritmo: upbeat_energetic");
+                } else if (cues.moods.includes("rilassante")) {
+                    cues.rhythms.push("slow_rhythm");
+                    console.log("➡️ Rilassante → ritmo: slow_rhythm");
+                } else {
+                    cues.rhythms.push("moderate_groove");
+                    console.log("➡️ Default → ritmo: moderate_groove");
+                }
+            }
+
+            console.log("✅ Auto-suggestion completata:", {
+                moods: cues.moods,
+                genres: cues.genres,
+                instruments: cues.instruments,
+                rhythms: cues.rhythms
+            });
         }
 
-        if (userInputs.selectedGenres.length === 0) {
-            // Basato su oggetti rilevati
-            if (objects.some(obj => ['bird', 'tree', 'grass', 'mountain', 'sky'].includes(obj))) {
-                cues.genres.push("ambient", "folk", "soundtrack");
-            }
-            if (objects.includes("person")) {
-                if (emotions.includes("happy")) cues.genres.push("pop", "dance");
-                else cues.genres.push("folk", "jazz");
-            }
-            if (objects.some(obj => ['car', 'bus', 'motorbike'].includes(obj))) {
-                cues.genres.push("rock", "elettronica");
-            }
-            if (objects.some(obj => ['bottle', 'wine glass', 'cake'].includes(obj))) {
-                cues.genres.push("jazz");
-            }
+        // Determine overall energy and tonality based on selected/suggested moods
+        const finalMoods = [...new Set(cues.moods)];
+        if (finalMoods.some(m => ["felice", "gioioso", "energico", "ottimista"].includes(m))) {
+            if (cues.energy === "medium") cues.energy = "high";
+            if (cues.tonality === "misto") cues.tonality = "maggiore";
+        } else if (finalMoods.some(m => ["triste", "malinconico", "riflessivo", "sospeso"].includes(m))) {
+            if (cues.energy === "medium") cues.energy = "low";
+            if (cues.tonality === "misto") cues.tonality = "minore";
         }
 
-        if (userInputs.selectedInstruments.length === 0) {
-            // Basato su mood suggerito
-            if (cues.moods.some(m => ['triste', 'malinconico', 'riflessivo'].includes(m))) {
-                cues.instruments.push("pianoforte", "violoncello", "archi lenti");
-            }
-            if (cues.moods.some(m => ['felice', 'energico'].includes(m))) {
-                cues.instruments.push("chitarra elettrica", "batteria", "sintetizzatore");
-            }
-            if (cues.genres.includes("jazz")) {
-                cues.instruments.push("sassofono", "pianoforte", "basso");
-            }
-            if (cues.genres.includes("folk")) {
-                cues.instruments.push("chitarra acustica", "violino");
-            }
+        // Suggest vocal presence if a person is detected
+        if (detectedObjects.includes("persona") && cues.vocalPresence === "strumentale" && !userInputs.selectedInstruments.some(inst => inst.toLowerCase().includes("voce"))) {
+            cues.vocalPresence = "voce solista";
         }
 
-        // Remove duplicates
-        for (const key in cues) {
-            if (Array.isArray(cues[key])) {
-                cues[key] = [...new Set(cues[key])];
-            }
-        }
+        // Consolidate keywords and ensure uniqueness
+        cues.keywords.push(...cues.moods, ...cues.genres, ...cues.instruments, ...cues.rhythms, cues.tempoBPM + " BPM");
+        cues.keywords = [...new Set(cues.keywords.filter(Boolean))];
 
+        // Create a user-friendly text representation of selected cues
+        cues.userTextCues = [...new Set(cues.moods)].join(", ") +
+            ([...new Set(cues.genres)].length > 0 ? ", " + [...new Set(cues.genres)].join(", ") : "") +
+            ([...new Set(cues.instruments)].length > 0 ? ", " + [...new Set(cues.instruments)].join(", ") : "") +
+            ([...new Set(cues.rhythms)].length > 0 ? ", Ritmo: " + [...new Set(cues.rhythms)].join(", ") : "");
+
+        // Final cleanup of cue arrays
+        cues.moods = [...new Set(cues.moods)];
+        cues.genres = [...new Set(cues.genres)];
+        cues.instruments = [...new Set(cues.instruments)];
+        cues.rhythms = [...new Set(cues.rhythms)];
+        if (cues.moods.length === 0) cues.moods.push("descrittivo");
+        console.log("🔍 getMusicalCues RISULTATO FINALE:", {
+            moods: cues.moods,
+            genres: cues.genres,
+            instruments: cues.instruments,
+            detectedObjects: detectedObjects,
+            detectedEmotions: detectedEmotions,
+            initialPreselectionDone: initialPreselectionDoneForCurrentImage
+        });
         return cues;
     }
 
+    // Generates the HTML content for the AI Insights section
+    function generateAIDisplayContent(analysis, detectedObjectsList, detectedEmotionsList, userInputs, finalStablePrompt) {
+        const simulationDiv = domElements.aiInsightsContent.querySelector('.ai-processing-simulation');
+        // Clear previous analysis details, but keep the simulation div template if it exists
+        const existingDetails = domElements.aiInsightsContent.querySelectorAll('h4, ul, #finalPromptForAI');
+        existingDetails.forEach(el => {
+            if (!el.classList.contains('ai-processing-simulation')) {
+                el.remove();
+            }
+        });
+
+        if (simulationDiv) simulationDiv.style.display = 'none';
+
+        // Build HTML for image analysis details
+        let analysisContentHTML = "<h4>Analisi Immagine:</h4><ul>";
+        analysisContentHTML += `<li><strong>Oggetti Rilevati:</strong> ${detectedObjectsList && detectedObjectsList.length > 0 ? detectedObjectsList.join(", ") : "Nessuno o non significativi"}</li>`;
+        analysisContentHTML += `<li><strong>Emozioni Percepite:</strong> ${detectedEmotionsList && detectedEmotionsList.length > 0 && detectedEmotionsList.some(e => e !== "neutrale" || detectedEmotionsList.length === 1) ? detectedEmotionsList.join(", ") : "Nessuna o non significativa"}</li>`;
+
+        if (analysis) {
+            let brightnessDesc = "Media";
+            if (analysis.averageBrightness < 80) brightnessDesc = "Bassa (scena tendenzialmente scura)";
+            else if (analysis.averageBrightness > 170) brightnessDesc = "Alta (scena molto luminosa)";
+            analysisContentHTML += `<li><strong>Luminosità Generale:</strong> ${brightnessDesc}</li>`;
+
+            let contrastDesc = "Medio";
+            if (analysis.contrast < 30) contrastDesc = "Basso (immagine morbida, poco stacco)";
+            else if (analysis.contrast > 70) contrastDesc = "Alto (forte stacco tra chiari e scuri)";
+            analysisContentHTML += `<li><strong>Contrasto:</strong> ${contrastDesc}</li>`;
+
+            let saturationDesc = "Media";
+            if (analysis.averageSaturation < 30) saturationDesc = "Bassa (colori tenui, desaturati)";
+            else if (analysis.averageSaturation > 70) saturationDesc = "Alta (colori vividi e saturi)";
+            analysisContentHTML += `<li><strong>Saturazione Colori:</strong> ${saturationDesc}</li>`;
+
+            if (analysis.dominantColors && analysis.dominantColors.length > 0) {
+                analysisContentHTML += "<li><strong>Colori Dominanti:</strong><ul>";
+                analysis.dominantColors.forEach(c => {
+                    analysisContentHTML += `<li><span class="color-swatch-inline" style="background-color: rgb(${c.r},${c.g},${c.b});"></span>rgb(${c.r},${c.g},${c.b}) - ${c.percentage.toFixed(0)}% (H:${c.hue.toFixed(0)} S:${c.saturation.toFixed(0)} L:${c.lightness.toFixed(0)}) ~${c.pixelCount}px</li>`;
+                });
+                analysisContentHTML += "</ul></li>";
+            }
+        }
+        analysisContentHTML += "</ul>";
+
+        // Get the final musical cues based on current state for display
+        const displayCues = getMusicalCues(analysis, detectedObjectsList, detectedEmotionsList, CREATIVITY_LEVEL, userInputs);
+
+        // Build HTML for musical interpretation
+        let interpretationHtml = "<h4>Interpretazione Musicale Suggerita (basata sull'analisi e tue scelte):</h4><ul>";
+        if (displayCues.moods.length > 0) interpretationHtml += `<li><strong>Mood:</strong> ${displayCues.moods.join(", ")}</li>`;
+        if (displayCues.genres.length > 0) interpretationHtml += `<li><strong>Generi:</strong> ${displayCues.genres.join(", ")}</li>`;
+        if (displayCues.instruments.length > 0) interpretationHtml += `<li><strong>Strumenti:</strong> ${displayCues.instruments.join(", ")}</li>`;
+        if (displayCues.rhythms.length > 0) interpretationHtml += `<li><strong>Ritmo:</strong> ${displayCues.rhythms.map(r => rhythmItems.find(i => i.value === r)?.label || r).join(", ")}</li>`;
+        interpretationHtml += `<li><strong>Energia:</strong> ${displayCues.energy}</li>`;
+        interpretationHtml += `<li><strong>Tempo:</strong> ${displayCues.tempoDescription} (${displayCues.tempoBPM} BPM)</li>`;
+        if (displayCues.tonality !== "misto") interpretationHtml += `<li><strong>Tonalità:</strong> ${displayCues.tonality}</li>`;
+        interpretationHtml += `<li><strong>Presenza Vocale:</strong> ${displayCues.vocalPresence}</li>`;
+        interpretationHtml += "</ul>";
+        interpretationHtml += `<div id="finalPromptForAI">${finalStablePrompt}</div>`;
+
+        // Insert the generated HTML into the AI Insights content area
+        if (domElements.aiProcessingSimulationDiv) {
+            domElements.aiProcessingSimulationDiv.insertAdjacentHTML('afterend', analysisContentHTML + interpretationHtml);
+        } else {
+            domElements.aiInsightsContent.innerHTML += analysisContentHTML + interpretationHtml;
+        }
+    }
+
+    // Generates the final English prompt for the music generation API
+    // ✅ NUOVA FUNZIONE SEMPLIFICATA
+    function generateStableAudioPrompt(parsedData) {
+        console.log("🎵 generateStableAudioPrompt chiamata con:", parsedData);
+
+        // Fallback se parsedData non è valido
+        if (!parsedData) {
+            console.log("⚠️ parsedData non valido, uso fallback");
+            return "acoustic upbeat with guitar, 120 BPM, high quality";
+        }
+
+        // Estrai dati dall'analisi immagine GLOBALE
+        const detectedObjects = imageAnalysisResults?.objects || [];
+        const detectedEmotions = imageAnalysisResults?.emotions || [];
+
+        console.log("🎯 Oggetti rilevati:", detectedObjects);
+        console.log("😊 Emozioni rilevate:", detectedEmotions);
+        console.log("🎭 Mood parsedData:", parsedData.moods);
+        console.log("🎼 Generi parsedData:", parsedData.genres);
+
+        // 1. DETERMINA GENERE PRINCIPALE
+        let genre = "atmospheric"; // Default
+
+        if (detectedObjects.includes("persona")) {
+            genre = "acoustic";
+            console.log("👤 Persona rilevata → genere: acoustic");
+        } else if (detectedObjects.includes("cane") && detectedObjects.includes("persona")) {
+            genre = "acoustic";
+            console.log("👤🐕 Persona + cane → genere: acoustic");
+        } else if (detectedObjects.some(obj => ["auto", "città", "strada"].includes(obj))) {
+            genre = "electronic";
+            console.log("🏙️ Urbano rilevato → genere: electronic");
+        } else if (detectedObjects.some(obj => ["natura", "albero", "montagna"].includes(obj))) {
+            genre = "ambient";
+            console.log("🌲 Natura rilevata → genere: ambient");
+        }
+
+        // 2. DETERMINA MOOD
+        let mood = "";
+
+        // Prima controlla emozioni rilevate DIRETTAMENTE
+        if (detectedEmotions.includes("felice")) {
+            mood = "upbeat";
+            console.log("😊 Emozione felice → mood: upbeat");
+        } else if (detectedEmotions.includes("triste")) {
+            mood = "melancholic";
+            console.log("😢 Emozione triste → mood: melancholic");
+        } else if (parsedData.moods && parsedData.moods.length > 0 && parsedData.moods[0] !== "descrittivo") {
+            // Usa mood dall'analisi se non è il fallback
+            const firstMood = parsedData.moods[0];
+            if (firstMood === "energico") mood = "upbeat";
+            else if (firstMood === "malinconico") mood = "melancholic";
+            else if (firstMood === "rilassante") mood = "calm";
+            console.log("🎭 Mood da parsedData:", firstMood, "→", mood);
+        }
+
+        // 3. DETERMINA STRUMENTO
+        let instrument = "guitar"; // Default per acoustic
+
+        if (genre === "acoustic") instrument = "guitar";
+        else if (genre === "electronic") instrument = "synthesizer";
+        else if (genre === "ambient") instrument = "piano";
+
+        console.log("🎸 Strumento scelto:", instrument);
+
+        // 4. DETERMINA BPM
+        let bpm = "120"; // Default
+        if (mood === "upbeat") bpm = "130";
+        else if (mood === "melancholic" || mood === "calm") bpm = "80";
+
+        console.log("⏱️ BPM scelto:", bpm);
+
+        // 5. COSTRUISCI PROMPT SEMPLICE
+        const parts = [];
+
+        // Aggiungi genere
+        parts.push(genre);
+
+        // Aggiungi mood se significativo
+        if (mood && mood !== genre) {
+            parts.push(mood);
+        }
+
+        // Aggiungi strumento
+        parts.push("with " + instrument);
+
+        // Aggiungi BPM
+        parts.push(bpm + " BPM");
+
+        // Aggiungi qualità
+        parts.push("high quality");
+
+        const finalPrompt = parts.join(", ");
+
+        console.log("🎵 PROMPT FINALE SEMPLIFICATO:", finalPrompt);
+
+        return finalPrompt;
+    }
+
+    // UI Update Functions
+    function setStatusMessage(element, message, type = "info") {
+        if (!element) {
+            console.warn("setStatusMessage: elemento non trovato per messaggio:", message);
+            return;
+        }
+        element.textContent = message;
+        element.className = 'status-message';
+        if (type === "error") element.classList.add("status-error");
+        else if (type === "success") element.classList.add("status-success");
+        element.style.display = message ? 'block' : 'none';
+        if (!message && type === "info") {
+            element.style.display = 'none';
+        }
+    }
+
+    function updateProgressMessage(message, isLoading = false) {
+        domElements.dynamicFeedbackArea.style.display = 'block';
+        if (!message && !isLoading) {
+            domElements.progressAndPlayerContainer.style.display = 'none';
+            domElements.progressMessage.textContent = '';
+            domElements.progressBarContainer.style.display = 'none';
+            return;
+        }
+        domElements.progressAndPlayerContainer.style.display = 'block';
+        domElements.progressMessage.textContent = message;
+        domElements.progressBarContainer.style.display = isLoading ? 'block' : 'none';
+        if (isLoading || message) {
+            domElements.audioPlayerContainer.style.display = 'none';
+        }
+    }
+
+    // Load AI Models (TensorFlow.js)
+    async function loadModels() {
+        console.log("LOG: Inizio caricamento modelli AI...");
+        const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+        let faceApiReady = false, cocoReady = false;
+        setStatusMessage(domElements.statusDiv, "Caricamento modelli AI (Oggetti e Volti)...", "info");
+        domElements.dynamicFeedbackArea.style.display = 'block';
+
+        try {
+            if (typeof faceapi !== 'undefined') {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
+                ]);
+                faceApiModelLoaded = true;
+                faceApiReady = true;
+                console.log("LOG: Modelli face-api.js caricati.");
+            } else {
+                console.error("ERRORE CRITICO: Libreria face-api.js non trovata. Assicurati che '/wp-content/pictosound/js/face-api.min.js' sia caricato.");
+            }
+        } catch (error) {
+            console.error("ERRORE caricamento face-api:", error);
+        }
+
+        try {
+            if (typeof cocoSsd !== 'undefined') {
+                cocoSsdModel = await cocoSsd.load();
+                cocoReady = true;
+                console.log("LOG: Modello COCO-SSD caricato.");
+            } else {
+                console.error("ERRORE CRITICO: Libreria COCO-SSD non trovata. Assicurati che '/wp-content/pictosound/js/coco-ssd.min.js' sia caricato.");
+            }
+        } catch (error) {
+            console.error("ERRORE caricamento COCO-SSD:", error);
+        }
+
+        if (faceApiReady && cocoReady) {
+            setStatusMessage(domElements.statusDiv, "Tutti i modelli AI pronti. Carica un'immagine.", "success");
+            console.log("LOG: Tutti i modelli AI caricati con successo.");
+        } else {
+            let failedModels = [];
+            if (!cocoReady) failedModels.push("Rilevamento Oggetti");
+            if (!faceApiReady) failedModels.push("Rilevamento Volti");
+            setStatusMessage(domElements.statusDiv, `ATTENZIONE: Caricamento fallito per: ${failedModels.join(" e ")}. Funzionalità limitate.`, "error");
+            console.error("ERRORE: Caricamento fallito per:", failedModels.join(" e "));
+        }
+
+        if (domElements.statusDiv.textContent === "Tutti i modelli AI pronti. Carica un'immagine." && !domElements.progressMessage.textContent && domElements.audioPlayerContainer.style.display === 'none') {
+            setTimeout(() => {
+                if (domElements.statusDiv.textContent === "Tutti i modelli AI pronti. Carica un'immagine.") {
+                    domElements.statusDiv.style.display = 'none';
+                    domElements.dynamicFeedbackArea.style.display = 'none';
+                }
+            }, 3000);
+        }
+    }
+
+    // Image Analysis Functions
+    function analyzeImageAdvanced(imageElement, numDominantColors = 5) {
+        if (!imageElement || !imageElement.complete || imageElement.naturalHeight === 0) {
+            console.warn("WARN: analyzeImageAdvanced - Immagine non valida o non caricata.");
+            return null;
+        }
+
+        const aspectRatio = imageElement.naturalWidth / imageElement.naturalHeight;
+        const canvasWidth = 120;
+        const canvasHeight = Math.round(canvasWidth / aspectRatio);
+        domElements.imageCanvas.width = canvasWidth;
+        domElements.imageCanvas.height = canvasHeight;
+        imageAnalysisCtx.drawImage(imageElement, 0, 0, canvasWidth, canvasHeight);
+
+        const imageData = imageAnalysisCtx.getImageData(0, 0, canvasWidth, canvasHeight);
+        const pixels = imageData.data;
+        const colorCounts = {};
+        let totalBrightnessSum = 0;
+        let totalAnalyzedPixels = 0;
+        const colorDepthReduction = 4;
+        const binSize = Math.pow(2, 8 - colorDepthReduction);
+
+        for (let i = 0; i < pixels.length; i += 4) {
+            const r_orig = pixels[i], g_orig = pixels[i + 1], b_orig = pixels[i + 2], alpha = pixels[i + 3];
+            if (alpha > 128) {
+                const r_binned = Math.floor(r_orig / binSize) * binSize;
+                const g_binned = Math.floor(g_orig / binSize) * binSize;
+                const b_binned = Math.floor(b_orig / binSize) * binSize;
+                const colorKey = `${r_binned},${g_binned},${b_binned}`;
+                colorCounts[colorKey] = (colorCounts[colorKey] || 0) + 1;
+                totalBrightnessSum += (r_orig + g_orig + b_orig) / 3;
+                totalAnalyzedPixels++;
+            }
+        }
+
+        if (totalAnalyzedPixels === 0) return { dominantColors: [], averageBrightness: 128, contrast: 0, averageSaturation: 50 };
+
+        const sortedColors = Object.entries(colorCounts).sort(([, a], [, b]) => b - a).slice(0, numDominantColors).map(([k, count]) => {
+            const [r, g, b] = k.split(',').map(Number);
+            const hsl = rgbToHsl(r, g, b);
+            return { r, g, b, percentage: (count / totalAnalyzedPixels) * 100, hue: hsl.h, saturation: hsl.s, lightness: hsl.l, pixelCount: count };
+        });
+
+        const avgB = totalBrightnessSum / totalAnalyzedPixels;
+        let minL = 100, maxL = 0, totS = 0;
+        sortedColors.forEach(c => { minL = Math.min(minL, c.lightness); maxL = Math.max(maxL, c.lightness); totS += c.saturation; });
+        return { dominantColors: sortedColors, averageBrightness: avgB, contrast: (maxL - minL), averageSaturation: sortedColors.length > 0 ? totS / sortedColors.length : 50 };
+    }
+
+    async function detectObjectsInImage(imageElementForDetection) {
+        if (!cocoSsdModel) {
+            console.warn("WARN: Modello COCO-SSD non pronto per rilevamento oggetti.");
+            return [];
+        }
+        try {
+            const predictions = await cocoSsdModel.detect(imageElementForDetection);
+            const filtered = predictions.filter(p => p.score > 0.55);
+            console.log("LOG: Oggetti rilevati (originale EN):", filtered.map(p => p.class));
+            return filtered.map(p => translateObject(p.class));
+        } catch (e) {
+            console.error("ERRORE COCO-SSD:", e);
+            return [];
+        }
+    }
+
+    async function analyzeFacesInImage(imageElementForDetection) {
+        if (!faceApiModelLoaded) {
+            console.warn("WARN: Modello FaceAPI non pronto per analisi volti.");
+            return [];
+        }
+        try {
+            const detections = await faceapi.detectAllFaces(imageElementForDetection, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
+            return detections.map(d => {
+                let dominantEmotionKey = "neutral";
+                if (d.expressions && Object.keys(d.expressions).length > 0) {
+                    dominantEmotionKey = Object.keys(d.expressions).reduce((a, b) => d.expressions[a] > d.expressions[b] ? a : b);
+                }
+                return translateEmotion(dominantEmotionKey);
+            });
+        } catch (e) {
+            console.error("ERRORE FaceAPI:", e);
+            return [];
+        }
+    }
+
+    // QR Code and Composite Image Functions
+    async function generateQrCodeToCanvas(canvasElement, text, size = 120) {
+        console.log(`LOG DEBUG QR: Chiamata a generateQrCodeToCanvas con testo: "${text}", dimensione: ${size}`);
+        return new Promise((resolve, reject) => {
+            if (typeof QRCode === 'undefined') {
+                console.error("ERRORE CRITICO: Libreria QRCode non è definita! Assicurati che '/wp-content/pictosound/js/qrcode.min.js' sia caricato.");
+                return reject(new Error("Libreria QRCode non definita"));
+            }
+            if (typeof QRCode.toCanvas !== 'function') {
+                console.error("ERRORE CRITICO: QRCode.toCanvas non è una funzione! La libreria potrebbe essere errata o non caricata.");
+                return reject(new TypeError("QRCode.toCanvas is not a function"));
+            }
+
+            const options = {
+                width: size,
+                margin: 1,
+                errorCorrectionLevel: 'H'
+            };
+            QRCode.toCanvas(canvasElement, text, options, function (error) {
+                if (error) {
+                    console.error("ERRORE DEBUG QR: Errore generazione QR Code:", error);
+                    reject(error);
+                } else {
+                    console.log(`LOG DEBUG QR: QR Code generato su canvas (${canvasElement.width}x${canvasElement.height}) per:`, text);
+                    resolve(canvasElement);
+                }
+            });
+        });
+    }
+
+    async function createCompositeImage(originalImageElement, qrCodeCanvasElement, targetCanvasElement) {
+        console.log("LOG DEBUG QR: Inizio createCompositeImage.");
+        const ctx = targetCanvasElement.getContext('2d');
+        const PADDING_FACTOR = 0.03;
+
+        const PADDING = originalImageElement.naturalWidth * PADDING_FACTOR;
+
+        const QR_DRAW_WIDTH = qrCodeCanvasElement.width;
+        const QR_DRAW_HEIGHT = qrCodeCanvasElement.height;
+        console.log(`LOG DEBUG QR: Dimensioni QR canvas per disegno: ${QR_DRAW_WIDTH}x${QR_DRAW_HEIGHT}`);
+
+        targetCanvasElement.width = originalImageElement.naturalWidth;
+        targetCanvasElement.height = originalImageElement.naturalHeight;
+        console.log(`LOG DEBUG QR: Dimensioni canvas composito: ${targetCanvasElement.width}x${targetCanvasElement.height}`);
+
+        ctx.drawImage(originalImageElement, 0, 0);
+        console.log("LOG DEBUG QR: Immagine originale disegnata su canvas composito.");
+
+        const qrX = targetCanvasElement.width - QR_DRAW_WIDTH - PADDING;
+        const qrY = targetCanvasElement.height - QR_DRAW_HEIGHT - PADDING;
+        console.log(`LOG DEBUG QR: Posizione QR (X,Y): ${qrX}, ${qrY}`);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.fillRect(qrX - PADDING / 2, qrY - PADDING / 2, QR_DRAW_WIDTH + PADDING, QR_DRAW_HEIGHT + PADDING);
+
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(qrX - PADDING / 2, qrY - PADDING / 2, QR_DRAW_WIDTH + PADDING, QR_DRAW_HEIGHT + PADDING);
+        console.log("LOG DEBUG QR: Sfondo e bordo per QR disegnati.");
+
+        ctx.drawImage(qrCodeCanvasElement, qrX, qrY, QR_DRAW_WIDTH, QR_DRAW_HEIGHT);
+        console.log("LOG DEBUG QR: Canvas QR disegnato su canvas composito.");
+
+        const dataUrl = targetCanvasElement.toDataURL('image/png');
+        console.log("LOG DEBUG QR: Immagine composita creata come Data URL.");
+        return dataUrl;
+    }
+
+    // Preselects cue checkboxes based on AI analysis
     function preselectCuesFromAnalysis(musicalCues) {
         if (!musicalCues) return;
 
         const preselectGroup = (groupItems, cueValues, groupName) => {
-            const container = domElements[groupName + 'PillsContainer'];
-            if (!container) return;
-
-            let hasSelection = false;
-            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-
-            checkboxes.forEach(checkbox => {
-                const pillLabel = checkbox.closest('.checkbox-pill');
-                const shouldBeChecked = cueValues.map(cv => cv.toLowerCase()).includes(checkbox.value.toLowerCase());
-
-                checkbox.checked = shouldBeChecked;
-                pillLabel.classList.toggle('selected', shouldBeChecked);
-                if (shouldBeChecked) hasSelection = true;
+            groupItems.forEach(item => {
+                const checkbox = document.querySelector(`input[name="${groupName}"][value="${item.value}"]`);
+                if (checkbox) {
+                    const pillLabel = checkbox.closest('.checkbox-pill');
+                    if (cueValues.map(cv => cv.toLowerCase()).includes(item.value.toLowerCase())) {
+                        checkbox.checked = true;
+                        pillLabel.classList.add('selected');
+                    } else {
+                        checkbox.checked = false;
+                        pillLabel.classList.remove('selected');
+                    }
+                }
             });
-
-            // Automatically open the accordion if a selection was made
-            const header = container.previousElementSibling;
-            if (hasSelection && header && header.classList.contains('collapsible-cue-header') && !header.classList.contains('open')) {
-                header.click();
-            }
         };
 
         preselectGroup(moodItems, musicalCues.moods || [], 'mood');
         preselectGroup(genreItems, musicalCues.genres || [], 'genre');
         preselectGroup(instrumentItems, musicalCues.instruments || [], 'instrument');
         preselectGroup(rhythmItems, musicalCues.rhythms || [], 'rhythm');
-    }
 
-    function generateStableAudioPrompt(cues) {
-        const parts = [];
-        if (cues.moods.length > 0) parts.push(...cues.moods);
-        if (cues.genres.length > 0) parts.push(...cues.genres);
-        if (cues.instruments.length > 0) parts.push(...cues.instruments);
-        if (cues.rhythms.length > 0) parts.push(...cues.rhythms);  // ← QUESTA RIGA MANCAVA!
-        parts.push(`${cues.tempoBPM} BPM`);
-        return [...new Set(parts)].join(', ') + ", high quality audio";
-    }
-
-    function generateAIDisplayContent(analysis, finalPrompt) {
-        const { colors, objects, emotions } = analysis;
-        const existingDetails = domElements.aiInsightsContent.querySelectorAll('h4, ul, #finalPromptForAI');
-        existingDetails.forEach(el => el.remove());
-
-        let html = "<h4>🔍 Analisi Immagine Reale:</h4><ul>";
-        html += `<li><strong>Oggetti rilevati:</strong> ${objects.join(', ')}</li>`;
-        html += `<li><strong>Emozioni facciali:</strong> ${emotions.join(', ')}</li>`;
-        if (colors && colors.dominantColors) {
-            html += "<li><strong>Colori dominanti:</strong><ul>";
-            colors.dominantColors.forEach(c => {
-                html += `<li><span class="color-swatch-inline" style="background-color: rgb(${c.r},${c.g},${c.b});"></span>rgb(${c.r},${c.g},${c.b}) - ${c.percentage}%</li>`;
-            });
-            html += "</ul></li>";
-            html += `<li><strong>Luminosità media:</strong> ${colors.averageBrightness}/255</li>`;
-            html += `<li><strong>Saturazione media:</strong> ${colors.averageSaturation}%</li>`;
-            html += `<li><strong>Contrasto:</strong> ${colors.contrast}%</li>`;
-        }
-        html += "</ul>";
-        html += `<div id="finalPromptForAI"><strong>🎵 Prompt Musicale Finale:</strong><br>${finalPrompt}</div>`;
-
-        domElements.aiInsightsContent.insertAdjacentHTML('beforeend', html);
-    }
-
-    async function updateAIDisplayAndStablePrompt() {
-        if (!currentImage) return;
-
-        // 1. Run analysis if it hasn't been done yet for this image
-        if (!imageAnalysisResults) {
-            domElements.aiProcessingSimulationDiv.style.display = 'block';
-            domElements.aiProcessingSimulationDiv.innerHTML = '<p>🧠 Analisi AI in corso...</p>';
-
-            try {
-                imageAnalysisResults = {
-                    colors: analyzeImageAdvanced(currentImage),
-                    objects: await detectObjectsInImage(currentImage),
-                    emotions: await analyzeFacesInImage(currentImage)
-                };
-                console.log("🎯 Analisi completata:", imageAnalysisResults);
-            } catch (error) {
-                console.error("❌ Errore durante l'analisi:", error);
-                imageAnalysisResults = {
-                    colors: { dominantColors: [], averageBrightness: 128, contrast: 50, averageSaturation: 50 },
-                    objects: ["oggetto_generico"],
-                    emotions: ["neutral"]
-                };
+        // Automatically open sections that have preselected cues
+        document.querySelectorAll('.cues-selection-container').forEach(container => {
+            const header = container.querySelector('label.group-label.collapsible-cue-header');
+            const pillsGroup = container.querySelector('.checkbox-pills-group');
+            if (header && pillsGroup) {
+                const hasSelectedPill = Array.from(pillsGroup.querySelectorAll('.checkbox-pill.selected')).length > 0;
+                if (hasSelectedPill && !header.classList.contains('open')) {
+                    header.classList.add('open');
+                    pillsGroup.classList.add('open');
+                    const bpmSliderContainer = header.parentElement.querySelector('.bpm-slider-container');
+                    if (bpmSliderContainer) {
+                        bpmSliderContainer.style.display = 'block';
+                    }
+                }
             }
+        });
+    }
 
-            domElements.aiProcessingSimulationDiv.style.display = 'none';
+    // Main function to update AI display and the stable audio prompt
+    async function updateAIDisplayAndStablePrompt() {
+        if (!currentImage) {
+            console.warn("WARN: updateAIDisplayAndStablePrompt chiamato senza currentImage.");
+            return;
+        }
+
+        // Perform analysis if not already done for the current image
+        if (!imageAnalysisResults) {
+            domElements.dynamicFeedbackArea.style.display = 'block';
+            domElements.statusDiv.classList.add('hidden');
+            updateProgressMessage("Analisi immagine in corso...", true);
+            startAISimulationText();
+
+            imageAnalysisResults = {
+                colors: analyzeImageAdvanced(currentImage),
+                objects: await detectObjectsInImage(currentImage),
+                emotions: await analyzeFacesInImage(currentImage)
+            };
+            stopAISimulationText();
             initialPreselectionDoneForCurrentImage = false;
         }
 
-        // 2. Get current user inputs
-        const userInputs = {
-            selectedMoods: getSelectedCheckboxValues('mood'),
-            selectedGenres: getSelectedCheckboxValues('genre'),
-            selectedInstruments: getSelectedCheckboxValues('instrument'),
-            selectedRhythms: getSelectedCheckboxValues('rhythm'),
-            selectedBPM: domElements.bpmSlider.value,
-        };
+        // Get current user selections from checkboxes and BPM slider
+        const selectedMoods = getSelectedCheckboxValues('mood');
+        const selectedGenres = getSelectedCheckboxValues('genre');
+        const selectedInstruments = getSelectedCheckboxValues('instrument');
+        const selectedRhythms = getSelectedCheckboxValues('rhythm');
+        const selectedBPM = domElements.bpmSlider.value;
+        const userInputs = { selectedMoods, selectedGenres, selectedInstruments, selectedRhythms, selectedBPM };
 
-        // 3. Get musical cues based on analysis AND user inputs
-        const musicalCues = getMusicalCues(imageAnalysisResults, userInputs);
+        // Get musical cues based on analysis and user inputs
+        const tempParsedCues = getMusicalCues(imageAnalysisResults.colors, imageAnalysisResults.objects, imageAnalysisResults.emotions, CREATIVITY_LEVEL, userInputs);
 
-        // 4. Pre-select pills if it's the first run for this image
+        // If AI preselection hasn't been done, do it now
         if (!initialPreselectionDoneForCurrentImage) {
-            preselectCuesFromAnalysis(musicalCues);
+            preselectCuesFromAnalysis(tempParsedCues);
+            initialPreselectionDoneForCurrentImage = true;
         }
 
-        // 5. Generate final prompt based on the combined (AI + User) cues
-        const finalCues = {
-            moods: getSelectedCheckboxValues('mood'),
-            genres: getSelectedCheckboxValues('genre'),
-            instruments: getSelectedCheckboxValues('instrument'),
-            rhythms: getSelectedCheckboxValues('rhythm'),
-            tempoBPM: domElements.bpmSlider.value,
-        };
-        stableAudioPromptForMusic = generateStableAudioPrompt(finalCues);
+        // Generate the final English prompt for the music API
+        stableAudioPromptForMusic = generateStableAudioPrompt(tempParsedCues);
 
-        // 6. Update the "What AI Sees" display
-        generateAIDisplayContent(imageAnalysisResults, stableAudioPromptForMusic);
+        // Update the AI Insights display section
+        generateAIDisplayContent(imageAnalysisResults.colors, imageAnalysisResults.objects, imageAnalysisResults.emotions, userInputs, stableAudioPromptForMusic);
         domElements.aiInsightsSection.style.display = 'block';
-        domElements.generateMusicButton.disabled = false;
+
+        // Flash accordion header if it's closed but has new content
+        if (imageAnalysisResults && !domElements.detailsAccordionHeader.classList.contains('open') && domElements.aiInsightsContent.innerHTML.includes('<h4>')) {
+            domElements.detailsAccordionHeader.classList.add('new-content-flash');
+            setTimeout(() => { domElements.detailsAccordionHeader.classList.remove('new-content-flash'); }, 1800);
+        }
+        console.log("LOG: Prompt per Stability AI (Inglese):", stableAudioPromptForMusic);
+
+        // Enable or disable the generate music button based on prompt validity
+        if (stableAudioPromptForMusic && !stableAudioPromptForMusic.toLowerCase().includes("errore") && !stableAudioPromptForMusic.toLowerCase().includes("data analysis not available")) {
+            domElements.generateMusicButton.disabled = false;
+        } else {
+            domElements.generateMusicButton.disabled = true;
+        }
     }
 
-    async function processNewImage(imageSrc) {
+    // Process new image (from upload or camera)
+    function processImage(imageSrc) {
+        console.log("LOG: Inizio processImage con src:", imageSrc ? "presente" : "mancante");
         domElements.imagePreview.src = imageSrc;
+        currentImageSrc = imageSrc;
         domElements.imagePreview.style.display = 'block';
+        imageAnalysisResults = null;
+        initialPreselectionDoneForCurrentImage = false;
+
         currentImage = new Image();
-
         currentImage.onload = async () => {
-            imageAnalysisResults = null; // Reset for new image
-            initialPreselectionDoneForCurrentImage = false; // Allow pre-selection again
+            console.log("LOG: currentImage caricata. Dimensioni:", currentImage.naturalWidth, "x", currentImage.naturalHeight);
 
-            // Reset UI
-            document.querySelectorAll('.checkbox-pill.selected').forEach(pill => pill.classList.remove('selected'));
-            document.querySelectorAll('.checkbox-pills-group input').forEach(cb => cb.checked = false);
-            document.querySelectorAll('.collapsible-cue-header.open').forEach(header => header.click());
+            domElements.detectionCanvas.width = domElements.imagePreview.clientWidth;
+            domElements.detectionCanvas.height = domElements.imagePreview.clientHeight;
+            detectionCtx.clearRect(0, 0, domElements.detectionCanvas.width, domElements.detectionCanvas.height);
+            toggleDetectionCanvasVisibility();
 
-            setStatusMessage("🎨 Immagine caricata! Analisi AI in corso...", "info");
+            // Reset UI for new analysis
+            domElements.generateMusicButton.disabled = true;
+            setStatusMessage(domElements.statusDiv, "Immagine caricata. Analisi in corso...", "info");
+            domElements.dynamicFeedbackArea.style.display = 'block';
+            updateProgressMessage("Analisi immagine in corso...", true);
+            stableAudioPromptForMusic = "";
+
+            // Hide AI insights and clear old content
+            domElements.aiInsightsSection.style.display = 'none';
+            if (domElements.detailsAccordionHeader) domElements.detailsAccordionHeader.classList.remove('open');
+            if (domElements.aiInsightsContent) {
+                domElements.aiInsightsContent.style.display = 'none';
+                const simDiv = domElements.aiInsightsContent.querySelector('.ai-processing-simulation');
+                const existingDetails = domElements.aiInsightsContent.querySelectorAll('h4, ul, #finalPromptForAI');
+                existingDetails.forEach(el => {
+                    if (!el.classList.contains('ai-processing-simulation')) el.remove();
+                });
+                if (simDiv) simDiv.innerHTML = '<p>In attesa di analisi immagine...</p>';
+            }
+
+            // Hide player and download links
+            domElements.progressAndPlayerContainer.style.display = 'none';
+            domElements.audioPlayerContainer.style.display = 'none';
+            domElements.downloadAudioLink.style.display = 'none';
+            domElements.downloadCompositeImageLink.style.display = 'none';
+            domElements.downloadQrOnlyLink.style.display = 'none';
+
+            // Clear all selected cue pills and close cue sections
+            document.querySelectorAll('.checkbox-pill input[type="checkbox"]:checked').forEach(cb => {
+                cb.checked = false;
+                cb.closest('.checkbox-pill').classList.remove('selected');
+            });
+            document.querySelectorAll('.cues-selection-container label.group-label.open').forEach(header => {
+                header.classList.remove('open');
+                const content = header.nextElementSibling;
+                if (content && content.classList.contains('checkbox-pills-group')) {
+                    content.classList.remove('open');
+                }
+                const bpmSliderContainer = header.parentElement.querySelector('.bpm-slider-container');
+                if (bpmSliderContainer) bpmSliderContainer.style.display = 'none';
+            });
+            domElements.bpmSlider.value = 120;
+            domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
+
+            // Start the analysis and update UI
             await updateAIDisplayAndStablePrompt();
-            setStatusMessage("✅ Analisi completata! Ora puoi generare la musica.", "success");
+
+            // Update UI after analysis is complete
+            updateProgressMessage("", false);
+            domElements.dynamicFeedbackArea.style.display = 'none';
+            setStatusMessage(domElements.statusDiv, "Analisi completata. Scegli spunti o genera direttamente!", "success");
+        };
+
+        currentImage.onerror = () => {
+            console.error("ERRORE: Errore durante il caricamento di currentImage.");
+            setStatusMessage(domElements.statusDiv, "Errore caricamento immagine.", "error");
+            updateProgressMessage("Errore caricamento immagine.", false);
+            domElements.generateMusicButton.disabled = true;
         };
         currentImage.src = imageSrc;
     }
 
-    // ===================================================================
-    // 🔌 COLLEGAMENTO EVENTI
-    // ===================================================================
+    // Initial model loading
+    loadModels();
 
-    // Eventi fotocamera
-    if (domElements.takePictureButton) domElements.takePictureButton.addEventListener('click', openCamera);
-    if (domElements.closeCameraButton) domElements.closeCameraButton.addEventListener('click', closeCamera);
-    if (domElements.captureImageButton) domElements.captureImageButton.addEventListener('click', captureImage);
-    if (domElements.switchCameraButton) domElements.switchCameraButton.addEventListener('click', switchCamera);
+    // Inizializza il sistema di crediti
+    if (typeof pictosound_vars !== 'undefined' && pictosound_vars !== null) {
+        console.log("LOG: pictosound_vars trovato (dopo loadModels), chiamo updateDurationOptionsUI().");
+        updateDurationOptionsUI();
+    } else {
+        console.warn("WARN: pictosound_vars non immediatamente disponibile (dopo loadModels), imposto un timeout per updateDurationOptionsUI().");
+        setTimeout(() => {
+            if (typeof pictosound_vars !== 'undefined' && pictosound_vars !== null) {
+                console.log("LOG: pictosound_vars trovato dopo timeout (post-loadModels), chiamo updateDurationOptionsUI().");
+                updateDurationOptionsUI();
+            } else {
+                console.error("ERRORE CRITICO: pictosound_vars non definito dopo il timeout (post-loadModels). Il sistema di crediti non funzionerà correttamente.");
+                if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore configurazione crediti: dati server mancanti.", "error");
+            }
+        }, 500);
+    }
 
-    // Eventi caricamento immagine
+    // Function to start and manage camera stream
+    async function startCamera(requestedFacingMode) {
+        domElements.imagePreview.style.display = 'none';
+        domElements.imagePreview.src = '#';
+        currentImage = null;
+        imageAnalysisResults = null;
+        domElements.aiInsightsSection.style.display = 'none';
+        domElements.cameraViewContainer.style.display = 'block';
+        domElements.generateMusicButton.disabled = true;
+
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+
+        let streamAcquired = false;
+        const primaryAttemptConstraints = { video: { facingMode: requestedFacingMode }, audio: false };
+        const alternateFacingMode = requestedFacingMode === "environment" ? "user" : "environment";
+        const alternateAttemptConstraints = { video: { facingMode: alternateFacingMode }, audio: false };
+        const genericAttemptConstraints = { video: true, audio: false };
+
+        try {
+            console.log(`Tentativo primario con facingMode: ${requestedFacingMode}`);
+            currentStream = await navigator.mediaDevices.getUserMedia(primaryAttemptConstraints);
+            setStatusMessage(domElements.statusDiv, `Fotocamera (${requestedFacingMode === 'environment' ? 'posteriore' : 'frontale'}) attivata.`, "info");
+            currentFacingMode = requestedFacingMode;
+            streamAcquired = true;
+        } catch (errPrimary) {
+            console.warn(`Errore con facingMode primario (${requestedFacingMode}): ${errPrimary.name} - ${errPrimary.message}`);
+            try {
+                console.log(`Tentativo alternativo con facingMode: ${alternateFacingMode}`);
+                currentStream = await navigator.mediaDevices.getUserMedia(alternateAttemptConstraints);
+                setStatusMessage(domElements.statusDiv, `Fotocamera (${alternateFacingMode === 'environment' ? 'posteriore' : 'frontale'}) attivata (fallback).`, "info");
+                currentFacingMode = alternateFacingMode;
+                streamAcquired = true;
+            } catch (errAlternate) {
+                console.warn(`Errore con facingMode alternativo (${alternateFacingMode}): ${errAlternate.name} - ${errAlternate.message}`);
+                try {
+                    console.log("Tentativo generico (video: true)...");
+                    currentStream = await navigator.mediaDevices.getUserMedia(genericAttemptConstraints);
+                    const settings = currentStream.getVideoTracks()[0].getSettings();
+                    const actualFacingMode = settings.facingMode || "sconosciuto";
+                    currentFacingMode = (actualFacingMode && actualFacingMode !== "unknown") ? actualFacingMode : currentFacingMode;
+                    setStatusMessage(domElements.statusDiv, `Fotocamera generica (${currentFacingMode}) attivata (fallback).`, "info");
+                    streamAcquired = true;
+                } catch (errGeneric) {
+                    console.error("Errore con fotocamera generica:", errGeneric);
+                    setStatusMessage(domElements.statusDiv, "Impossibile accedere alla fotocamera. Controlla i permessi.", "error");
+                    domElements.cameraViewContainer.style.display = 'none';
+                    currentFacingMode = "environment";
+                }
+            }
+        }
+
+        if (streamAcquired && currentStream) {
+            domElements.cameraFeed.srcObject = currentStream;
+            console.log("Stream fotocamera acquisito e assegnato.");
+        } else {
+            console.log("Impossibile acquisire stream fotocamera dopo tutti i tentativi.");
+            domElements.cameraViewContainer.style.display = 'none';
+        }
+    }
+
+    // Event Listeners
     domElements.imageUpload.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => processNewImage(e.target.result);
+            reader.onload = (e) => {
+                processImage(e.target.result);
+                domElements.cameraViewContainer.style.display = 'none';
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                    currentStream = null;
+                }
+            }
             reader.readAsDataURL(file);
         }
     });
 
-    // Eventi musicali
-    domElements.generateMusicButton.addEventListener('click', async () => {
-        console.log("🎵 Click su 'Genera Musica' con prompt:", stableAudioPromptForMusic);
-        // La tua logica originale di generazione musicale va qui
-        // ... chiamata AJAX etc.
+    domElements.takePictureButton.addEventListener('click', async () => {
+        await startCamera(currentFacingMode);
     });
 
-    // ===================================================================
-    // 🚀 INIZIALIZZAZIONE
-    // ===================================================================
+    if (domElements.switchCameraButton) {
+        domElements.switchCameraButton.addEventListener('click', async () => {
+            currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+            console.log(`Cambiando a facingMode: ${currentFacingMode}`);
+            await startCamera(currentFacingMode);
+        });
+    }
 
-    // Setup UI
-    populateCheckboxPills(domElements.moodPillsContainer, moodItems, 'mood');
-    populateCheckboxPills(domElements.genrePillsContainer, genreItems, 'genre');
-    populateCheckboxPills(domElements.instrumentPillsContainer, instrumentItems, 'instrument');
-    populateCheckboxPills(domElements.rhythmPillsContainer, rhythmItems, 'rhythm');
-    setupCollapsibleSections();
+    domElements.captureImageButton.addEventListener('click', () => {
+        if (currentStream && domElements.cameraFeed.readyState >= 2) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = domElements.cameraFeed.videoWidth;
+            tempCanvas.height = domElements.cameraFeed.videoHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(domElements.cameraFeed, 0, 0, tempCanvas.width, tempCanvas.height);
+            const imageDataUrl = tempCanvas.toDataURL('image/jpeg');
+            processImage(imageDataUrl);
 
-    domElements.bpmSlider.addEventListener('input', () => {
-        domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
-        if (currentImage) updateAIDisplayAndStablePrompt(); // Update prompt on BPM change
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+            domElements.cameraViewContainer.style.display = 'none';
+        } else {
+            setStatusMessage(domElements.statusDiv, "Feed fotocamera non pronto. Riprova.", "warn");
+        }
     });
 
-    // Carica i modelli all'avvio
-    await loadModels();
+    domElements.closeCameraButton.addEventListener('click', () => {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+        }
+        domElements.cameraViewContainer.style.display = 'none';
+        setStatusMessage(domElements.statusDiv, "Fotocamera chiusa.", "info");
+    });
 
-    console.log("🎉 PictoSound completamente inizializzato con AI reale e funzioni camera avanzate!");
+    if (domElements.bpmSlider && domElements.bpmValueDisplay) {
+        domElements.bpmSlider.addEventListener('input', () => {
+            domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
+            initialPreselectionDoneForCurrentImage = true;
+            if (currentImage && imageAnalysisResults) {
+                updateAIDisplayAndStablePrompt();
+            }
+        });
+    }
+
+    // GENERATE MUSIC BUTTON con auto-recovery
+    if (domElements.generateMusicButton) {
+        domElements.generateMusicButton.addEventListener('click', async () => {
+            console.log("LOG: Pulsante 'Avvia generazione musica' cliccato (con auto-recovery).");
+
+            if (!currentImage) {
+                console.warn("WARN: Tentativo di generare musica senza currentImage.");
+                if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Carica o scatta prima un'immagine.", "error");
+                updateProgressMessage("", false);
+                if (domElements.dynamicFeedbackArea) domElements.dynamicFeedbackArea.style.display = 'none';
+                return;
+            }
+
+            if (!stableAudioPromptForMusic || stableAudioPromptForMusic.toLowerCase().includes("errore") || stableAudioPromptForMusic.toLowerCase().includes("data analysis not available")) {
+                console.log("LOG: Prompt non pronto, richiamo updateAIDisplayAndStablePrompt per finalizzarlo.");
+                if (typeof updateAIDisplayAndStablePrompt === 'function') {
+                    await updateAIDisplayAndStablePrompt();
+                } else {
+                    console.error("ERRORE: updateAIDisplayAndStablePrompt non è definita!");
+                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore interno (prompt).", "error");
+                    return;
+                }
+                if (!stableAudioPromptForMusic || stableAudioPromptForMusic.toLowerCase().includes("errore") || stableAudioPromptForMusic.toLowerCase().includes("data analysis not available")) {
+                    console.error("ERRORE: Prompt ancora non valido dopo il tentativo di finalizzazione.");
+                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore preparazione prompt. Riprova o seleziona nuova immagine.", "error");
+                    updateProgressMessage("Errore nella preparazione del prompt.", false);
+                    return;
+                }
+            }
+
+            if (typeof pictosound_vars === 'undefined' || pictosound_vars === null) {
+                console.error("ERRORE CRITICO: pictosound_vars non è definito! Impossibile procedere.");
+                if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore di configurazione (mancano variabili server).", "error");
+                return;
+            }
+
+            if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, pictosound_vars.text_checking_credits || "Verifica crediti...", "info");
+            if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = true;
+            if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'inline-block';
+            if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'none';
+            if (domElements.downloadAudioLink) domElements.downloadAudioLink.style.display = 'none';
+            if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
+            if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
+            if (domElements.dynamicFeedbackArea) domElements.dynamicFeedbackArea.style.display = 'block';
+            updateProgressMessage(pictosound_vars.text_checking_credits || "Verifica crediti...", true);
+
+            const selectedDurationRadio = document.querySelector('input[name="musicDuration"]:checked');
+            const duration = selectedDurationRadio ? Math.max(30, Math.min(180, parseInt(selectedDurationRadio.value))) : 45; // Default 45s
+
+            // Usa checkCredits con auto-recovery
+            checkCredits(duration);
+        });
+
+        // Funzione per procedere con la generazione dopo il check crediti
+        window.startMusicGeneration = async function () {
+            try {
+                if (domElements.dynamicFeedbackArea) domElements.dynamicFeedbackArea.style.display = 'block';
+                updateProgressMessage(pictosound_vars.text_generating_music || 'Generazione traccia audio in corso...', true);
+
+                const promptForMusic = stableAudioPromptForMusic;
+                const steps = 30;
+                const selectedDurationRadio = document.querySelector('input[name="musicDuration"]:checked');
+                const duration = selectedDurationRadio ? parseInt(selectedDurationRadio.value) : 40;
+
+                console.log(`LOG: Parametri per generazione musica: prompt="${promptForMusic}", duration=${duration}, steps=${steps}`);
+
+                const musicApiResponse = await fetch('/wp-content/pictosound/generate_music.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptForMusic, duration: duration, steps: steps })
+                });
+
+                console.log(`LOG: Risposta da generate_music.php. Status: ${musicApiResponse.status}`);
+
+                const musicContentType = musicApiResponse.headers.get("content-type");
+                if (musicApiResponse.ok && musicContentType && musicContentType.indexOf("application/json") !== -1) {
+                    const musicResult = await musicApiResponse.json();
+                    console.log("LOG DEBUG SERVER (generate_music.php): Risposta JSON:", musicResult);
+
+                    if (musicResult.success && musicResult.audioUrl) {
+                        updateProgressMessage("", false);
+                        // Salva automaticamente la generazione
+                        // ⚡ SALVATAGGIO AUTOMATICO NELL'ARCHIVIO - VERSIONE COMPLETA
+                        if (currentImageSrc && musicResult.audioUrl && typeof pictosound_vars !== 'undefined' && pictosound_vars.nonce_save_generation) {
+                            console.log('🎵 Avvio salvataggio automatico della generazione...');
+
+                            // Ottieni durata selezionata
+                            const selectedDurationRadio = document.querySelector('input[name="musicDuration"]:checked');
+                            const selectedDuration = selectedDurationRadio ? parseInt(selectedDurationRadio.value) : 40;
+
+                            // Crea titolo descrittivo basato sulla data/ora
+                            const now = new Date();
+                            const dateStr = now.toLocaleDateString('it-IT', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                            });
+                            const timeStr = now.toLocaleTimeString('it-IT', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+
+                            // Salva la generazione nel database
+                            jQuery.ajax({
+                                url: pictosound_vars.ajax_url,
+                                type: 'POST',
+                                data: {
+                                    action: 'pictosound_save_generation',
+                                    image_url: currentImageSrc,
+                                    audio_url: musicResult.audioUrl || musicResult.downloadUrl,
+                                    prompt_used: stableAudioPromptForMusic || 'Generazione da immagine',
+                                    duration: selectedDuration,
+                                    title: `Creazione del ${dateStr} alle ${timeStr}`,
+                                    description: `Musica generata con AI da immagine. Prompt: "${stableAudioPromptForMusic || 'Auto-generato'}" - Durata: ${selectedDuration}s`,
+                                    nonce: pictosound_vars.nonce_save_generation
+                                },
+                                success: function (response) {
+                                    if (response.success) {
+                                        console.log('✅ Generazione salvata automaticamente con ID:', response.data.generation_id);
+
+                                        // Mostra notifica di salvataggio nella UI esistente
+                                        const originalStatusText = domElements.statusDiv ? domElements.statusDiv.textContent : '';
+                                        const originalStatusClass = domElements.statusDiv ? domElements.statusDiv.className : '';
+
+                                        if (domElements.statusDiv) {
+                                            setStatusMessage(domElements.statusDiv, "💾 Creazione salvata nel tuo archivio personale!", "success");
+
+                                            // Ripristina il messaggio precedente dopo 4 secondi
+                                            setTimeout(() => {
+                                                if (domElements.statusDiv.textContent.includes("archivio personale")) {
+                                                    domElements.statusDiv.textContent = originalStatusText;
+                                                    domElements.statusDiv.className = originalStatusClass;
+
+                                                    // Nascondi il messaggio se era nascosto prima
+                                                    if (originalStatusText === "" || originalStatusText === "Musica generata con successo!") {
+                                                        setTimeout(() => {
+                                                            if (domElements.statusDiv && domElements.audioPlayerContainer && domElements.audioPlayerContainer.style.display === 'block') {
+                                                                domElements.statusDiv.style.display = 'none';
+                                                                if (domElements.dynamicFeedbackArea) {
+                                                                    domElements.dynamicFeedbackArea.style.display = 'none';
+                                                                }
+                                                            }
+                                                        }, 2000);
+                                                    }
+                                                }
+                                            }, 4000);
+                                        }
+
+                                        // Aggiungi pulsante per visualizzare l'archivio
+                                        if (domElements.downloadButtonsContainer && !document.getElementById('viewArchiveButton')) {
+                                            const archiveButton = document.createElement('a');
+                                            archiveButton.id = 'viewArchiveButton';
+                                            archiveButton.href = '/le-mie-creazioni/'; // MODIFICA CON L'URL DELLA TUA PAGINA ARCHIVIO
+                                            archiveButton.className = 'download-button';
+                                            archiveButton.style.cssText = 'background: linear-gradient(45deg, #28a745, #20c997); margin-left: 10px;';
+                                            archiveButton.innerHTML = `
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                                                    <path d="M20.54,5.23l-1.39-1.68C18.88,3.21,18.47,3,18,3H6C5.53,3,5.12,3.21,4.85,3.55L3.46,5.23C3.17,5.57,3,6.02,3,6.5V19c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V6.5C21,6.02,20.83,5.57,20.54,5.23z M12,17.5L6.5,12H10v-2h4v2h3.5L12,17.5z M5.12,5l0.81-1h12l0.81-1H5.12z"/>
+                                                </svg>
+                                                🎵 Le Mie Creazioni
+                                            `;
+                                            domElements.downloadButtonsContainer.appendChild(archiveButton);
+                                        }
+
+                                    } else {
+                                        console.warn('⚠️ Errore nel salvataggio automatico:', response.data?.message || 'Errore sconosciuto');
+                                    }
+                                },
+                                error: function (xhr, status, error) {
+                                    console.error('❌ Errore AJAX nel salvataggio automatico:', error);
+                                }
+                            });
+                        } else {
+                            // Log per debug se il salvataggio non viene effettuato
+                            console.warn('⚠️ Salvataggio automatico saltato. Motivi:', {
+                                hasCurrentImageSrc: !!currentImageSrc,
+                                hasAudioUrl: !!(musicResult && musicResult.audioUrl),
+                                hasPictosoundVars: typeof pictosound_vars !== 'undefined',
+                                hasNonce: !!(pictosound_vars && pictosound_vars.nonce_save_generation),
+                                isUserLoggedIn: !!(pictosound_vars && pictosound_vars.is_user_logged_in)
+                            });
+                        }
+                        if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Musica generata con successo!", "success");
+
+                        setTimeout(() => {
+                            if (domElements.statusDiv && domElements.statusDiv.textContent === "Musica generata con successo!") {
+                                if (domElements.dynamicFeedbackArea && !(domElements.audioPlayerContainer && domElements.audioPlayerContainer.style.display === 'block')) {
+                                    domElements.dynamicFeedbackArea.style.display = 'none';
+                                }
+                                if (domElements.statusDiv) domElements.statusDiv.style.display = 'none';
+                            }
+                        }, 4000);
+
+                        if (domElements.audioPlayer && musicResult.audioUrl) domElements.audioPlayer.src = musicResult.audioUrl;
+                        if (domElements.audioInfo) domElements.audioInfo.textContent = `Traccia: ${musicResult.fileName || 'audio_generato'}. ${musicResult.message || ''}`;
+                        if (domElements.downloadAudioLink && (musicResult.downloadUrl || musicResult.audioUrl)) {
+                            domElements.downloadAudioLink.href = musicResult.downloadUrl || musicResult.audioUrl;
+                            domElements.downloadAudioLink.download = musicResult.fileName || `generated_audio_${Date.now()}.mp3`;
+                            domElements.downloadAudioLink.style.display = 'inline-flex';
+                        }
+                        if (domElements.audioPlayerContainer && musicResult.audioUrl) domElements.audioPlayerContainer.style.display = 'block';
+                        if (domElements.progressAndPlayerContainer && musicResult.audioUrl) domElements.progressAndPlayerContainer.style.display = 'block';
+
+                        // QR code e immagine composita
+                        if (currentImage && currentImage.complete && typeof QRCode !== 'undefined' && musicResult.audioUrl && domElements.compositeImageCanvas) {
+                            try {
+                                const qrCanvasForComposite = document.createElement('canvas');
+                                const qrCanvasForSoloDownload = document.createElement('canvas');
+                                let desiredQrPixelSize = Math.max(50, Math.min(currentImage.naturalWidth * 0.25, currentImage.naturalHeight * 0.25, 150));
+
+                                await generateQrCodeToCanvas(qrCanvasForComposite, musicResult.audioUrl, desiredQrPixelSize);
+                                const compositeImageDataUrl = await createCompositeImage(currentImage, qrCanvasForComposite, domElements.compositeImageCanvas);
+
+                                if (domElements.downloadCompositeImageLink) {
+                                    const placeholder = domElements.downloadCompositeImageLink.querySelector('.button-icon-placeholder');
+                                    if (placeholder) {
+                                        placeholder.innerHTML = '';
+                                        const miniImg = document.createElement('img');
+                                        miniImg.src = compositeImageDataUrl;
+                                        miniImg.alt = 'Preview';
+                                        placeholder.appendChild(miniImg);
+                                    }
+                                    domElements.downloadCompositeImageLink.href = compositeImageDataUrl;
+                                    domElements.downloadCompositeImageLink.download = `pictosound_img_qr_${Date.now()}.png`;
+                                    domElements.downloadCompositeImageLink.style.display = 'inline-flex';
+                                }
+
+                                await generateQrCodeToCanvas(qrCanvasForSoloDownload, musicResult.audioUrl, 150);
+                                const soloQrDataUrl = qrCanvasForSoloDownload.toDataURL('image/png');
+
+                                if (domElements.downloadQrOnlyLink) {
+                                    domElements.downloadQrOnlyLink.href = soloQrDataUrl;
+                                    domElements.downloadQrOnlyLink.download = `pictosound_qrcode_${Date.now()}.png`;
+                                    domElements.downloadQrOnlyLink.style.display = 'inline-flex';
+                                }
+                            } catch (qrError) {
+                                console.error("ERRORE QR:", qrError);
+                                if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
+                                if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
+                            }
+                        } else {
+                            if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
+                            if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
+                        }
+                    } else {
+                        const musicGenErrorMessage = musicResult.error || "Errore generazione musica";
+                        updateProgressMessage(musicGenErrorMessage, false);
+                        if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, musicGenErrorMessage, "error");
+                    }
+                } else if (musicApiResponse.ok && musicContentType && musicContentType.indexOf("audio/") !== -1) {
+                    console.warn("WARN: Risposta audio diretta da generate_music.php (non JSON).");
+                    updateProgressMessage("", false);
+                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Musica generata (formato diretto)!", "success");
+                    const audioBlob = await musicApiResponse.blob();
+                    const audioUrlForPlayer = URL.createObjectURL(audioBlob);
+                    if (domElements.audioPlayer) domElements.audioPlayer.src = audioUrlForPlayer;
+                    if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'block';
+                    if (domElements.progressAndPlayerContainer) domElements.progressAndPlayerContainer.style.display = 'block';
+                } else {
+                    const errorText = await musicApiResponse.text();
+                    updateProgressMessage(`Errore server (HTTP ${musicApiResponse.status})`, false);
+                    if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, `Errore server (HTTP ${musicApiResponse.status})`, "error");
+                }
+            } catch (error) {
+                console.error("ERRORE durante la generazione musica:", error);
+                updateProgressMessage(`Errore: ${error.message}`, false);
+                if (domElements.statusDiv) setStatusMessage(domElements.statusDiv, "Errore durante la generazione musica", "error");
+            } finally {
+                if (domElements.generateMusicButton) domElements.generateMusicButton.disabled = false;
+                if (domElements.musicSpinner) domElements.musicSpinner.style.display = 'none';
+            }
+        };
+    }
+
+    // Accordion for "Dettagli" in AI Insights
+    if (domElements.detailsAccordionHeader && domElements.aiInsightsContent) {
+        domElements.detailsAccordionHeader.addEventListener('click', () => {
+            const isOpen = domElements.detailsAccordionHeader.classList.toggle('open');
+            domElements.aiInsightsContent.style.display = isOpen ? 'block' : 'none';
+        });
+    }
+
+    // Accordions for Cue Selection Groups
+    document.querySelectorAll('.cues-selection-container label.group-label.collapsible-cue-header').forEach(header => {
+        header.addEventListener('click', () => {
+            header.classList.toggle('open');
+            const content = header.nextElementSibling;
+            if (content && content.classList.contains('checkbox-pills-group')) {
+                content.classList.toggle('open');
+                const bpmSliderContainer = header.parentElement.querySelector('.bpm-slider-container');
+                if (bpmSliderContainer) {
+                    bpmSliderContainer.style.display = header.classList.contains('open') ? 'block' : 'none';
+                }
+            }
+        });
+    });
+
+    // Fullscreen image on audio play
+    if (domElements.audioPlayer && domElements.fullscreenImageModal && domElements.fullscreenImage && domElements.closeFullscreenButton) {
+        domElements.audioPlayer.onplay = () => {
+            if (currentImageSrc) {
+                domElements.fullscreenImage.src = currentImageSrc;
+                domElements.fullscreenImageModal.style.display = 'flex';
+            }
+        };
+        domElements.closeFullscreenButton.onclick = () => {
+            domElements.fullscreenImageModal.style.display = 'none';
+        };
+        window.onclick = (event) => {
+            if (event.target == domElements.fullscreenImageModal) {
+                domElements.fullscreenImageModal.style.display = 'none';
+            }
+        };
+        document.addEventListener('keydown', function (event) {
+            if (event.key === "Escape") {
+                domElements.fullscreenImageModal.style.display = 'none';
+            }
+        });
+    }
 });
+/**
+ * ===================================================================
+ * BLOCCO COMPLETO E DEFINITIVO PER PICTOSOUND
+ * Contiene: Inizializzazione AI, pulizia e gestione del pulsante,
+ * e la chiamata AJAX corretta a WordPress.
+ * ===================================================================
+ */
+document.addEventListener('DOMContentLoaded', function () {
+
+    // --- 1. RIFERIMENTI AGLI ELEMENTI HTML ---
+    const imageUploadInput = document.getElementById('imageUpload');
+    const takePictureBtn = document.getElementById('takePictureButton');
+    const generateBtnOriginal = document.getElementById('generateMusicButton');
+    const statusEl = document.getElementById('status');
+
+    // Se gli elementi fondamentali non sono in pagina, non proseguiamo.
+    if (!generateBtnOriginal || !imageUploadInput || !statusEl) {
+        console.log("Pictosound: Elementi essenziali (pulsante, input immagine o status) non trovati. Script non in esecuzione.");
+        return;
+    }
+
+    // --- 2. FUNZIONI DI UTILITÀ ---
+    const updateStatus = (message, type = 'info') => {
+        statusEl.innerHTML = message; // Usiamo innerHTML per poter inserire link
+        statusEl.className = `status-message ${type}`;
+        console.log(`Pictosound Status: ${message}`);
+    };
+
+    // --- 3. LOGICA DI INIZIALIZZAZIONE DELL'APPLICAZIONE ---
+    async function initializeApp() {
+        updateStatus('Caricamento modelli di intelligenza artificiale...', 'info');
+        try {
+            // Carichiamo in parallelo tutti i modelli necessari.
+            // Assicurati che i file dei modelli si trovino nel percorso specificato.
+            const modelPath = '/wp-content/pictosound/js/models';
+            await Promise.all([
+                cocoSsd.load(),
+                faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+                faceapi.nets.faceExpressionNet.loadFromUri(modelPath)
+                // Aggiungi altri modelli se necessario (es. ageGenderNet, faceLandmark68Net)
+            ]);
+
+            // Successo! L'applicazione è pronta per ricevere un'immagine.
+            updateStatus('Modelli AI pronti! Scegli un\'immagine o scatta una foto.', 'success');
+            imageUploadInput.disabled = false;
+            takePictureBtn.disabled = false;
+
+        } catch (error) {
+            console.error('Errore critico durante il caricamento dei modelli AI:', error);
+            updateStatus('Errore: impossibile caricare i modelli AI. <a href="javascript:location.reload();">Ricarica la pagina</a> per riprovare.', 'error');
+            generateBtnOriginal.disabled = true; // Lascia il pulsante disabilitato
+        }
+    }
+
+    // --- 4. GESTIONE DEL PULSANTE DI GENERAZIONE ---
+
+    // "Puliamo" il pulsante da qualsiasi evento precedente clonandolo.
+    const generateBtnClean = generateBtnOriginal.cloneNode(true);
+    generateBtnOriginal.parentNode.replaceChild(generateBtnClean, generateBtnOriginal);
+
+    // Il pulsante di generazione si attiva solo quando un'immagine è pronta.
+    // Aggiungiamo un evento personalizzato per gestire questo stato.
+    document.body.addEventListener('imageReady', function () {
+        console.log("Evento 'imageReady' ricevuto. Abilito il pulsante di generazione.");
+        generateBtnClean.disabled = false;
+        updateStatus('Immagine pronta. Personalizza se vuoi e avvia la generazione!', 'info');
+    });
+
+    // Aggiungiamo la logica di click al nostro pulsante "pulito".
+    generateBtnClean.addEventListener('click', function () {
+        this.disabled = true;
+        const musicSpinner = document.getElementById('musicSpinner');
+        if (musicSpinner) musicSpinner.style.display = 'inline-block';
+        updateStatus('Richiesta inviata. Generazione della musica in corso...', 'info');
+
+        const finalPrompt = buildFinalPrompt();
+        const selectedDuration = document.querySelector('input[name="musicDuration"]:checked').value;
+
+        if (!finalPrompt) {
+            updateStatus('Errore: Il prompt non può essere vuoto.', 'error');
+            this.disabled = false;
+            if (musicSpinner) musicSpinner.style.display = 'none';
+            return;
+        }
+
+        const body = new URLSearchParams();
+        body.append('action', 'pictosound_generate_music');
+        body.append('prompt', finalPrompt);
+        body.append('duration', selectedDuration);
+        // Aggiungi l'URL dell'immagine visualizzata nell'anteprima
+        const imageUrl = document.getElementById('imagePreview').src;
+        body.append('image_url', imageUrl); // <-- RIGA DA AGGIUNGERE
+
+        fetch(pictosound_vars.ajax_url, {
+            method: 'POST',
+            body: body
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log("Successo! URL Audio:", data.data.audioUrl);
+                    document.getElementById('audioPlayer').src = data.data.audioUrl;
+                    document.getElementById('downloadAudioLink').href = data.data.downloadUrl;
+                    document.getElementById('audioPlayerContainer').style.display = 'block';
+                    document.getElementById('downloadButtonsContainer').style.display = 'flex';
+                    updateStatus('Musica generata con successo!', 'success');
+                } else {
+                    throw new Error(data.data.error || 'Errore sconosciuto dal server.');
+                }
+            })
+            .catch(error => {
+                console.error('Errore durante la chiamata fetch:', error);
+                updateStatus(`Errore: ${error.message}`, 'error');
+            })
+            .finally(() => {
+                if (musicSpinner) musicSpinner.style.display = 'none';
+                this.disabled = false; // Riabilita il pulsante
+            });
+    });
+
+    // --- 5. ATTIVIAMO L'INIZIALIZZAZIONE ---
+    initializeApp();
+
+});
+
+
+/**
+ * Funzione FONDAMENTALE per costruire il prompt.
+ * Questa è una versione generica. ASSICURATI DI ADATTARLA
+ * alla logica esatta della tua applicazione per raccogliere
+ * i dati dall'analisi AI e dalle selezioni dell'utente.
+ */
+function buildFinalPrompt() {
+    let parts = [];
+
+    // Esempio: Raccogliere i risultati salvati dall'analisi dell'immagine
+    // (Dovrai avere un'altra funzione che popola 'aiInsightsContent' dopo l'analisi)
+    const aiInsights = document.getElementById('aiInsightsContent')?.textContent;
+    if (aiInsights && aiInsights.trim() !== 'In attesa di analisi immagine...') {
+        parts.push(aiInsights.trim());
+    }
+
+    // Raccogliere i pills selezionati
+    const selectedPills = document.querySelectorAll('.checkbox-pills-group input[type="checkbox"]:checked');
+    selectedPills.forEach(pill => {
+        parts.push(pill.value);
+    });
+
+    // Raccogliere il valore del BPM
+    const bpmSlider = document.getElementById('bpmSlider');
+    if (bpmSlider) {
+        parts.push(`${bpmSlider.value} BPM`);
+    }
+
+    // Unisci tutto in una stringa, pulendo spazi extra e virgole duplicate
+    let finalPrompt = parts.filter(p => p).join(', ').replace(/,+/g, ',').trim();
+
+    console.log('Prompt finale costruito:', finalPrompt);
+
+    // Un prompt non può essere vuoto
+    if (!finalPrompt) {
+        return "epic cinematic music, dramatic, intense"; // Un prompt di riserva
+    }
+
+    return finalPrompt;
+}
+/**
+ * ===================================================================
+ * BLOCCO DI INIZIALIZZAZIONE AI E ABILITAZIONE PULSANTE
+ * Carica i modelli AI e attiva l'interfaccia utente quando è pronta.
+ * ===================================================================
+ */
+document.addEventListener('DOMContentLoaded', function () {
+
+    // Riferimenti agli elementi chiave dell'interfaccia
+    const generateBtn = document.getElementById('generateMusicButton');
+    const statusEl = document.getElementById('status');
+    const imageUploadEl = document.getElementById('imageUpload');
+
+    // Funzione per aggiornare il messaggio di stato
+    const updateStatus = (message, type = 'info') => {
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type}`;
+            console.log(`Pictosound Status: ${message}`);
+        }
+    };
+
+    // Funzione principale di inizializzazione
+    async function initializeApp() {
+        // Se il pulsante non esiste in questa pagina, interrompiamo tutto
+        if (!generateBtn) return;
+
+        updateStatus('Inizializzazione in corso...', 'info');
+
+        try {
+            updateStatus('Caricamento modelli di intelligenza artificiale...', 'info');
+
+            // Carichiamo in parallelo tutti i modelli necessari
+            // TensorFlow.js (tf), Coco-SSD (per oggetti), Face-API (per volti)
+            await Promise.all([
+                cocoSsd.load(), // Assicura che la libreria coco-ssd.min.js sia caricata
+                faceapi.nets.tinyFaceDetector.loadFromUri('/wp-content/pictosound/js/models'),
+                faceapi.nets.faceLandmark68Net.loadFromUri('/wp-content/pictosound/js/models'),
+                faceapi.nets.faceRecognitionNet.loadFromUri('/wp-content/pictosound/js/models'),
+                faceapi.nets.faceExpressionNet.loadFromUri('/wp-content/pictosound/js/models'),
+                faceapi.nets.ageGenderNet.loadFromUri('/wp-content/pictosound/js/models')
+            ]);
+
+            // Se arriviamo qui, tutti i modelli sono stati caricati con successo
+            updateStatus('Modelli AI pronti! Carica un\'immagine per iniziare.', 'success');
+
+            // Abilita i pulsanti per caricare l'immagine
+            if (imageUploadEl) imageUploadEl.disabled = false;
+            // Aggiungi qui altri pulsanti da abilitare se necessario
+
+        } catch (error) {
+            console.error('Errore critico durante il caricamento dei modelli AI:', error);
+            updateStatus('Errore: impossibile caricare i modelli AI. Ricarica la pagina.', 'error');
+            // Lasciamo il pulsante principale disabilitato perché l'app non può funzionare
+            generateBtn.disabled = true;
+        }
+    }
+
+    // Aggiungiamo un listener all'input dell'immagine.
+    // Il pulsante di generazione si attiverà SOLO dopo aver caricato un'immagine.
+    if (imageUploadEl) {
+        imageUploadEl.addEventListener('change', function () {
+            if (this.files && this.files[0]) {
+                // Una volta che un'immagine è stata selezionata (e analizzata, se necessario),
+                // abilitiamo finalmente il pulsante di generazione.
+                if (generateBtn) {
+                    console.log('Immagine caricata, abilito il pulsante di generazione.');
+                    generateBtn.disabled = false;
+                    updateStatus('Immagine pronta. Puoi avviare la generazione!', 'info');
+                }
+            }
+        });
+    }
+
+    // Avvia il processo di inizializzazione
+    initializeApp();
+});
+
+
+/**
+ * Funzione FONDAMENTALE per costruire il prompt.
+ * Assicurati che questa funzione esista e funzioni correttamente nel tuo script.
+ * Deve raccogliere tutti gli input dell'utente (oggetti, mood, genere, etc.)
+ * e restituire una singola stringa di testo.
+ */
+function buildFinalPrompt() {
+    let parts = [];
+
+    // 1. Raccogli l'analisi dell'immagine (se la salvi da qualche parte)
+    // Esempio: const detectedObjects = document.getElementById('aiInsightsContent').textContent;
+    // if(detectedObjects) parts.push(detectedObjects);
+
+    // 2. Raccogli i pills selezionati (mood, genere, etc.)
+    const selectedPills = document.querySelectorAll('.checkbox-pills-group input[type="checkbox"]:checked');
+    selectedPills.forEach(pill => {
+        parts.push(pill.value);
+    });
+
+    // 3. Raccogli il valore del BPM
+    const bpmSlider = document.getElementById('bpmSlider');
+    if (bpmSlider) {
+        parts.push(`${bpmSlider.value} BPM`);
+    }
+
+    // Unisci tutto in una stringa separata da virgole
+    let finalPrompt = parts.join(', ');
+
+    console.log('Prompt finale costruito:', finalPrompt);
+
+    // Un prompt non può essere vuoto, forniamo un fallback
+    if (!finalPrompt.trim()) {
+        return "epic cinematic music, dramatic, intense";
+    }
+
+    return finalPrompt;
+}

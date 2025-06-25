@@ -462,7 +462,11 @@
             background-color: #fff;
         }
 
-        .details-accordion-header.open+#aiInsightsContent {
+        #aiInsightsContent {
+            display: none;
+        }
+
+        #aiInsightsContent.open {
             display: block;
         }
 
@@ -1491,9 +1495,11 @@
                 if (domElements.detailsAccordionHeader) {
                     domElements.detailsAccordionHeader.addEventListener('click', () => {
                         const isOpen = domElements.detailsAccordionHeader.classList.toggle('open');
-                        domElements.aiInsightsContent.style.display = isOpen ? 'block' : 'none';
+                        domElements.aiInsightsContent.classList.toggle('open', isOpen);
+                        // NON mettere style.display!
                     });
                 }
+
                 document.querySelectorAll('.collapsible-cue-header').forEach(header => {
                     header.addEventListener('click', () => {
                         header.classList.toggle('open');
@@ -1817,4 +1823,3 @@
 </body>
 
 </html>
-```
