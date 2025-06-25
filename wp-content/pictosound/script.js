@@ -2,38 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("LOG: DOMContentLoaded - Pagina pronta e script principale in esecuzione.");
 
     const CREATIVITY_LEVEL = 50;
-    // 🔧 CONFIGURAZIONE STANDALONE - Versione CORRETTA
-    if (typeof pictosound_vars === 'undefined') {
-        console.log("🔧 Modalità standalone attiva");
-        window.pictosound_vars = {
-            ajax_url: '/wp-content/pictosound/generate_music.php', // ⭐ CORRETTO: usa direttamente la tua API
-            nonce_generate: 'standalone_demo',
-            is_user_logged_in: false,
-            user_credits: 0
-        };
-    }
 
-    // 🔧 OVERRIDE jQuery.ajax per evitare chiamate WordPress
-    if (typeof jQuery !== 'undefined') {
-        const originalAjax = jQuery.ajax;
-        jQuery.ajax = function (options) {
-            // Se è una chiamata WordPress, reindirizza alla tua API
-            if (options.url && options.url.includes('admin-ajax.php')) {
-                console.log("🔄 Reindirizzamento chiamata da WordPress a API diretta");
-                return fetch('/wp-content/pictosound/generate_music.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: options.data.prompt,
-                        duration: parseInt(options.data.duration),
-                        steps: 30
-                    })
-                }).then(response => response.json());
-            }
-            // Altrimenti usa jQuery normale
-            return originalAjax.call(this, options);
-        };
-    }
     // Cache DOM elements for performance and convenience
     const domElements = {
         statusDiv: document.getElementById('status'),
