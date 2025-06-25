@@ -53,8 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // State variables
     let currentImage = null;
     let currentImageSrc = null;
-    let currentStream = null;
-    let currentFacingMode = "environment";
+    // RIMOSSE: currentStream e currentFacingMode (ora gestite da CameraHandler)
     let imageAnalysisResults = null;
     let stableAudioPromptForMusic = "";
     let cocoSsdModel = null;
@@ -746,7 +745,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     action: 'pictosound_generate_music',
                     prompt: stableAudioPromptForMusic,
                     duration: duration,
-                    image_data: currentImageSrc, // <-- Modificato da 'image_url' a 'image_data'
+                    image_data: currentImageSrc,
                     nonce: pictosound_vars.nonce_generate || ''
                 }
             });
@@ -827,6 +826,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     populateCheckboxPills(domElements.genrePillsContainer, genreItems, 'genre');
     populateCheckboxPills(domElements.instrumentPillsContainer, instrumentItems, 'instrument');
     populateCheckboxPills(domElements.rhythmPillsContainer, rhythmItems, 'rhythm');
+
+    // ========== NUOVA SEZIONE: INIZIALIZZAZIONE CAMERA HANDLER ==========
+    // Inizializza il modulo camera (se disponibile)
+    if (window.CameraHandler) {
+        console.log("LOG: Inizializzazione CameraHandler...");
+
+        const cameraInitSuccess = CameraHandler.init(
+            domElements,           // Elementi DOM
+            processImage,          // Callback per processare immagine  
+            (message, type = "info") => setStatusMessage(domElements.statusDiv, message, type) // Callback status
+        );
+
+        if (cameraInitSuccess) {
+            console.log("LOG: ✅ CameraHandler inizializzato con successo");
+        } else {
+            console.error("ERRORE: ❌ Inizializzazione CameraHandler fallita");
+        }
+    } else {
+        console.warn("WARN: ⚠️ CameraHandler non trovato - verifica che camera-handler.js sia caricato");
+    }
+
+    // Cleanup quando si chiude la pagina
+    window.addEventListener('beforeunload', () => {
+        if (window.CameraHandler) {
+            CameraHandler.cleanup();
+        }
+    });
+    // ========== FINE SEZIONE CAMERA HANDLER ==========
 
     // Inizializza subito i modelli
     loadModels();

@@ -1,225 +1,252 @@
-<!DOCTYPE html>
-<html lang="it">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PictoSound - Da Immagine a Musica</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://pictosound.com/wp-content/pictosound/css/style.css">
-</head>
-
-<body>
-    <div class="pictosound-wrapper">
-        <div class="container">
-            <div class="logo-container">
-                <div class="logo-brand">🎵 PictoSound</div>
+</div>
+<div class="container">
+    <div class="options-section">
+        <h3>1. Scegli la tua Immagine</h3>
+        <div class="input-actions-container">
+            <input type="file" id="imageUpload" accept="image/*" title="Carica un file immagine">
+            <button id="takePictureButton" class="icon-button" title="Usa la fotocamera">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                    <path
+                        d="M4 4h3l2-2h6l2 2h3v16H4V4zm8 13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0-8c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3z" />
+                </svg>
+                Scatta Foto
+            </button>
+        </div>
+        <div id="cameraViewContainer">
+            <video id="cameraFeed" autoplay playsinline></video>
+            <div class="camera-controls">
+                <button id="captureImageButton">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" />
+                        <path d="M4 4h3l2-2h6l2 2h3v16H4V4zm8 13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5z"
+                            opacity=".3" />
+                        <path
+                            d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h3l2-2h6l2 2h3v16z" />
+                    </svg>
+                    Scatta!
+                </button>
+                <button id="switchCameraButton" title="Cambia Fotocamera">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 0 24 24" width="20px"
+                        fill="currentColor">
+                        <path d="M0 0h24v24H0V0z" fill="none" />
+                        <path
+                            d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-5 11.5V13H9v2.5L5.5 12 9 8.5V11h6V8.5l3.5 3.5-3.5 3.5z" />
+                    </svg>
+                    Cambia
+                </button>
+                <button id="closeCameraButton">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    </svg>
+                    Annulla
+                </button>
             </div>
-            <h1>TRASFORMA L'IMMAGINE IN MUSICA</h1>
-            <p class="subtitle">Lascia che l'AI analizzi l'immagine e la trasformi in esperienza sonora. Da oggi anche
-                le immagini hanno un suono.</p>
+        </div>
+        <div id="imagePreviewContainer">
+            <img id="imagePreview" src="#" alt="Anteprima Immagine" style="display:none;">
+            <canvas id="detectionCanvas" style="display:none;"></canvas>
+        </div>
+    </div>
 
-            <div class="options-section">
-                <h3>1. Scegli la tua Immagine</h3>
-                <div class="input-actions-container">
-                    <input type="file" id="imageUpload" accept="image/*" title="Carica un file immagine">
-                    <button id="takePictureButton" class="icon-button" title="Usa la fotocamera">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M4 4h3l2-2h6l2 2h3v16H4V4zm8 13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0-8c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3z" />
-                        </svg>
-                        Scatta Foto
-                    </button>
+    <div id="mainContentArea">
+        <div class="options-section" id="durationSection">
+            <h3>2. Durata Musica</h3>
+            <div class="radio-duration-group">
+                <div class="radio-duration-item">
+                    <input type="radio" id="duration40" name="musicDuration" value="40" checked>
+                    <label for="duration40">
+                        <span class="duration-value">40s</span>
+                        <span class="duration-credit">FREE</span>
+                    </label>
                 </div>
+                <div class="radio-duration-item">
+                    <input type="radio" id="duration60" name="musicDuration" value="60">
+                    <label for="duration60">
+                        <span class="duration-value">60s</span>
+                        <span class="duration-credit">1 cr.</span>
+                    </label>
+                </div>
+                <div class="radio-duration-item">
+                    <input type="radio" id="duration120" name="musicDuration" value="120">
+                    <label for="duration120">
+                        <span class="duration-value">120s</span>
+                        <span class="duration-credit">2 cr.</span>
+                    </label>
+                </div>
+                <div class="radio-duration-item">
+                    <input type="radio" id="duration180" name="musicDuration" value="180">
+                    <label for="duration180">
+                        <span class="duration-value">180s</span>
+                        <span class="duration-credit">3 cr.</span>
+                    </label>
+                </div>
+                <div class="radio-duration-item">
+                    <input type="radio" id="duration240" name="musicDuration" value="240">
+                    <label for="duration240">
+                        <span class="duration-value">240s</span>
+                        <span class="duration-credit">4 cr.</span>
+                    </label>
+                </div>
+                <div class="radio-duration-item">
+                    <input type="radio" id="duration360" name="musicDuration" value="360">
+                    <label for="duration360">
+                        <span class="duration-value">360s</span>
+                        <span class="duration-credit">5 cr.</span>
+                    </label>
+                </div>
+            </div>
+        </div>
 
-                <div id="cameraViewContainer">
-                    <video id="cameraFeed" autoplay playsinline></video>
-                    <div class="camera-controls">
-                        <button id="captureImageButton">📸 Scatta!</button>
-                        <button id="switchCameraButton">🔄 Cambia</button>
-                        <button id="closeCameraButton">❌ Chiudi</button>
+        <div class="action-buttons-container">
+            <button id="generateMusicButton" disabled>Avvia generazione musica <span id="musicSpinner"
+                    style="display:none;" class="spinner"></span></button>
+        </div>
+
+        <div id="dynamicFeedbackArea">
+            <div id="status" class="status-message" style="margin-bottom: 15px;">In attesa del caricamento dei modelli
+                AI...</div>
+            <div id="progressAndPlayerContainer">
+                <div id="progressMessage"></div>
+                <div class="progress-bar-container" id="progressBarContainer">
+                    <div class="progress-bar-animated" id="progressBarAnimated"></div>
+                </div>
+                <div id="audioPlayerContainer">
+                    <h3>Musica Generata</h3>
+                    <audio id="audioPlayer" controls src=""></audio>
+                    <p id="audioInfo"></p>
+                    <div id="downloadButtonsContainer">
+                        <a id="downloadAudioLink" href="#" class="download-button" style="display:none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18"
+                                height="18">
+                                <path
+                                    d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14a6 6 0 0 0 6 6h13a5 5 0 0 0 5-5c0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z" />
+                            </svg>
+                            Scarica Audio
+                        </a>
+                        <a id="downloadCompositeImageLink" href="#" class="download-button" style="display:none;">
+                            <span class="button-icon-placeholder">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                                    width="18" height="18">
+                                    <path d="M5 20h14v-2H5v2zm14-9h-4V3H9v8H5l7 7 7-7z" />
+                                </svg>
+                            </span>
+                            Scarica Img+QR
+                        </a>
+                        <a id="downloadQrOnlyLink" href="#" class="download-button" style="display:none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18"
+                                height="18">
+                                <path
+                                    d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8-2v8h8V3h-8zm6 6h-4V5h4v4zM3 21h8v-8H3v8zm2-6h4v4H5v-4zm13-2h-2v3h-3v2h5v-5zM13 3h2v2h-2V3zm0 16h2v2h-2v-2zm-5-5h2v2H8v-2z" />
+                            </svg>
+                            Scarica QR
+                        </a>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div id="imagePreviewContainer">
-                    <img id="imagePreview" src="#" alt="Anteprima Immagine" style="display:none;">
-                    <canvas id="detectionCanvas"></canvas>
+        <div id="aiInsightsSection" class="options-section">
+            <h3>COSA VEDE L'AI</h3>
+            <p id="aiInterpretationText">L'intelligenza artificiale ha analizzato la tua immagine per coglierne
+                l'essenza e trasformarla in musica. Ecco come ha interpretato gli elementi visivi:</p>
+            <div class="details-accordion-header">
+                <span>Dettagli</span>
+                <span class="toggle-icon"></span>
+            </div>
+            <div id="aiInsightsContent">
+                <div class="ai-processing-simulation" id="aiProcessingSimulation">
+                    <p>In attesa di analisi immagine...</p>
                 </div>
             </div>
+        </div>
 
-            <div id="mainContentArea">
-                <div class="options-section" id="durationSection">
-                    <h3>2. Durata Musica</h3>
-                    <div class="radio-duration-group">
-                        <div class="radio-duration-item">
-                            <input type="radio" id="duration40" name="musicDuration" value="40" checked>
-                            <label for="duration40">
-                                <span class="duration-value">40s</span>
-                                <span class="duration-credit">GRATIS</span>
-                            </label>
-                        </div>
-                        <div class="radio-duration-item">
-                            <input type="radio" id="duration60" name="musicDuration" value="60">
-                            <label for="duration60">
-                                <span class="duration-value">60s</span>
-                                <span class="duration-credit">DEMO</span>
-                            </label>
-                        </div>
-                        <div class="radio-duration-item">
-                            <input type="radio" id="duration120" name="musicDuration" value="120">
-                            <label for="duration120">
-                                <span class="duration-value">120s</span>
-                                <span class="duration-credit">DEMO</span>
-                            </label>
-                        </div>
-                        <div class="radio-duration-item">
-                            <input type="radio" id="duration180" name="musicDuration" value="180">
-                            <label for="duration180">
-                                <span class="duration-value">180s</span>
-                                <span class="duration-credit">DEMO</span>
-                            </label>
-                        </div>
-                        <div class="radio-duration-item">
-                            <input type="radio" id="duration240" name="musicDuration" value="240">
-                            <label for="duration240">
-                                <span class="duration-value">240s</span>
-                                <span class="duration-credit">DEMO</span>
-                            </label>
-                        </div>
-                        <div class="radio-duration-item">
-                            <input type="radio" id="duration360" name="musicDuration" value="360">
-                            <label for="duration360">
-                                <span class="duration-value">360s</span>
-                                <span class="duration-credit">DEMO</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
+        <!-- SEZIONE PERSONALIZZAZIONI RIDISEGNATA A 4 COLONNE -->
+        <div class="options-section" id="descriptiveCuesSection">
+            <h3>FAI LE TUE PERSONALIZZAZIONI <span
+                    style="font-weight:normal; font-size:0.8em; color:var(--light-text);">(opzionale)</span></h3>
+            <p class="info-text-cues-main">L'IA genererà la musica anche senza selezioni, basandosi sull'immagine. Le
+                tue scelte aiuteranno a guidare l'interpretazione.</p>
 
-                <div class="action-buttons-container">
-                    <button id="generateMusicButton" disabled>
-                        Avvia generazione musica
-                        <span id="musicSpinner" style="display:none;" class="spinner"></span>
-                    </button>
-                </div>
-
-                <div id="dynamicFeedbackArea">
-                    <div id="status" class="status-message">Caricamento modelli AI...</div>
-                    <div id="progressAndPlayerContainer">
-                        <div id="progressMessage"></div>
-                        <div class="progress-bar-container" id="progressBarContainer">
-                            <div class="progress-bar-animated" id="progressBarAnimated"></div>
-                        </div>
-                        <div id="audioPlayerContainer">
-                            <h3>🎵 Musica Generata</h3>
-                            <audio id="audioPlayer" controls></audio>
-                            <p id="audioInfo"></p>
-                            <div id="downloadButtonsContainer">
-                                <a id="downloadAudioLink" href="#" class="download-button">📥 Scarica Audio</a>
-                                <a id="downloadCompositeImageLink" href="#" class="download-button">🖼️ Img+QR</a>
-                                <a id="downloadQrOnlyLink" href="#" class="download-button">📱 Solo QR</a>
+            <!-- GRID A 4 COLONNE -->
+            <div class="cues-grid-container">
+                <!-- COLONNA 1: MOOD -->
+                <div class="cues-column">
+                    <div class="cues-selection-container">
+                        <label class="group-label collapsible-cue-header" for="moodPills">
+                            <div class="cue-header-content">
+                                <img src="/wp-content/pictosound/icone/mood_icon.jpg" alt="Mood" class="cue-icon-small"
+                                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjY2NjIiBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptLTIgMTVsLTUtNSAxLjQxLTEuNDFMMTAgMTQuMTdsNy41OS03LjU5TDE5IDhsLTkgOXoiLz48L3N2Zz4='; this.onerror=null;">
+                                <span class="cue-title">Mood</span>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="aiInsightsSection" class="options-section">
-                    <h3>🧠 COSA VEDE L'AI</h3>
-                    <p id="aiInterpretationText">L'intelligenza artificiale analizzerà la tua immagine...</p>
-                    <div class="details-accordion-header">
-                        <span>Dettagli Analisi</span>
-                        <span class="toggle-icon"></span>
-                    </div>
-                    <div id="aiInsightsContent">
-                        <div class="ai-processing-simulation" id="aiProcessingSimulation">
-                            <p>In attesa di analisi immagine...</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="options-section" id="descriptiveCuesSection">
-                    <h3>🎛️ PERSONALIZZAZIONI <span class="optional-text">(opzionale)</span></h3>
-                    <p class="info-text-cues-main">L'AI genererà la musica basandosi sull'immagine. Le tue scelte
-                        guideranno l'interpretazione.</p>
-
-                    <div class="bpm-slider-container">
-                        <label for="bpmSlider" class="bpm-label">
-                            🎵 Velocità (BPM): <span id="bpmValue">120</span>
+                            <span class="toggle-icon-cues"></span>
                         </label>
-                        <input type="range" id="bpmSlider" name="bpm" min="40" max="200" value="120" step="5">
+                        <div class="checkbox-pills-group" id="moodPills"></div>
+                        <div class="bpm-slider-container">
+                            <label for="bpmSlider">BPM: <span id="bpmValue">120</span></label>
+                            <input type="range" id="bpmSlider" name="bpm" min="40" max="200" value="120" step="5">
+                        </div>
                     </div>
+                </div>
 
-                    <div class="cues-grid-container">
-                        <div class="cues-column">
-                            <div class="cues-selection-container">
-                                <label class="group-label collapsible-cue-header">
-                                    <div class="cue-header-content">
-                                        <span class="cue-icon">😊</span>
-                                        <span class="cue-title">Mood</span>
-                                    </div>
-                                    <span class="toggle-icon-cues"></span>
-                                </label>
-                                <div class="checkbox-pills-group" id="moodPills"></div>
+                <!-- COLONNA 2: GENERE -->
+                <div class="cues-column">
+                    <div class="cues-selection-container">
+                        <label class="group-label collapsible-cue-header" for="genrePills">
+                            <div class="cue-header-content">
+                                <img src="/wp-content/pictosound/icone/genere_icon.jpg" alt="Genere"
+                                    class="cue-icon-small"
+                                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjY2NjIiBkPSJNMTIgM3Y5LjI4Yy0uNDctLjE3LTEtLjI4LTEuNTQtLjI4QzguMDEgMTIgNiAxNC4wMSA2IDE2LjVTOC4wMSAyMSAxMC40NiAyMXMyLjU0LTIuMDEgMi41NC00LjVWN2g0VjNIMTJ6Ii8+PC9zdmc+'; this.onerror=null;">
+                                <span class="cue-title">Genere</span>
                             </div>
-                        </div>
+                            <span class="toggle-icon-cues"></span>
+                        </label>
+                        <div class="checkbox-pills-group" id="genrePills"></div>
+                    </div>
+                </div>
 
-                        <div class="cues-column">
-                            <div class="cues-selection-container">
-                                <label class="group-label collapsible-cue-header">
-                                    <div class="cue-header-content">
-                                        <span class="cue-icon">🎵</span>
-                                        <span class="cue-title">Genere</span>
-                                    </div>
-                                    <span class="toggle-icon-cues"></span>
-                                </label>
-                                <div class="checkbox-pills-group" id="genrePills"></div>
+                <!-- COLONNA 3: STRUMENTI -->
+                <div class="cues-column">
+                    <div class="cues-selection-container">
+                        <label class="group-label collapsible-cue-header" for="instrumentPills">
+                            <div class="cue-header-content">
+                                <img src="/wp-content/pictosound/icone/strumenti_icon.jpg" alt="Strumenti"
+                                    class="cue-icon-small"
+                                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjY2NjIiBkPSJtMTIgM2w0IDR2NGgtM3Y4aC0ydi04SDh2LTRsMTIgMyA0IDR2NGgtM3Y4aC0ydi04SDh2LTRsNC00eiIvPjwvc3ZnPg=='; this.onerror=null;">
+                                <span class="cue-title">Strumenti</span>
                             </div>
-                        </div>
+                            <span class="toggle-icon-cues"></span>
+                        </label>
+                        <div class="checkbox-pills-group" id="instrumentPills"></div>
+                    </div>
+                </div>
 
-                        <div class="cues-column">
-                            <div class="cues-selection-container">
-                                <label class="group-label collapsible-cue-header">
-                                    <div class="cue-header-content">
-                                        <span class="cue-icon">🎸</span>
-                                        <span class="cue-title">Strumenti</span>
-                                    </div>
-                                    <span class="toggle-icon-cues"></span>
-                                </label>
-                                <div class="checkbox-pills-group" id="instrumentPills"></div>
+                <!-- COLONNA 4: RITMO -->
+                <div class="cues-column">
+                    <div class="cues-selection-container">
+                        <label class="group-label collapsible-cue-header" for="rhythmPills">
+                            <div class="cue-header-content">
+                                <img src="/wp-content/pictosound/icone/ritmo_icon.jpg" alt="Ritmo"
+                                    class="cue-icon-small"
+                                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjY2NjIiBkPSJNOCAzdjJIOXY2aDJWNWgxVjNIOHptNiAwaC0ydjJoMXY2aDJWNWgxVjNoLTJ6bS02IDEwdjJoMXY2aDJWMTVoMXYtMkg4em02IDBoLTJ2MmgxdjZoMlYxNWgxdi0yaC0yeiIvPjwvc3ZnPg=='; this.onerror=null;">
+                                <span class="cue-title">Ritmo</span>
                             </div>
-                        </div>
-
-                        <div class="cues-column">
-                            <div class="cues-selection-container">
-                                <label class="group-label collapsible-cue-header">
-                                    <div class="cue-header-content">
-                                        <span class="cue-icon">🥁</span>
-                                        <span class="cue-title">Ritmo</span>
-                                    </div>
-                                    <span class="toggle-icon-cues"></span>
-                                </label>
-                                <div class="checkbox-pills-group" id="rhythmPills"></div>
-                            </div>
-                        </div>
+                            <span class="toggle-icon-cues"></span>
+                        </label>
+                        <div class="checkbox-pills-group" id="rhythmPills"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Canvas nascosti -->
-    <canvas id="imageCanvas" style="display:none;"></canvas>
-    <canvas id="compositeImageCanvas" style="display:none;"></canvas>
+<!-- Canvas e elementi nascosti -->
+<canvas id="imageCanvas" style="display:none;"></canvas>
+<canvas id="compositeImageCanvas" style="display:none;"></canvas>
+<textarea id="additionalCuesTextarea" style="display:none;"></textarea>
 
-    <!-- Script AI Libraries - CDN Affidabili -->
-    <script src="https://pictosound.com/wp-content/pictosound/js/tf.min.js"></script>
-    <script src="https://pictosound.com/wp-content/pictosound/js/coco-ssd.min.js"></script>
-    <script src="https://pictosound.com/wp-content/pictosound/js/face-api.min.js"></script>
-    <script src="https://pictosound.com/wp-content/pictosound/js/qrcode.min.js"></script>
-
-    <!-- Script principale -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://pictosound.com/wp-content/pictosound/js/script.js"></script>
-</body>
-
-</html>
+<!-- Caricamento delle librerie e stili necessari -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wp-content/pictosound/css/style.css">
