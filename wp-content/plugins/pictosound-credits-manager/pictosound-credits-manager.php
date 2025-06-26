@@ -1782,47 +1782,50 @@ add_action('wp_ajax_pictosound_get_current_credits', 'pictosound_cm_ajax_get_cur
  * Funzione AJAX per la generazione di musica e il salvataggio dell'immagine.
  */
 function pictosound_ajax_generate_music() {
+    // 1. VERIFICA DI SICUREZZA (NONCE)
+    // Controlla che la richiesta provenga dal nostro sito e sia legittima.
+    check_ajax_referer('pictosound_generate_nonce', 'nonce');
+
+    // Funzione di logging di fallback
     if (!function_exists('write_log_cm')) {
         function write_log_cm($message) { error_log('Pictosound Log: ' . print_r($message, true)); }
     }
 
-    if (empty($_POST['action']) || empty($_POST['prompt']) || empty($_POST['duration'])) {
+    // Validazione input
+    if (empty($_POST['prompt']) || empty($_POST['duration'])) {
         wp_send_json_error(['error' => 'Richiesta malformata.'], 400);
-        wp_die();
     }
 
+    // Salvataggio immagine
     $image_url_to_save = '';
     if (!empty($_POST['image_data'])) {
-        write_log_cm("Dati immagine ricevuti. Tentativo di salvataggio...");
         $upload_dir_info = wp_upload_dir();
         $upload_dir = $upload_dir_info['basedir'] . '/pictosound_images/';
-        if (!file_exists($upload_dir)) {
-            wp_mkdir_p($upload_dir);
-        }
-
+        if (!file_exists($upload_dir)) { wp_mkdir_p($upload_dir); }
         if (strpos($_POST['image_data'], 'base64,') !== false) {
             list(, $data) = explode(',', $_POST['image_data']);
             $decoded_data = base64_decode($data);
             $image_filename = 'img_gen_' . time() . '_' . wp_generate_password(8, false) . '.jpg';
             $image_filepath = $upload_dir . $image_filename;
-
             if (file_put_contents($image_filepath, $decoded_data)) {
                 $image_url_to_save = $upload_dir_info['baseurl'] . '/pictosound_images/' . $image_filename;
-                write_log_cm("SUCCESSO: Immagine salvata in -> " . $image_filepath);
-            } else {
-                write_log_cm("ERRORE CRITICO: file_put_contents() ha fallito! Controllare i permessi della cartella: " . $upload_dir);
             }
         }
     }
 
+    // Recupero dati e sanificazione
     $prompt_text = sanitize_textarea_field(stripslashes($_POST['prompt']));
     $duration_seconds = intval($_POST['duration']);
-    $user_id = is_user_logged_in() ? get_current_user_id() : null;
+    
+    // Ora, grazie a check_ajax_referer(), questa funzione restituirà l'ID utente corretto
+    $user_id = get_current_user_id();
+    write_log_cm("Inizio generazione musica. Riconosciuto User ID: " . $user_id);
 
+    // Chiamata API Stability.AI
     $audio_dir = WP_CONTENT_DIR . '/pictosound/audio/';
     if (!file_exists($audio_dir)) { wp_mkdir_p($audio_dir); }
     
-    $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // ⚠️ SOSTITUIRE
+    $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // ⚠️ USA LA TUA CHIAVE API
     $api_url = 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio';
     
     $fields_to_send = ['prompt' => $prompt_text, 'output_format' => 'mp3', 'duration' => $duration_seconds, 'steps' => 30];
@@ -1833,28 +1836,57 @@ function pictosound_ajax_generate_music() {
 
     $response = wp_remote_post($api_url, ['method' => 'POST', 'timeout' => 180, 'headers' => ["Authorization" => "Bearer $api_key", "Accept" => "audio/*", "Content-Type" => "multipart/form-data; boundary=" . $boundary], 'body' => $request_body]);
 
-    if (is_wp_error($response)) { wp_send_json_error(['error' => "Errore API musicale."], 500); wp_die(); }
+    if (is_wp_error($response)) { 
+        wp_send_json_error(['error' => "Errore API musicale: " . $response->get_error_message()], 502);
+    }
 
     $http_code = wp_remote_retrieve_response_code($response);
+    $response_body = wp_remote_retrieve_body($response);
+
     if ($http_code >= 200 && $http_code < 300) {
         $audio_filename = 'audio_gen_' . time() . '_' . wp_generate_password(8, false) . '.mp3';
         $filepath = $audio_dir . $audio_filename;
-        if (file_put_contents($filepath, wp_remote_retrieve_body($response))) {
+        if (file_put_contents($filepath, $response_body)) {
             $download_url = content_url("/pictosound/includes/download.php?file=" . urlencode($audio_filename));
             
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'ps_generations';
-            $wpdb->insert($table_name, ['user_id' => $user_id, 'duration' => $duration_seconds, 'prompt' => $prompt_text, 'audio_filename' => $audio_filename, 'audio_url' => $download_url, 'image_url' => $image_url_to_save, 'created_at' => current_time('mysql')]);
+            // Logica di salvataggio nel database
+            if ( $user_id > 0 ) {
+                write_log_cm("Tentativo di salvataggio nel DB per User ID: " . $user_id);
+                global $wpdb;
+                $table_name = $wpdb->prefix . 'ps_generations';
+                
+                $insert_result = $wpdb->insert($table_name, [
+                    'user_id'        => $user_id,
+                    'duration'       => $duration_seconds, 
+                    'prompt'         => $prompt_text, 
+                    'audio_filename' => $audio_filename, 
+                    'audio_url'      => $download_url, 
+                    'image_url'      => $image_url_to_save, 
+                    'created_at'     => current_time('mysql', 1)
+                ]);
+
+                if ($insert_result === false) {
+                    write_log_cm("ERRORE DATABASE: L'inserimento è fallito per l'utente $user_id. Errore: " . $wpdb->last_error);
+                } else {
+                    write_log_cm("SUCCESSO: Generazione salvata nel DB per l'utente $user_id.");
+                }
+            } else {
+                write_log_cm("Generazione per utente ospite. Salvataggio su DB saltato.");
+            }
             
-            wp_send_json_success(['audioUrl' => $download_url, 'downloadUrl' => $download_url, 'fileName' => $audio_filename]);
+            wp_send_json_success([
+                'audioUrl'    => $download_url, 
+                'downloadUrl' => $download_url, 
+                'fileName'    => $audio_filename
+            ]);
+
         } else {
-            wp_send_json_error(['error' => "Errore scrittura file audio."], 500);
+            wp_send_json_error(['error' => "Errore durante la scrittura del file audio sul server."], 500);
         }
     } else {
-        $error_data = json_decode(wp_remote_retrieve_body($response), true);
-        wp_send_json_error(['error' => $error_data['message'] ?? 'Errore API musicale.'], $http_code);
+        $error_data = json_decode($response_body, true);
+        wp_send_json_error(['error' => $error_data['message'] ?? 'Errore dall\'API musicale.'], $http_code);
     }
-    wp_die();
 }
 add_action('wp_ajax_pictosound_generate_music', 'pictosound_ajax_generate_music');
 add_action('wp_ajax_nopriv_pictosound_generate_music', 'pictosound_ajax_generate_music');

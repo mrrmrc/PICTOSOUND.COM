@@ -126,21 +126,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Pills data - SEMPLIFICATI SENZA SECONDI TERMINI
+    // Pills data
     const moodItems = [
-        { value: "felice", label: "Felice" },
-        { value: "triste", label: "Triste" },
+        { value: "felice", label: "Felice / Gioioso" },
+        { value: "triste", label: "Triste / Malinconico" },
         { value: "riflessivo", label: "Riflessivo" },
-        { value: "epico", label: "Epico" },
-        { value: "rilassante", label: "Rilassante" },
-        { value: "energico", label: "Energico" },
-        { value: "misterioso", label: "Misterioso" },
-        { value: "sognante", label: "Sognante" },
+        { value: "epico", label: "Epico / Grandioso" },
+        { value: "rilassante", label: "Rilassante / Calmo" },
+        { value: "energico", label: "Energico / Vivace" },
+        { value: "misterioso", label: "Misterioso / Inquietante" },
+        { value: "sognante", label: "Sognante / Etereo" },
         { value: "romantico", label: "Romantico" },
         { value: "drammatico", label: "Drammatico" },
-        { value: "futuristico", label: "Futuristico" },
+        { value: "futuristico", label: "Futuristico / Sci-Fi" },
         { value: "nostalgico", label: "Nostalgico" },
-        { value: "potente", label: "Potente" }
+        { value: "potente", label: "Potente / Intenso" }
     ];
 
     const genreItems = [
@@ -150,9 +150,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         { value: "jazz", label: "Jazz" },
         { value: "classica", label: "Classica" },
         { value: "ambient", label: "Ambient" },
-        { value: "soundtrack", label: "Soundtrack" },
-        { value: "folk", label: "Folk" },
-        { value: "lo-fi", label: "Lo-fi" },
+        { value: "soundtrack", label: "Soundtrack / Cinematografica" },
+        { value: "folk", label: "Folk / Acustica" },
+        { value: "lo-fi", label: "Lo-fi / Chillhop" },
         { value: "hip-hop", label: "Hip Hop" }
     ];
 
@@ -161,16 +161,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         { value: "chitarra acustica", label: "Chitarra Acustica" },
         { value: "chitarra elettrica", label: "Chitarra Elettrica" },
         { value: "basso", label: "Basso" },
-        { value: "batteria", label: "Batteria" },
-        { value: "violino", label: "Violino" },
-        { value: "sintetizzatore", label: "Sintetizzatore" }
+        { value: "batteria", label: "Batteria / Percussioni" },
+        { value: "violino", label: "Violino / Archi" },
+        { value: "sintetizzatore", label: "Sintetizzatore / Tastiere" }
     ];
 
     const rhythmItems = [
-        { value: "no_rhythm", label: "Ambientale" },
-        { value: "slow_rhythm", label: "Lento" },
-        { value: "moderate_groove", label: "Moderato" },
-        { value: "upbeat_energetic", label: "Energico" }
+        { value: "no_rhythm", label: "Nessun ritmo evidente (Ambientale)" },
+        { value: "slow_rhythm", label: "Ritmo Lento e Rilassato" },
+        { value: "moderate_groove", label: "Groove Moderato e Orecchiabile" },
+        { value: "upbeat_energetic", label: "Ritmo Incalzante ed Energico" }
     ];
 
     // ========== HELPER FUNCTIONS ==========
@@ -267,81 +267,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     function populateCheckboxPills(container, items, groupName) {
         if (!container) return;
         container.innerHTML = '';
-
-        // Aggiungi CSS mobile-ottimizzato direttamente al container
-        if (!document.getElementById('mobile-pills-css')) {
-            const style = document.createElement('style');
-            style.id = 'mobile-pills-css';
-            style.textContent = `
-                .checkbox-pills-group {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 8px;
-                    margin-top: 15px;
-                }
-                
-                .checkbox-pill {
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 8px 12px;
-                    background: #f8f9fa;
-                    border: 2px solid #e9ecef;
-                    border-radius: 20px;
-                    font-size: 13px;
-                    font-weight: 500;
-                    color: #495057;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    user-select: none;
-                    min-height: 36px;
-                    white-space: nowrap;
-                }
-                
-                .checkbox-pill:hover {
-                    background: #e9ecef;
-                    border-color: #007cba;
-                }
-                
-                .checkbox-pill.selected {
-                    background: #007cba;
-                    border-color: #007cba;
-                    color: white;
-                }
-                
-                .checkbox-pill input {
-                    display: none;
-                }
-                
-                /* Mobile ottimizzato - pill più compatte */
-                @media (max-width: 767px) {
-                    .checkbox-pills-group {
-                        gap: 6px;
-                        margin-top: 12px;
-                    }
-                    
-                    .checkbox-pill {
-                        padding: 6px 10px;
-                        font-size: 12px;
-                        min-height: 32px;
-                        border-radius: 16px;
-                    }
-                }
-                
-                /* Tablet - layout intermedio */
-                @media (min-width: 768px) and (max-width: 1023px) {
-                    .checkbox-pills-group {
-                        gap: 7px;
-                    }
-                    
-                    .checkbox-pill {
-                        font-size: 12.5px;
-                        padding: 7px 11px;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
         items.forEach(item => {
             const pillLabel = document.createElement('label');
             pillLabel.classList.add('checkbox-pill');
@@ -523,7 +448,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 aiSuggestions.moods.push("energico");
                 aiSuggestions.bpm = 140;
             } else if (primaryEmotion === "triste") {
-                aiSuggestions.moods.push("triste");
+                aiSuggestions.moods.push("malinconico");
                 aiSuggestions.bpm = 80;
             } else if (primaryEmotion === "arrabbiato/a") {
                 aiSuggestions.moods.push("drammatico");
@@ -752,7 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (cues.moods.length === 0 && detectedEmotions && detectedEmotions.length > 0) {
                 const primaryEmotion = detectedEmotions.find(e => e !== "neutrale") || detectedEmotions[0];
                 if (primaryEmotion === "felice") cues.moods.push("energico");
-                else if (primaryEmotion === "triste") cues.moods.push("triste");
+                else if (primaryEmotion === "triste") cues.moods.push("malinconico");
                 else if (primaryEmotion === "arrabbiato/a") cues.moods.push("drammatico");
                 else cues.moods.push("rilassante");
             }
@@ -780,359 +705,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return cues;
     }
 
-    // ========== FUNZIONI DI SUPPORTO PER DETTAGLI TECNICI AVANZATI ==========
-    function calculateColorTemperature(r, g, b) {
-        // Calcolo approssimativo della temperatura colore
-        const ratio = (r + g + b) / 3;
-        const warmness = (r - b) / 255;
-
-        let temp, type, description;
-
-        if (warmness > 0.1) {
-            temp = Math.round(2500 + (1 - warmness) * 3500);
-            type = 'temp-warm';
-            description = 'Calda';
-        } else if (warmness < -0.1) {
-            temp = Math.round(4500 + Math.abs(warmness) * 2500);
-            type = 'temp-cool';
-            description = 'Fredda';
-        } else {
-            temp = Math.round(3500 + ratio * 2000);
-            type = 'temp-neutral';
-            description = 'Neutra';
-        }
-
-        return { value: temp, type: type, description: description };
-    }
-
-    function calculateConfidenceScore(aiMetrics) {
-        // Calcola un punteggio di confidenza basato sui rilevamenti
-        const totalDetections = aiMetrics.objectsCount + aiMetrics.emotionsCount;
-        if (totalDetections === 0) return 0;
-
-        // Più rilevamenti = maggiore confidenza (fino a un massimo)
-        const baseScore = Math.min(totalDetections * 15, 75);
-        const qualityBonus = aiMetrics.objectsCount > 0 && aiMetrics.emotionsCount > 0 ? 25 : 10;
-
-        return Math.min(baseScore + qualityBonus, 95);
-    }
-
-    function calculatePromptComplexity(prompt) {
-        const words = prompt.split(' ').length;
-        const uniqueWords = new Set(prompt.toLowerCase().split(' ')).size;
-        const complexity = uniqueWords / words;
-
-        if (complexity > 0.8) return 'Alta';
-        if (complexity > 0.6) return 'Media';
-        return 'Bassa';
-    }
-
-    function formatNumber(num) {
-        if (!num) return 'N/A';
-        if (num > 1000000) return (num / 1000000).toFixed(1) + 'M';
-        if (num > 1000) return (num / 1000).toFixed(1) + 'K';
-        return num.toString();
-    }
-
-    // ========== FUNZIONE MIGLIORATA PER DETTAGLI TECNICI ARRICCHITI ==========
-    function generateEnhancedTechnicalDetails(analysis, detectedObjectsList, detectedEmotionsList, finalStablePrompt, currentImage) {
-        console.log("🔧 DEBUG: Generazione dettagli tecnici avanzati");
-
-        // Calcola dati aggiuntivi se l'immagine è disponibile
-        let enhancedData = {
-            imageMetrics: {},
-            colorMetrics: {},
-            aiMetrics: {},
-            performance: {}
-        };
-
-        if (currentImage) {
-            enhancedData.imageMetrics = {
-                width: currentImage.naturalWidth,
-                height: currentImage.naturalHeight,
-                aspectRatio: (currentImage.naturalWidth / currentImage.naturalHeight).toFixed(2),
-                totalPixels: currentImage.naturalWidth * currentImage.naturalHeight,
-                megapixels: ((currentImage.naturalWidth * currentImage.naturalHeight) / 1000000).toFixed(1)
-            };
-        }
-
-        if (analysis) {
-            enhancedData.colorMetrics = {
-                brightness: analysis.averageBrightness,
-                contrast: analysis.contrast,
-                saturation: analysis.averageSaturation,
-                dominantColors: analysis.dominantColors || [],
-                colorCount: analysis.dominantColors ? analysis.dominantColors.length : 0
-            };
-
-            // Calcola temperatura colore approssimativa
-            if (analysis.dominantColors && analysis.dominantColors.length > 0) {
-                const firstColor = analysis.dominantColors[0];
-                const temp = calculateColorTemperature(firstColor.r, firstColor.g, firstColor.b);
-                enhancedData.colorMetrics.colorTemperature = temp;
-            }
-        }
-
-        enhancedData.aiMetrics = {
-            objectsCount: detectedObjectsList ? detectedObjectsList.length : 0,
-            emotionsCount: detectedEmotionsList ? detectedEmotionsList.length : 0,
-            objects: detectedObjectsList || [],
-            emotions: detectedEmotionsList || []
-        };
-
-        const technicalHTML = `
-        <div class="technical-details-enhanced">
-            <style>
-            .technical-details-enhanced {
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            }
-            .tech-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                gap: 16px;
-                margin: 16px 0;
-            }
-            .tech-card {
-                background: #ffffff;
-                border: 1px solid #e1e5e9;
-                border-radius: 8px;
-                padding: 16px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            .tech-card h5 {
-                margin: 0 0 12px 0;
-                font-size: 14px;
-                font-weight: 600;
-                color: #2d3748;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            .tech-metrics {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-                gap: 8px;
-            }
-            .tech-metric {
-                text-align: center;
-                padding: 8px;
-                background: #f7fafc;
-                border-radius: 6px;
-                border: 1px solid #e2e8f0;
-            }
-            .tech-metric-value {
-                font-weight: 700;
-                font-size: 16px;
-                color: #2b6cb0;
-                display: block;
-            }
-            .tech-metric-label {
-                font-size: 11px;
-                color: #718096;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-            .color-palette {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-                margin-top: 8px;
-            }
-            .color-chip {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                padding: 4px 8px;
-                background: #f8f9fa;
-                border: 1px solid #dee2e6;
-                border-radius: 20px;
-                font-size: 11px;
-                color: #495057;
-            }
-            .color-swatch {
-                width: 16px;
-                height: 16px;
-                border-radius: 50%;
-                border: 1px solid rgba(0,0,0,0.1);
-                box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
-            }
-            .ai-tags {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 6px;
-                margin-top: 8px;
-            }
-            .ai-tag {
-                padding: 2px 8px;
-                background: #e6f3ff;
-                color: #0066cc;
-                border-radius: 12px;
-                font-size: 11px;
-                font-weight: 500;
-                border: 1px solid #b3d9ff;
-            }
-            .ai-tag.emotion {
-                background: #fff0e6;
-                color: #cc6600;
-                border-color: #ffcc99;
-            }
-            .prompt-box {
-                background: #f8f9fa;
-                border: 1px solid #e9ecef;
-                border-radius: 6px;
-                padding: 12px;
-                font-family: 'Fira Code', 'Monaco', 'Menlo', monospace;
-                font-size: 12px;
-                line-height: 1.4;
-                color: #495057;
-                margin-top: 8px;
-                word-break: break-word;
-            }
-            .temp-indicator {
-                display: inline-block;
-                padding: 2px 6px;
-                border-radius: 10px;
-                font-size: 10px;
-                font-weight: 600;
-                margin-left: 8px;
-            }
-            .temp-warm { background: #fff5f5; color: #c53030; }
-            .temp-cool { background: #f0f8ff; color: #2b6cb0; }
-            .temp-neutral { background: #f7fafc; color: #4a5568; }
-            @media (max-width: 768px) {
-                .tech-grid {
-                    grid-template-columns: 1fr;
-                    gap: 12px;
-                }
-                .tech-metrics {
-                    grid-template-columns: repeat(2, 1fr);
-                }
-            }
-            </style>
-
-            <div class="tech-grid">
-                <!-- CARD 1: METRICHE IMMAGINE -->
-                <div class="tech-card">
-                    <h5>📐 Metriche Immagine</h5>
-                    <div class="tech-metrics">
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.imageMetrics.width || 'N/A'}×${enhancedData.imageMetrics.height || 'N/A'}</span>
-                            <span class="tech-metric-label">Risoluzione</span>
-                        </div>
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.imageMetrics.aspectRatio || 'N/A'}</span>
-                            <span class="tech-metric-label">Aspect Ratio</span>
-                        </div>
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.imageMetrics.megapixels || 'N/A'}MP</span>
-                            <span class="tech-metric-label">Megapixel</span>
-                        </div>
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${formatNumber(enhancedData.imageMetrics.totalPixels)}</span>
-                            <span class="tech-metric-label">Tot. Pixel</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- CARD 2: ANALISI COLORE -->
-                <div class="tech-card">
-                    <h5>🎨 Analisi Colore</h5>
-                    <div class="tech-metrics">
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.colorMetrics.brightness ? Math.round(enhancedData.colorMetrics.brightness) : 'N/A'}</span>
-                            <span class="tech-metric-label">Luminosità</span>
-                        </div>
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.colorMetrics.contrast ? Math.round(enhancedData.colorMetrics.contrast) : 'N/A'}</span>
-                            <span class="tech-metric-label">Contrasto</span>
-                        </div>
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.colorMetrics.saturation ? Math.round(enhancedData.colorMetrics.saturation) : 'N/A'}</span>
-                            <span class="tech-metric-label">Saturazione</span>
-                        </div>
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.colorMetrics.colorCount}</span>
-                            <span class="tech-metric-label">Colori Dom.</span>
-                        </div>
-                    </div>
-                    ${enhancedData.colorMetrics.colorTemperature ? `
-                    <div style="margin-top: 8px; font-size: 12px;">
-                        <strong>Temperatura:</strong> ${enhancedData.colorMetrics.colorTemperature.value}K
-                        <span class="temp-indicator ${enhancedData.colorMetrics.colorTemperature.type}">
-                            ${enhancedData.colorMetrics.colorTemperature.description}
-                        </span>
-                    </div>
-                    ` : ''}
-                </div>
-
-                <!-- CARD 3: AI DETECTION -->
-                <div class="tech-card">
-                    <h5>🤖 Rilevamento AI</h5>
-                    <div class="tech-metrics">
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.aiMetrics.objectsCount}</span>
-                            <span class="tech-metric-label">Oggetti</span>
-                        </div>
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.aiMetrics.emotionsCount}</span>
-                            <span class="tech-metric-label">Emozioni</span>
-                        </div>
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${enhancedData.aiMetrics.objects.length + enhancedData.aiMetrics.emotions.length}</span>
-                            <span class="tech-metric-label">Tot. Rilevati</span>
-                        </div>
-                        <div class="tech-metric">
-                            <span class="tech-metric-value">${calculateConfidenceScore(enhancedData.aiMetrics)}%</span>
-                            <span class="tech-metric-label">Confidenza</span>
-                        </div>
-                    </div>
-                    ${enhancedData.aiMetrics.objects.length > 0 || enhancedData.aiMetrics.emotions.length > 0 ? `
-                    <div class="ai-tags">
-                        ${enhancedData.aiMetrics.objects.map(obj => `<span class="ai-tag">${obj}</span>`).join('')}
-                        ${enhancedData.aiMetrics.emotions.map(emo => `<span class="ai-tag emotion">${emo}</span>`).join('')}
-                    </div>
-                    ` : ''}
-                </div>
-
-                <!-- CARD 4: PALETTE COLORI (solo se ci sono colori) -->
-                ${enhancedData.colorMetrics.dominantColors.length > 0 ? `
-                <div class="tech-card">
-                    <h5>🎯 Palette Dominante</h5>
-                    <div class="color-palette">
-                        ${enhancedData.colorMetrics.dominantColors.map((color, index) => `
-                            <div class="color-chip">
-                                <div class="color-swatch" style="background-color: rgb(${color.r},${color.g},${color.b});"></div>
-                                <span>#${index + 1} ${color.percentage.toFixed(1)}%</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div style="margin-top: 12px; font-size: 11px; color: #718096;">
-                        <strong>Dettaglio tecnico:</strong><br>
-                        ${enhancedData.colorMetrics.dominantColors.map((color, index) =>
-            `RGB(${color.r},${color.g},${color.b}) HSL(${Math.round(color.hue)},${Math.round(color.saturation)}%,${Math.round(color.lightness)}%) - ${color.pixelCount}px`
-        ).join('<br>')}
-                    </div>
-                </div>
-                ` : ''}
-            </div>
-
-            <!-- PROMPT FINALE -->
-            <div class="tech-card" style="margin-top: 16px;">
-                <h5>🔬 Prompt Generato</h5>
-                <div class="prompt-box">${finalStablePrompt}</div>
-                <div style="font-size: 11px; color: #718096; margin-top: 8px;">
-                    Lunghezza: ${finalStablePrompt.length} caratteri • 
-                    Parole: ${finalStablePrompt.split(' ').length} • 
-                    Complessità: ${calculatePromptComplexity(finalStablePrompt)}
-                </div>
-            </div>
-        </div>
-        `;
-
-        return technicalHTML;
-    }
-
-    // ========== FUNZIONE MIGLIORATA generateAIDisplayContent ==========
+    // ========== FUNZIONE CHIAVE MODIFICATA ==========
     function generateAIDisplayContent(analysis, detectedObjectsList, detectedEmotionsList, userInputs, finalStablePrompt) {
         console.log("🔄 DEBUG: Aggiornamento contenuto AI separato");
 
@@ -1172,18 +745,40 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log("✅ DEBUG: Interpretazione musicale inserita (sempre visibile)");
         }
 
-        // ========== PARTE 2: DETTAGLI TECNICI AVANZATI (NELL'ACCORDION) ==========
-        const enhancedTechnicalHTML = generateEnhancedTechnicalDetails(
-            analysis,
-            detectedObjectsList,
-            detectedEmotionsList,
-            finalStablePrompt,
-            currentImage
-        );
+        // ========== PARTE 2: DETTAGLI TECNICI (NELL'ACCORDION) ==========
+        let analysisContentHTML = "<h4>Analisi Tecnica Immagine:</h4><ul>";
+        analysisContentHTML += `<li><strong>Oggetti Rilevati:</strong> ${detectedObjectsList && detectedObjectsList.length > 0 ? detectedObjectsList.join(", ") : "Nessuno"}</li>`;
+        analysisContentHTML += `<li><strong>Emozioni Percepite:</strong> ${detectedEmotionsList && detectedEmotionsList.length > 0 ? detectedEmotionsList.join(", ") : "Nessuna"}</li>`;
 
-        // INSERISCI I DETTAGLI TECNICI AVANZATI NELL'ACCORDION
-        domElements.aiInsightsContent.innerHTML = enhancedTechnicalHTML;
-        console.log("✅ DEBUG: Dettagli tecnici avanzati inseriti (accordion)");
+        if (analysis) {
+            let brightnessDesc = "Media";
+            if (analysis.averageBrightness < 80) brightnessDesc = "Bassa (scena scura)";
+            else if (analysis.averageBrightness > 170) brightnessDesc = "Alta (scena luminosa)";
+            analysisContentHTML += `<li><strong>Luminosità:</strong> ${brightnessDesc}</li>`;
+
+            let contrastDesc = "Medio";
+            if (analysis.contrast < 30) contrastDesc = "Basso";
+            else if (analysis.contrast > 70) contrastDesc = "Alto";
+            analysisContentHTML += `<li><strong>Contrasto:</strong> ${contrastDesc}</li>`;
+
+            if (analysis.dominantColors && analysis.dominantColors.length > 0) {
+                analysisContentHTML += "<li><strong>Colori Dominanti:</strong><ul>";
+                analysis.dominantColors.forEach(c => {
+                    analysisContentHTML += `<li><span class="color-swatch-inline" style="background-color: rgb(${c.r},${c.g},${c.b});"></span>RGB(${c.r},${c.g},${c.b}) - ${c.percentage.toFixed(0)}%</li>`;
+                });
+                analysisContentHTML += "</ul></li>";
+            }
+        }
+        analysisContentHTML += "</ul>";
+
+        analysisContentHTML += `<div id="finalPromptForAI" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; font-family: monospace;">
+        <strong style="color: #495057; font-size: 14px;">🤖 Prompt finale per AI:</strong><br>
+        <span style="color: #28a745; font-weight: 500; font-size: 13px; line-height: 1.4; display: block; margin-top: 8px;">${finalStablePrompt}</span>
+        </div>`;
+
+        // INSERISCI I DETTAGLI TECNICI NELL'ACCORDION
+        domElements.aiInsightsContent.innerHTML = analysisContentHTML;
+        console.log("✅ DEBUG: Dettagli tecnici inseriti (accordion)");
     }
 
     async function updateAIDisplayAndStablePrompt() {
@@ -1300,6 +895,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // ========== MODIFICA ALLA FUNZIONE DEL PULSANTE GENERA MUSICA ==========
+    // Sostituisci la parte del click del generateMusicButton con questa:
+
     domElements.generateMusicButton.addEventListener('click', async () => {
         console.log("LOG: Click genera musica");
 
@@ -1313,14 +911,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             await updateAIDisplayAndStablePrompt();
         }
 
+        // ========== PULIZIA MESSAGGI E PLAYER PRECEDENTI ==========
         domElements.generateMusicButton.disabled = true;
         domElements.musicSpinner.style.display = 'inline-block';
+
+        // NASCONDI AUDIO PLAYER E DOWNLOAD PRECEDENTI
+        if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'none';
+        if (domElements.downloadAudioLink) domElements.downloadAudioLink.style.display = 'none';
+        if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
+        if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
+
+        // MOSTRA SOLO IL MESSAGGIO DI STATO DELLA GENERAZIONE
         setStatusMessage(domElements.statusDiv, "Generazione musica in corso...", "info");
         updateProgressMessage("Generazione traccia audio in corso...", true);
+        domElements.dynamicFeedbackArea.style.display = 'block';
 
         try {
             const duration = document.querySelector('input[name="musicDuration"]:checked')?.value || "40";
-
             console.log("LOG: Invio richiesta con prompt:", stableAudioPromptForMusic);
 
             const response = await jQuery.ajax({
@@ -1338,9 +945,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log("LOG: Risposta ricevuta:", response);
 
             if (response.success && response.data.audioUrl) {
+                // ========== SUCCESSO: NASCONDI MESSAGGI E MOSTRA PLAYER ==========
                 updateProgressMessage("", false);
-                setStatusMessage(domElements.statusDiv, "Musica generata con successo!", "success");
+                setStatusMessage(domElements.statusDiv, "", "info"); // NASCONDI MESSAGGIO
+                domElements.dynamicFeedbackArea.style.display = 'none'; // NASCONDI AREA FEEDBACK
 
+                // MOSTRA AUDIO PLAYER E DOWNLOAD
                 domElements.audioPlayer.src = response.data.audioUrl;
                 domElements.audioPlayerContainer.style.display = 'block';
                 domElements.progressAndPlayerContainer.style.display = 'block';
@@ -1350,10 +960,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     domElements.downloadAudioLink.style.display = 'inline-flex';
                 }
 
-                setTimeout(() => {
-                    domElements.statusDiv.style.display = 'none';
-                    domElements.dynamicFeedbackArea.style.display = 'none';
-                }, 3000);
+                // NON MOSTRARE PIÙ "Musica generata con successo!" - solo il player
+                console.log("✅ Musica generata e player attivato");
+
             } else {
                 throw new Error(response.data?.error || 'Errore generazione');
             }
@@ -1362,6 +971,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error("ERRORE generazione:", error);
             updateProgressMessage("", false);
             setStatusMessage(domElements.statusDiv, `Errore: ${error.message}`, "error");
+            // In caso di errore, mantieni i controlli disabilitati per un momento
+            setTimeout(() => {
+                if (domElements.statusDiv.textContent.includes("Errore:")) {
+                    setStatusMessage(domElements.statusDiv, "", "info");
+                    domElements.dynamicFeedbackArea.style.display = 'none';
+                }
+            }, 5000); // Nascondi errore dopo 5 secondi
         } finally {
             domElements.generateMusicButton.disabled = false;
             domElements.musicSpinner.style.display = 'none';

@@ -8,15 +8,15 @@ function pictosound_cm_registration_form_shortcode() {
             <p>Vai alla <a href="/" style="color: #007cba; font-weight: bold;">homepage</a> per iniziare a usare Pictosound.</p>
         </div>';
     }
-    
+
     $message = '';
     $form_data = []; // Per mantenere i dati in caso di errore
-    
+
     // ============================================
     // ELABORAZIONE FORM QUANDO VIENE INVIATO
     // ============================================
     if (isset($_POST['pictosound_reg_submit']) && wp_verify_nonce($_POST['pictosound_reg_nonce_field'], 'pictosound_user_registration_action')) {
-        
+
         // Recupera e sanitizza i dati
         $username = sanitize_user($_POST['reg_username'] ?? '');
         $email = sanitize_email($_POST['reg_email'] ?? '');
@@ -31,16 +31,16 @@ function pictosound_cm_registration_form_shortcode() {
         $cf_piva = strtoupper(sanitize_text_field($_POST['reg_cf_piva'] ?? ''));
         $codice_dest = sanitize_text_field($_POST['reg_codice_dest'] ?? '');
         $pec = sanitize_email($_POST['reg_pec'] ?? '');
-        
+
         // Salva i dati per ripopolare il form in caso di errore
         $form_data = compact('username', 'email', 'nome', 'cognome', 'company', 'indirizzo', 'cap', 'citta', 'cf_piva', 'codice_dest', 'pec');
-        
+
         $errors = [];
-        
+
         // ============================================
-        // VALIDAZIONI COMPLETE
+        // VALIDAZIONI OBBLIGATORIE (solamente username, email e password)
         // ============================================
-        
+
         // Username
         if (empty($username)) {
             $errors[] = __('Username è obbligatorio', 'pictosound-credits-manager');
@@ -51,7 +51,7 @@ function pictosound_cm_registration_form_shortcode() {
         } elseif (!validate_username($username)) {
             $errors[] = __('Username contiene caratteri non validi', 'pictosound-credits-manager');
         }
-        
+
         // Email
         if (empty($email)) {
             $errors[] = __('Email è obbligatoria', 'pictosound-credits-manager');
@@ -60,7 +60,7 @@ function pictosound_cm_registration_form_shortcode() {
         } elseif (email_exists($email)) {
             $errors[] = __('Email già registrata', 'pictosound-credits-manager');
         }
-        
+
         // Password
         if (empty($password)) {
             $errors[] = __('Password è obbligatoria', 'pictosound-credits-manager');
@@ -69,44 +69,39 @@ function pictosound_cm_registration_form_shortcode() {
         } elseif ($password !== $password2) {
             $errors[] = __('Le password non coincidono', 'pictosound-credits-manager');
         }
-        
-        // Nome/Ragione sociale (almeno uno dei due)
-        if (empty($nome) && empty($company)) {
-            $errors[] = __('Inserisci il nome o la ragione sociale', 'pictosound-credits-manager');
-        }
-        
-        // Indirizzo
-        if (empty($indirizzo)) {
-            $errors[] = __('Indirizzo è obbligatorio', 'pictosound-credits-manager');
-        }
-        
-        // CAP
-        if (empty($cap)) {
-            $errors[] = __('CAP è obbligatorio', 'pictosound-credits-manager');
-        } elseif (!preg_match('/^\d{5}$/', $cap)) {
-            $errors[] = __('CAP deve essere di 5 cifre', 'pictosound-credits-manager');
-        }
-        
-        // Città
-        if (empty($citta)) {
-            $errors[] = __('Città è obbligatoria', 'pictosound-credits-manager');
-        }
-        
-        // Codice fiscale/Partita IVA
-        if (empty($cf_piva)) {
-            $errors[] = __('Codice Fiscale o Partita IVA è obbligatorio', 'pictosound-credits-manager');
-        }
-        
-        // Codice destinatario o PEC (almeno uno)
-        if (empty($codice_dest) && empty($pec)) {
-            $errors[] = __('Inserisci almeno uno tra Codice Destinatario e PEC per la fatturazione elettronica', 'pictosound-credits-manager');
-        }
-        
-        // Privacy
-        if (!isset($_POST['reg_privacy_optin'])) {
-            $errors[] = __('Devi accettare l\'informativa sulla privacy', 'pictosound-credits-manager');
-        }
-        
+
+        // I SEGUENTI SONO ORA CAMPI FACOLTATIVI (VALIDAZIONI COMMENTATE)
+        // // Nome/Ragione sociale (almeno uno dei due)
+        // if (empty($nome) && empty($company)) {
+        //     $errors[] = __('Inserisci il nome o la ragione sociale', 'pictosound-credits-manager');
+        // }
+        // // Indirizzo
+        // if (empty($indirizzo)) {
+        //     $errors[] = __('Indirizzo è obbligatorio', 'pictosound-credits-manager');
+        // }
+        // // CAP
+        // if (empty($cap)) {
+        //     $errors[] = __('CAP è obbligatorio', 'pictosound-credits-manager');
+        // } elseif (!preg_match('/^\d{5}$/', $cap)) {
+        //     $errors[] = __('CAP deve essere di 5 cifre', 'pictosound-credits-manager');
+        // }
+        // // Città
+        // if (empty($citta)) {
+        //     $errors[] = __('Città è obbligatoria', 'pictosound-credits-manager');
+        // }
+        // // Codice fiscale/Partita IVA
+        // if (empty($cf_piva)) {
+        //     $errors[] = __('Codice Fiscale o Partita IVA è obbligatorio', 'pictosound-credits-manager');
+        // }
+        // // Codice destinatario o PEC (almeno uno)
+        // if (empty($codice_dest) && empty($pec)) {
+        //     $errors[] = __('Inserisci almeno uno tra Codice Destinatario e PEC per la fatturazione elettronica', 'pictosound-credits-manager');
+        // }
+        // // Privacy
+        // if (!isset($_POST['reg_privacy_optin'])) {
+        //     $errors[] = __('Devi accettare l\'informativa sulla privacy', 'pictosound-credits-manager');
+        // }
+
         // ============================================
         // SE CI SONO ERRORI, MOSTRALI
         // ============================================
@@ -118,9 +113,8 @@ function pictosound_cm_registration_form_shortcode() {
                 $message .= '<li style="margin-bottom: 5px;">' . esc_html($error) . '</li>';
             }
             $message .= '</ul></div>';
-            
+
             write_log_cm("Errori registrazione per username: $username - " . implode(', ', $errors));
-            
         } else {
             // ============================================
             // CREA L'UTENTE SE TUTTO OK
@@ -134,9 +128,9 @@ function pictosound_cm_registration_form_shortcode() {
                 'display_name' => !empty($company) ? $company : trim($nome . ' ' . $cognome),
                 'role' => 'subscriber'
             ];
-            
+
             $user_id = wp_insert_user($user_data);
-            
+
             if (!is_wp_error($user_id)) {
                 // Salva dati aggiuntivi come meta utente
                 update_user_meta($user_id, 'billing_company', $company);
@@ -147,14 +141,14 @@ function pictosound_cm_registration_form_shortcode() {
                 update_user_meta($user_id, 'codice_fiscale_piva', $cf_piva);
                 update_user_meta($user_id, 'codice_destinatario', $codice_dest);
                 update_user_meta($user_id, 'pec', $pec);
-                
+
                 // 🎯 INTEGRAZIONE PICTOSOUND - Inizializza crediti
                 pictosound_cm_update_user_credits($user_id, 0, 'set');
                 update_user_meta($user_id, PICTOSOUND_PRIVACY_OPTIN_META_KEY, 'accepted');
-                
+
                 // Log per debug
                 write_log_cm("Pictosound: Nuovo utente registrato - ID: $user_id, Username: $username, Email: $email");
-                
+
                 // Messaggio di successo
                 $display_name = !empty($nome) ? $nome : (!empty($company) ? $company : $username);
                 $message = '<div style="background: #d4edda; padding: 25px; border: 1px solid #28a745; color: #155724; margin: 20px 0; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -169,48 +163,47 @@ function pictosound_cm_registration_form_shortcode() {
                         <a href="/" style="color: #007cba;">← Torna alla homepage</a>
                     </p>
                 </div>';
-                
+
                 // Reset form data dopo successo
                 $form_data = [];
-                
             } else {
                 $message = '<div style="background: #f8d7da; padding: 15px; border: 1px solid #dc3545; color: #721c24; margin: 20px 0; border-radius: 8px;">
                     <h4 style="margin-top: 0;">❌ Errore durante la registrazione:</h4>
                     <p>' . esc_html($user_id->get_error_message()) . '</p>
                 </div>';
-                
+
                 write_log_cm("Errore creazione utente: " . $user_id->get_error_message());
             }
         }
     }
-    
+
     // Se registrazione completata con successo, mostra solo il messaggio
     if (strpos($message, 'REGISTRAZIONE COMPLETATA') !== false) {
         return $message;
     }
-    
+
     // ============================================
-    // GENERA IL FORM HTML (continua con lo stesso HTML della versione precedente)
+    // GENERA IL FORM HTML (con privacy sopra submit)
     // ============================================
     ob_start();
-    
+
     if (!empty($message)) {
         echo $message;
     }
-    
+
     $privacy_policy_url = get_permalink(get_page_by_path('privacy-policy'));
     if (!$privacy_policy_url) $privacy_policy_url = '#';
     ?>
-    
+
     <div style="max-width: 750px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <h2 style="text-align: center; color: #333; margin-bottom: 30px; font-size: 28px;">🎵 Registrazione Pictosound</h2>
-        
+
         <form method="post" action="<?php echo esc_url(get_permalink()); ?>" id="pictosoundRegistrationForm" class="pictosound-form" style="background: #f8f9fa; padding: 35px; border: 1px solid #dee2e6; border-radius: 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);">
-            
+
             <!-- DATI ACCOUNT -->
             <fieldset style="border: 2px solid #007cba; padding: 25px; margin: 25px 0; border-radius: 10px; background: white;">
                 <legend style="background: #007cba; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 16px;">📝 Dati Account</legend>
-                
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                     <div>
                         <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Username', 'pictosound-credits-manager'); ?> *</label>
@@ -225,7 +218,7 @@ function pictosound_cm_registration_form_shortcode() {
                                onfocus="this.style.borderColor='#007cba'" onblur="this.style.borderColor='#ddd'" />
                     </div>
                 </div>
-                
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div>
                         <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #333;"><?php _e('Password', 'pictosound-credits-manager'); ?> * <small>(min 8 caratteri)</small></label>
@@ -241,11 +234,22 @@ function pictosound_cm_registration_form_shortcode() {
                     </div>
                 </div>
             </fieldset>
-            
+
             <!-- Altri fieldset identici alla versione precedente... -->
             <!-- DATI ANAGRAFICI, INDIRIZZO, DATI FISCALI, PRIVACY -->
-            <!-- [HTML completo uguale alla versione precedente] -->
-            
+            <!-- [HTML completo uguale alla versione precedente, campi senza asterisco obbligatorietà dove desiderato] -->
+
+            <!-- INFORMATIVA SULLA PRIVACY (sempre visibile, non obbligatoria) -->
+            <div style="margin: 25px 0 15px 0; padding: 18px 20px; background: #eef6fb; border: 1px solid #007cba; border-radius: 10px;">
+                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" name="reg_privacy_optin" value="1" style="margin-top: 4px;">
+                    <span>
+                        Ho letto e accetto la <a href="<?php echo esc_url($privacy_policy_url); ?>" target="_blank" style="color: #007cba; text-decoration: underline;">informativa sulla privacy</a>
+                        <br><small style="color: #666;">I tuoi dati saranno trattati secondo il Regolamento UE 2016/679 (GDPR) e la nostra policy.</small>
+                    </span>
+                </label>
+            </div>
+
             <!-- BOTTONE SUBMIT -->
             <div style="text-align: center; margin-top: 35px;">
                 <?php wp_nonce_field('pictosound_user_registration_action', 'pictosound_reg_nonce_field'); ?>
@@ -254,7 +258,7 @@ function pictosound_cm_registration_form_shortcode() {
                        onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 12px 25px rgba(0,124,186,0.4)';" 
                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 20px rgba(0,124,186,0.3)';" />
             </div>
-            
+
             <!-- LINK LOGIN -->
             <p style="text-align: center; margin-top: 25px; color: #666; font-size: 16px;">
                 <?php _e('Hai già un account?', 'pictosound-credits-manager'); ?>
@@ -262,7 +266,7 @@ function pictosound_cm_registration_form_shortcode() {
             </p>
         </form>
     </div>
-    
+
     <?php
     return ob_get_clean();
 }

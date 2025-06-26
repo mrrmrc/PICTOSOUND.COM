@@ -115,6 +115,22 @@
                     <h3>Musica Generata</h3>
                     <audio id="audioPlayer" controls src=""></audio>
                     <p id="audioInfo"></p>
+                    <div id="audioPlayerContainer">
+                        <h3>Musica Generata</h3>
+                        <audio id="audioPlayer" controls src=""></audio>
+                        <p id="audioInfo"></p>
+
+                        <div id="saveNameContainer" class="save-name-container" style="display:none; margin-top: 15px;">
+                            <input type="text" id="generationNameInput" placeholder="Dai un nome a questa creazione..."
+                                style="width: 70%; padding: 8px;">
+                            <button id="saveNameButton" class="button-primary" style="padding: 8px 15px;">Salva
+                                Nome</button>
+                            <span id="saveNameStatus" style="margin-left: 10px; font-size: 0.9em;"></span>
+                        </div>
+                        <div id="downloadButtonsContainer">
+                        </div>
+                    </div>
+
                     <div id="downloadButtonsContainer">
                         <a id="downloadAudioLink" href="#" class="download-button" style="display:none;">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18"
