@@ -126,21 +126,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Pills data
+    // Pills data - SEMPLIFICATI SENZA SECONDI TERMINI
     const moodItems = [
-        { value: "felice", label: "Felice / Gioioso" },
-        { value: "triste", label: "Triste / Malinconico" },
+        { value: "felice", label: "Felice" },
+        { value: "triste", label: "Triste" },
         { value: "riflessivo", label: "Riflessivo" },
-        { value: "epico", label: "Epico / Grandioso" },
-        { value: "rilassante", label: "Rilassante / Calmo" },
-        { value: "energico", label: "Energico / Vivace" },
-        { value: "misterioso", label: "Misterioso / Inquietante" },
-        { value: "sognante", label: "Sognante / Etereo" },
+        { value: "epico", label: "Epico" },
+        { value: "rilassante", label: "Rilassante" },
+        { value: "energico", label: "Energico" },
+        { value: "misterioso", label: "Misterioso" },
+        { value: "sognante", label: "Sognante" },
         { value: "romantico", label: "Romantico" },
         { value: "drammatico", label: "Drammatico" },
-        { value: "futuristico", label: "Futuristico / Sci-Fi" },
+        { value: "futuristico", label: "Futuristico" },
         { value: "nostalgico", label: "Nostalgico" },
-        { value: "potente", label: "Potente / Intenso" }
+        { value: "potente", label: "Potente" }
     ];
 
     const genreItems = [
@@ -150,9 +150,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         { value: "jazz", label: "Jazz" },
         { value: "classica", label: "Classica" },
         { value: "ambient", label: "Ambient" },
-        { value: "soundtrack", label: "Soundtrack / Cinematografica" },
-        { value: "folk", label: "Folk / Acustica" },
-        { value: "lo-fi", label: "Lo-fi / Chillhop" },
+        { value: "soundtrack", label: "Soundtrack" },
+        { value: "folk", label: "Folk" },
+        { value: "lo-fi", label: "Lo-fi" },
         { value: "hip-hop", label: "Hip Hop" }
     ];
 
@@ -161,16 +161,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         { value: "chitarra acustica", label: "Chitarra Acustica" },
         { value: "chitarra elettrica", label: "Chitarra Elettrica" },
         { value: "basso", label: "Basso" },
-        { value: "batteria", label: "Batteria / Percussioni" },
-        { value: "violino", label: "Violino / Archi" },
-        { value: "sintetizzatore", label: "Sintetizzatore / Tastiere" }
+        { value: "batteria", label: "Batteria" },
+        { value: "violino", label: "Violino" },
+        { value: "sintetizzatore", label: "Sintetizzatore" }
     ];
 
     const rhythmItems = [
-        { value: "no_rhythm", label: "Nessun ritmo evidente (Ambientale)" },
-        { value: "slow_rhythm", label: "Ritmo Lento e Rilassato" },
-        { value: "moderate_groove", label: "Groove Moderato e Orecchiabile" },
-        { value: "upbeat_energetic", label: "Ritmo Incalzante ed Energico" }
+        { value: "no_rhythm", label: "Ambientale" },
+        { value: "slow_rhythm", label: "Lento" },
+        { value: "moderate_groove", label: "Moderato" },
+        { value: "upbeat_energetic", label: "Energico" }
     ];
 
     // ========== HELPER FUNCTIONS ==========
@@ -267,6 +267,81 @@ document.addEventListener('DOMContentLoaded', async () => {
     function populateCheckboxPills(container, items, groupName) {
         if (!container) return;
         container.innerHTML = '';
+
+        // Aggiungi CSS mobile-ottimizzato direttamente al container
+        if (!document.getElementById('mobile-pills-css')) {
+            const style = document.createElement('style');
+            style.id = 'mobile-pills-css';
+            style.textContent = `
+                .checkbox-pills-group {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    margin-top: 15px;
+                }
+                
+                .checkbox-pill {
+                    display: inline-flex;
+                    align-items: center;
+                    padding: 8px 12px;
+                    background: #f8f9fa;
+                    border: 2px solid #e9ecef;
+                    border-radius: 20px;
+                    font-size: 13px;
+                    font-weight: 500;
+                    color: #495057;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    user-select: none;
+                    min-height: 36px;
+                    white-space: nowrap;
+                }
+                
+                .checkbox-pill:hover {
+                    background: #e9ecef;
+                    border-color: #007cba;
+                }
+                
+                .checkbox-pill.selected {
+                    background: #007cba;
+                    border-color: #007cba;
+                    color: white;
+                }
+                
+                .checkbox-pill input {
+                    display: none;
+                }
+                
+                /* Mobile ottimizzato - pill più compatte */
+                @media (max-width: 767px) {
+                    .checkbox-pills-group {
+                        gap: 6px;
+                        margin-top: 12px;
+                    }
+                    
+                    .checkbox-pill {
+                        padding: 6px 10px;
+                        font-size: 12px;
+                        min-height: 32px;
+                        border-radius: 16px;
+                    }
+                }
+                
+                /* Tablet - layout intermedio */
+                @media (min-width: 768px) and (max-width: 1023px) {
+                    .checkbox-pills-group {
+                        gap: 7px;
+                    }
+                    
+                    .checkbox-pill {
+                        font-size: 12.5px;
+                        padding: 7px 11px;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
         items.forEach(item => {
             const pillLabel = document.createElement('label');
             pillLabel.classList.add('checkbox-pill');
@@ -448,7 +523,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 aiSuggestions.moods.push("energico");
                 aiSuggestions.bpm = 140;
             } else if (primaryEmotion === "triste") {
-                aiSuggestions.moods.push("malinconico");
+                aiSuggestions.moods.push("triste");
                 aiSuggestions.bpm = 80;
             } else if (primaryEmotion === "arrabbiato/a") {
                 aiSuggestions.moods.push("drammatico");
@@ -677,7 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (cues.moods.length === 0 && detectedEmotions && detectedEmotions.length > 0) {
                 const primaryEmotion = detectedEmotions.find(e => e !== "neutrale") || detectedEmotions[0];
                 if (primaryEmotion === "felice") cues.moods.push("energico");
-                else if (primaryEmotion === "triste") cues.moods.push("malinconico");
+                else if (primaryEmotion === "triste") cues.moods.push("triste");
                 else if (primaryEmotion === "arrabbiato/a") cues.moods.push("drammatico");
                 else cues.moods.push("rilassante");
             }
