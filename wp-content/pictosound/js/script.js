@@ -928,7 +928,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const duration = document.querySelector('input[name="musicDuration"]:checked')?.value || "40";
+
+            // ✅ ================== ECCO LA RIGA MANCANTE ==================
+            // Leggiamo il valore dal campo di testo PRIMA di usarlo.
+            const trackTitle = document.getElementById('trackName')?.value || '';
+            // =============================================================
+
             console.log("LOG: Invio richiesta con prompt:", stableAudioPromptForMusic);
+            console.log("LOG: Invio titolo brano:", trackTitle); // Log per debug
 
             const response = await jQuery.ajax({
                 url: pictosound_vars.ajax_url,
@@ -938,19 +945,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     prompt: stableAudioPromptForMusic,
                     duration: duration,
                     image_data: currentImageSrc,
-                    nonce: pictosound_vars.nonce_generate || ''
+                    nonce: pictosound_vars.nonce_generate || '',
+                    title: trackTitle // Ora la variabile 'trackTitle' esiste e viene inviata correttamente
                 }
             });
 
             console.log("LOG: Risposta ricevuta:", response);
 
             if (response.success && response.data.audioUrl) {
-                // ========== SUCCESSO: NASCONDI MESSAGGI E MOSTRA PLAYER ==========
                 updateProgressMessage("", false);
-                setStatusMessage(domElements.statusDiv, "", "info"); // NASCONDI MESSAGGIO
-                domElements.dynamicFeedbackArea.style.display = 'none'; // NASCONDI AREA FEEDBACK
+                setStatusMessage(domElements.statusDiv, "", "info");
+                domElements.dynamicFeedbackArea.style.display = 'none';
 
-                // MOSTRA AUDIO PLAYER E DOWNLOAD
                 domElements.audioPlayer.src = response.data.audioUrl;
                 domElements.audioPlayerContainer.style.display = 'block';
                 domElements.progressAndPlayerContainer.style.display = 'block';
@@ -960,28 +966,39 @@ document.addEventListener('DOMContentLoaded', async () => {
                     domElements.downloadAudioLink.style.display = 'inline-flex';
                 }
 
-                // NON MOSTRARE PIÙ "Musica generata con successo!" - solo il player
                 console.log("✅ Musica generata e player attivato");
 
             } else {
-                throw new Error(response.data?.error || 'Errore generazione');
+                // Se la risposta non ha successo ma non è un errore AJAX, lancia un errore.
+                throw new Error(response.data?.error || 'Errore nella generazione musicale.');
             }
 
         } catch (error) {
+            // La parte per la gestione degli errori rimane invariata
             console.error("ERRORE generazione:", error);
             updateProgressMessage("", false);
-            setStatusMessage(domElements.statusDiv, `Errore: ${error.message}`, "error");
-            // In caso di errore, mantieni i controlli disabilitati per un momento
+
+            let errorMessage = error.message || 'Errore sconosciuto.';
+            // Controlla se è un errore AJAX con responseText (come i nostri vecchi errori di DB)
+            if (error.responseText) {
+                errorMessage = "Errore del server. Controlla la console del browser per i dettagli.";
+            }
+
+            setStatusMessage(domElements.statusDiv, `Errore: ${errorMessage}`, "error");
+
             setTimeout(() => {
                 if (domElements.statusDiv.textContent.includes("Errore:")) {
                     setStatusMessage(domElements.statusDiv, "", "info");
                     domElements.dynamicFeedbackArea.style.display = 'none';
                 }
-            }, 5000); // Nascondi errore dopo 5 secondi
+            }, 5000);
         } finally {
+            // La parte finally rimane invariata
             domElements.generateMusicButton.disabled = false;
             domElements.musicSpinner.style.display = 'none';
         }
+
+        // ... fine dell'event listener
     });
 
     if (domElements.bpmSlider && domElements.bpmValueDisplay) {

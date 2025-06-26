@@ -1783,10 +1783,8 @@ add_action('wp_ajax_pictosound_get_current_credits', 'pictosound_cm_ajax_get_cur
  */
 function pictosound_ajax_generate_music() {
     // 1. VERIFICA DI SICUREZZA (NONCE)
-    // Controlla che la richiesta provenga dal nostro sito e sia legittima.
     check_ajax_referer('pictosound_generate_nonce', 'nonce');
 
-    // Funzione di logging di fallback
     if (!function_exists('write_log_cm')) {
         function write_log_cm($message) { error_log('Pictosound Log: ' . print_r($message, true)); }
     }
@@ -1817,9 +1815,12 @@ function pictosound_ajax_generate_music() {
     $prompt_text = sanitize_textarea_field(stripslashes($_POST['prompt']));
     $duration_seconds = intval($_POST['duration']);
     
-    // Ora, grazie a check_ajax_referer(), questa funzione restituirà l'ID utente corretto
+    // ✅ RECUPERA E SANIFICA IL TITOLO DEL BRANO
+    // Se il titolo è vuoto, usa un valore di default "Senza Titolo"
+    $track_title = isset($_POST['title']) && !empty(trim($_POST['title'])) ? sanitize_text_field($_POST['title']) : 'Senza Titolo';
+
     $user_id = get_current_user_id();
-    write_log_cm("Inizio generazione musica. Riconosciuto User ID: " . $user_id);
+    write_log_cm("Inizio generazione musica per User ID: " . $user_id . " con titolo: " . $track_title);
 
     // Chiamata API Stability.AI
     $audio_dir = WP_CONTENT_DIR . '/pictosound/audio/';
@@ -1857,6 +1858,7 @@ function pictosound_ajax_generate_music() {
                 
                 $insert_result = $wpdb->insert($table_name, [
                     'user_id'        => $user_id,
+                    'title'          => $track_title, // ✅ NUOVO CAMPO AGGIUNTO ALL'INSERIMENTO
                     'duration'       => $duration_seconds, 
                     'prompt'         => $prompt_text, 
                     'audio_filename' => $audio_filename, 
@@ -1868,7 +1870,7 @@ function pictosound_ajax_generate_music() {
                 if ($insert_result === false) {
                     write_log_cm("ERRORE DATABASE: L'inserimento è fallito per l'utente $user_id. Errore: " . $wpdb->last_error);
                 } else {
-                    write_log_cm("SUCCESSO: Generazione salvata nel DB per l'utente $user_id.");
+                    write_log_cm("SUCCESSO: Generazione con titolo salvata nel DB per l'utente $user_id.");
                 }
             } else {
                 write_log_cm("Generazione per utente ospite. Salvataggio su DB saltato.");
