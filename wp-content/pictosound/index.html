@@ -98,6 +98,13 @@
             </div>
         </div>
 
+        <div class="options-section" id="trackNameSection">
+            <h3>3. Nome Brano <span style="font-weight:normal; font-size:0.8em; color:var(--light-text);"></span></h3>
+            <p class="info-text" style="margin-bottom: 15px;">Dai un titolo alla tua creazione. Verrà usato come nome
+                del file.</p>
+            <input type="text" id="trackName" name="trackName" class="text-input"
+                placeholder="Inserisci il nome del tuo brano" maxlength="40">
+        </div>
         <div class="action-buttons-container">
             <button id="generateMusicButton" disabled>Avvia generazione musica <span id="musicSpinner"
                     style="display:none;" class="spinner"></span></button>
@@ -115,22 +122,6 @@
                     <h3>Musica Generata</h3>
                     <audio id="audioPlayer" controls src=""></audio>
                     <p id="audioInfo"></p>
-                    <div id="audioPlayerContainer">
-                        <h3>Musica Generata</h3>
-                        <audio id="audioPlayer" controls src=""></audio>
-                        <p id="audioInfo"></p>
-
-                        <div id="saveNameContainer" class="save-name-container" style="display:none; margin-top: 15px;">
-                            <input type="text" id="generationNameInput" placeholder="Dai un nome a questa creazione..."
-                                style="width: 70%; padding: 8px;">
-                            <button id="saveNameButton" class="button-primary" style="padding: 8px 15px;">Salva
-                                Nome</button>
-                            <span id="saveNameStatus" style="margin-left: 10px; font-size: 0.9em;"></span>
-                        </div>
-                        <div id="downloadButtonsContainer">
-                        </div>
-                    </div>
-
                     <div id="downloadButtonsContainer">
                         <a id="downloadAudioLink" href="#" class="download-button" style="display:none;">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18"
@@ -166,25 +157,25 @@
             <h3>COSA VEDE L'AI</h3>
             <p id="aiInterpretationText">L'intelligenza artificiale ha analizzato la tua immagine per coglierne
                 l'essenza e trasformarla in musica. Ecco come ha interpretato gli elementi visivi:</p>
+
+            <div class="ai-processing-simulation" id="aiProcessingSimulation">
+                <p>In attesa di analisi immagine...</p>
+            </div>
+
             <div class="details-accordion-header">
-                <span>Dettagli</span>
+                <span>Dettagli Tecnici</span>
                 <span class="toggle-icon"></span>
             </div>
             <div id="aiInsightsContent">
-                <div class="ai-processing-simulation" id="aiProcessingSimulation">
-                    <p>In attesa di analisi immagine...</p>
-                </div>
             </div>
         </div>
 
-        <!-- SEZIONE PERSONALIZZAZIONI MOBILE-FRIENDLY -->
         <div class="options-section" id="descriptiveCuesSection">
             <h3>FAI LE TUE PERSONALIZZAZIONI <span
                     style="font-weight:normal; font-size:0.8em; color:var(--light-text);">(opzionale)</span></h3>
             <p class="info-text-cues-main">L'IA genererà la musica anche senza selezioni, basandosi sull'immagine. Le
                 tue scelte aiuteranno a guidare l'interpretazione.</p>
 
-            <!-- BPM SLIDER SEPARATO -->
             <div class="bpm-slider-container"
                 style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
                 <label for="bpmSlider" style="font-weight: 600; margin-bottom: 10px; display: block;">🎵 Tempo (BPM):
@@ -193,10 +184,8 @@
                     style="width: 100%;">
             </div>
 
-            <!-- VERSIONE MOBILE-FRIENDLY -->
             <div class="cues-mobile-container">
 
-                <!-- MOOD -->
                 <div class="cues-mobile-section">
                     <div class="cues-selection-container">
                         <label class="group-label collapsible-cue-header" for="moodPills">
@@ -210,7 +199,6 @@
                     </div>
                 </div>
 
-                <!-- GENERE -->
                 <div class="cues-mobile-section">
                     <div class="cues-selection-container">
                         <label class="group-label collapsible-cue-header" for="genrePills">
@@ -224,7 +212,6 @@
                     </div>
                 </div>
 
-                <!-- STRUMENTI -->
                 <div class="cues-mobile-section">
                     <div class="cues-selection-container">
                         <label class="group-label collapsible-cue-header" for="instrumentPills">
@@ -238,7 +225,6 @@
                     </div>
                 </div>
 
-                <!-- RITMO -->
                 <div class="cues-mobile-section">
                     <div class="cues-selection-container">
                         <label class="group-label collapsible-cue-header" for="rhythmPills">
@@ -257,16 +243,13 @@
     </div>
 </div>
 
-<!-- Canvas e elementi nascosti -->
 <canvas id="imageCanvas" style="display:none;"></canvas>
 <canvas id="compositeImageCanvas" style="display:none;"></canvas>
 <textarea id="additionalCuesTextarea" style="display:none;"></textarea>
 
-<!-- Caricamento delle librerie e stili necessari -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/wp-content/pictosound/css/style.css">
 
-<!-- CSS AGGIUNTIVO SOLO PER MOBILE-FIX -->
 <style>
     /* Mobile fix per le personalizzazioni */
     .cues-mobile-container {
