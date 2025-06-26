@@ -1892,7 +1892,7 @@ add_action('wp_ajax_pictosound_generate_music', 'pictosound_ajax_generate_music'
 add_action('wp_ajax_nopriv_pictosound_generate_music', 'pictosound_ajax_generate_music');
 
 /**
- * Carica il text domain per le traduzioni.
+ * Carica il text domain per le traduzioni. 
  */
 function pictosound_ms_load_textdomain() {
    load_plugin_textdomain( 'pictosound-mostra-saldo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
