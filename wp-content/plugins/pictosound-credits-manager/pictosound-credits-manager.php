@@ -19,16 +19,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // CONFIGURAZIONE STRIPE - SICURA ⚡
-// IMPORTANTE: Sposta queste chiavi in wp-config.php per maggiore sicurezza
+// Le chiavi sono ora definite in wp-config.php per maggiore sicurezza
 if (!defined('PICTOSOUND_STRIPE_PUBLISHABLE_KEY')) {
-    define( 'PICTOSOUND_STRIPE_PUBLISHABLE_KEY', 'pk_test_51RVuiV05IMwaN8UKqUjEqJ6Axk7KfRhez3zFaU2n0AhUnk1k3W3byKcbZjZT7u8bnBDr3Icu7Ks9GwG76dTBaCDg00H8LQbKFT' );
+    wp_die('ERRORE: Chiavi Stripe non configurate in wp-config.php. Contatta l\'amministratore del sito.');
 }
 if (!defined('PICTOSOUND_STRIPE_SECRET_KEY')) {
-    define( 'PICTOSOUND_STRIPE_SECRET_KEY', 'sk_test_51RVuiV05IMwaN8UKRE3GN6W4wx9UxcNcgkoNcsXfNeIbMAT5HS5gSn5hVu1GN4NXPzsgLJ30MgJcUCPpVBAlM00l0083885H88' );
+    wp_die('ERRORE: Chiavi Stripe non configurate in wp-config.php. Contatta l\'amministratore del sito.');
 }
 if (!defined('PICTOSOUND_STRIPE_WEBHOOK_SECRET')) {
-    define( 'PICTOSOUND_STRIPE_WEBHOOK_SECRET', 'whsec_TUA_WEBHOOK_SECRET' ); // Configurare in produzione
+    wp_die('ERRORE: Chiavi Stripe non configurate in wp-config.php. Contatta l\'amministratore del sito.');
 }
+
 
 /**
  * Definiamo le costanti

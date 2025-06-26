@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("LOG: DOMContentLoaded - Pagina pronta e script principale in esecuzione.");
-
     const CREATIVITY_LEVEL = 50;
 
     // Cache DOM elements for performance and convenience
@@ -53,7 +52,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // State variables
     let currentImage = null;
     let currentImageSrc = null;
-    // RIMOSSE: currentStream e currentFacingMode (ora gestite da CameraHandler)
     let imageAnalysisResults = null;
     let stableAudioPromptForMusic = "";
     let cocoSsdModel = null;
@@ -185,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let simulatedProcessingInterval;
     let currentMessageIndex = 0;
 
-    // Helper functions
+    // ========== HELPER FUNCTIONS ==========
     function setStatusMessage(element, message, type = "info") {
         if (!element) return;
         element.textContent = message;
@@ -215,7 +213,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return { h: h * 360, s: s * 100, l: l * 100 };
     }
 
-    // Translate object/emotion
     function translateObject(objectClass) {
         return objectTranslations[objectClass.toLowerCase()] || objectClass;
     }
@@ -224,22 +221,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         return emotionTranslations[emotion.toLowerCase()] || emotion;
     }
 
-    // Get selected checkbox values
     function getSelectedCheckboxValues(groupName) {
         return Array.from(document.querySelectorAll(`input[name="${groupName}"]:checked`)).map(cb => cb.value);
     }
 
-    // Translate Italian cue to English
     function translateCueToEnglish(italianCue, type) {
         if (!italianCue) return "";
         const lowerCue = String(italianCue).toLowerCase();
-
         if (cueTranslationsITtoEN[type] && cueTranslationsITtoEN[type][lowerCue]) {
             return cueTranslationsITtoEN[type][lowerCue];
         }
-
         console.warn(`No English translation for '${italianCue}' of type '${type}'`);
         return italianCue;
+    }
+
+    // ========== DEFINITA PRIMA DI ESSERE USATA ==========
+    function forceUpdatePrompt() {
+        console.log("🔄 DEBUG: Aggiornamento forzato del prompt");
+        if (currentImage && imageAnalysisResults) {
+            updateAIDisplayAndStablePrompt();
+        } else {
+            console.log("⚠️ DEBUG: Aggiornamento prompt saltato - mancano dati immagine");
+        }
     }
 
     // Start AI simulation animation
@@ -294,7 +297,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         domElements.progressBarContainer.style.display = isLoading ? 'block' : 'none';
     }
 
-    // Populate checkbox pills
     function populateCheckboxPills(container, items, groupName) {
         if (!container) return;
         container.innerHTML = '';
@@ -305,20 +307,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             checkbox.type = 'checkbox';
             checkbox.name = groupName;
             checkbox.value = item.value;
+
             checkbox.addEventListener('change', function () {
+                console.log(`🎛️ DEBUG: Cambiato ${groupName}: ${item.value} = ${this.checked}`);
                 pillLabel.classList.toggle('selected', this.checked);
                 initialPreselectionDoneForCurrentImage = true;
-                if (currentImage && imageAnalysisResults) {
-                    updateAIDisplayAndStablePrompt();
-                }
+
+                setTimeout(() => {
+                    forceUpdatePrompt();
+                }, 100);
             });
+
             pillLabel.appendChild(checkbox);
             pillLabel.appendChild(document.createTextNode(item.label));
             container.appendChild(pillLabel);
         });
     }
 
-    // Analyze image colors and properties
     function analyzeImageAdvanced(imageElement, numDominantColors = 5) {
         if (!imageElement || !imageElement.complete || imageElement.naturalHeight === 0) {
             console.warn("WARN: analyzeImageAdvanced - Immagine non valida");
@@ -367,13 +372,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         return { dominantColors: sortedColors, averageBrightness: avgB, contrast: (maxL - minL), averageSaturation: sortedColors.length > 0 ? totS / sortedColors.length : 50 };
     }
 
-    // Load AI Models
+    // ========== AI MODELS ==========
     async function loadModels() {
         console.log("LOG: Inizio caricamento modelli AI...");
         setStatusMessage(domElements.statusDiv, "Caricamento modelli AI...", "info");
 
         try {
-            // Verifica che le librerie siano caricate
             if (typeof cocoSsd === 'undefined') {
                 throw new Error("Libreria COCO-SSD non trovata");
             }
@@ -381,7 +385,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error("Libreria Face-API non trovata");
             }
 
-            // Carica i modelli
             const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
 
             const [cocoModel] = await Promise.all([
@@ -397,7 +400,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             setStatusMessage(domElements.statusDiv, "Modelli AI pronti! Carica un'immagine.", "success");
             console.log("LOG: Tutti i modelli AI caricati con successo.");
 
-            // Nascondi il messaggio dopo 3 secondi
             setTimeout(() => {
                 if (domElements.statusDiv.textContent === "Modelli AI pronti! Carica un'immagine.") {
                     domElements.statusDiv.style.display = 'none';
@@ -409,265 +411,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error("ERRORE caricamento modelli:", error);
             setStatusMessage(domElements.statusDiv, `Errore: ${error.message}. Ricarica la pagina.`, "error");
         }
-    }
-
-    // Process new image
-    function processImage(imageSrc) {
-        console.log("LOG: Inizio processImage");
-        domElements.imagePreview.src = imageSrc;
-        currentImageSrc = imageSrc;
-        domElements.imagePreview.style.display = 'block';
-        imageAnalysisResults = null;
-        initialPreselectionDoneForCurrentImage = false;
-
-        // Reset UI
-        domElements.generateMusicButton.disabled = true;
-        domElements.aiInsightsSection.style.display = 'none';
-        if (domElements.detailsAccordionHeader) domElements.detailsAccordionHeader.classList.remove('open');
-        if (domElements.aiInsightsContent) domElements.aiInsightsContent.style.display = 'none';
-
-        // Clear selected pills
-        document.querySelectorAll('.checkbox-pill input[type="checkbox"]:checked').forEach(cb => {
-            cb.checked = false;
-            cb.closest('.checkbox-pill').classList.remove('selected');
-        });
-
-        currentImage = new Image();
-        currentImage.onload = async () => {
-            console.log("LOG: Immagine caricata, inizio analisi completa");
-
-            setStatusMessage(domElements.statusDiv, "Analisi immagine in corso...", "info");
-            updateProgressMessage("Analisi immagine in corso...", true);
-            startAISimulationText();
-
-            try {
-                // Analisi completa
-                const colorAnalysis = analyzeImageAdvanced(currentImage);
-                const objects = await detectObjectsInImage(currentImage);
-                const emotions = await analyzeFacesInImage(currentImage);
-
-                imageAnalysisResults = {
-                    colors: colorAnalysis,
-                    objects: objects,
-                    emotions: emotions
-                };
-
-                console.log("LOG: Analisi completata", imageAnalysisResults);
-
-                // Aggiorna display e genera prompt
-                await updateAIDisplayAndStablePrompt();
-
-                stopAISimulationText();
-                updateProgressMessage("", false);
-                setStatusMessage(domElements.statusDiv, "Analisi completata! Personalizza e genera.", "success");
-                domElements.generateMusicButton.disabled = false;
-
-            } catch (error) {
-                console.error("Errore analisi:", error);
-                stopAISimulationText();
-                updateProgressMessage("", false);
-                setStatusMessage(domElements.statusDiv, "Errore analisi. Puoi comunque generare.", "warn");
-                domElements.generateMusicButton.disabled = false;
-            }
-        };
-
-        currentImage.onerror = () => {
-            console.error("ERRORE: Errore caricamento immagine");
-            setStatusMessage(domElements.statusDiv, "Errore caricamento immagine.", "error");
-            domElements.generateMusicButton.disabled = true;
-        };
-
-        currentImage.src = imageSrc;
-    }
-
-    // Musical cues logic
-    function getMusicalCues(analysis, detectedObjects, detectedEmotions, creativityLevel, userInputs) {
-        const cues = {
-            moods: [...userInputs.selectedMoods],
-            genres: [...userInputs.selectedGenres],
-            instruments: [...userInputs.selectedInstruments],
-            rhythms: [...userInputs.selectedRhythms],
-            tempoBPM: userInputs.selectedBPM,
-            tempoDescription: userInputs.selectedBPM <= 76 ? "lento" : userInputs.selectedBPM <= 120 ? "moderato" : "veloce",
-            energy: "medium",
-            tonality: "misto",
-            keywords: []
-        };
-
-        // Auto-suggestion if no user input
-        if (!initialPreselectionDoneForCurrentImage) {
-            console.log("🔍 Auto-suggestion attiva");
-
-            // Mood based on emotions
-            if (cues.moods.length === 0 && detectedEmotions && detectedEmotions.length > 0) {
-                const primaryEmotion = detectedEmotions.find(e => e !== "neutrale") || detectedEmotions[0];
-                if (primaryEmotion === "felice") cues.moods.push("energico");
-                else if (primaryEmotion === "triste") cues.moods.push("malinconico");
-                else if (primaryEmotion === "arrabbiato/a") cues.moods.push("drammatico");
-                else cues.moods.push("rilassante");
-            }
-
-            // Genre based on objects
-            if (cues.genres.length === 0 && detectedObjects && detectedObjects.length > 0) {
-                if (detectedObjects.includes("persona")) cues.genres.push("folk");
-                else if (detectedObjects.some(o => ["albero", "natura", "animale"].includes(o))) cues.genres.push("ambient");
-                else if (detectedObjects.some(o => ["auto", "città", "strada"].includes(o))) cues.genres.push("elettronica");
-                else cues.genres.push("ambient");
-            }
-
-            // Instruments based on genre
-            if (cues.instruments.length === 0) {
-                if (cues.genres.includes("folk")) cues.instruments.push("chitarra acustica");
-                else if (cues.genres.includes("elettronica")) cues.instruments.push("sintetizzatore");
-                else cues.instruments.push("pianoforte");
-            }
-
-            // Rhythm based on mood
-            if (cues.rhythms.length === 0) {
-                if (cues.moods.includes("energico")) cues.rhythms.push("upbeat_energetic");
-                else if (cues.moods.includes("rilassante")) cues.rhythms.push("slow_rhythm");
-                else cues.rhythms.push("moderate_groove");
-            }
-        }
-
-        return cues;
-    }
-
-    // Generate AI display content
-    function generateAIDisplayContent(analysis, detectedObjectsList, detectedEmotionsList, userInputs, finalStablePrompt) {
-        // Clear previous content
-        const existingDetails = domElements.aiInsightsContent.querySelectorAll('h4, ul, #finalPromptForAI');
-        existingDetails.forEach(el => el.remove());
-
-        let analysisContentHTML = "<h4>Analisi Immagine:</h4><ul>";
-        analysisContentHTML += `<li><strong>Oggetti Rilevati:</strong> ${detectedObjectsList && detectedObjectsList.length > 0 ? detectedObjectsList.join(", ") : "Nessuno"}</li>`;
-        analysisContentHTML += `<li><strong>Emozioni Percepite:</strong> ${detectedEmotionsList && detectedEmotionsList.length > 0 ? detectedEmotionsList.join(", ") : "Nessuna"}</li>`;
-
-        if (analysis) {
-            let brightnessDesc = "Media";
-            if (analysis.averageBrightness < 80) brightnessDesc = "Bassa (scena scura)";
-            else if (analysis.averageBrightness > 170) brightnessDesc = "Alta (scena luminosa)";
-            analysisContentHTML += `<li><strong>Luminosità:</strong> ${brightnessDesc}</li>`;
-
-            let contrastDesc = "Medio";
-            if (analysis.contrast < 30) contrastDesc = "Basso";
-            else if (analysis.contrast > 70) contrastDesc = "Alto";
-            analysisContentHTML += `<li><strong>Contrasto:</strong> ${contrastDesc}</li>`;
-
-            if (analysis.dominantColors && analysis.dominantColors.length > 0) {
-                analysisContentHTML += "<li><strong>Colori Dominanti:</strong><ul>";
-                analysis.dominantColors.forEach(c => {
-                    analysisContentHTML += `<li><span class="color-swatch-inline" style="background-color: rgb(${c.r},${c.g},${c.b});"></span>RGB(${c.r},${c.g},${c.b}) - ${c.percentage.toFixed(0)}%</li>`;
-                });
-                analysisContentHTML += "</ul></li>";
-            }
-        }
-        analysisContentHTML += "</ul>";
-
-        // Musical interpretation
-        const displayCues = getMusicalCues(analysis, detectedObjectsList, detectedEmotionsList, CREATIVITY_LEVEL, userInputs);
-
-        let interpretationHtml = "<h4>Interpretazione Musicale:</h4><ul>";
-        if (displayCues.moods.length > 0) interpretationHtml += `<li><strong>Mood:</strong> ${displayCues.moods.join(", ")}</li>`;
-        if (displayCues.genres.length > 0) interpretationHtml += `<li><strong>Generi:</strong> ${displayCues.genres.join(", ")}</li>`;
-        if (displayCues.instruments.length > 0) interpretationHtml += `<li><strong>Strumenti:</strong> ${displayCues.instruments.join(", ")}</li>`;
-        interpretationHtml += `<li><strong>Tempo:</strong> ${displayCues.tempoDescription} (${displayCues.tempoBPM} BPM)</li>`;
-        interpretationHtml += "</ul>";
-
-        interpretationHtml += `<div id="finalPromptForAI" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
-            <strong>Prompt finale per AI:</strong><br>${finalStablePrompt}
-        </div>`;
-
-        // Insert HTML
-        if (domElements.aiProcessingSimulationDiv) {
-            domElements.aiProcessingSimulationDiv.insertAdjacentHTML('afterend', analysisContentHTML + interpretationHtml);
-        } else {
-            domElements.aiInsightsContent.innerHTML += analysisContentHTML + interpretationHtml;
-        }
-    }
-
-    // Generate stable audio prompt
-    function generateStableAudioPrompt(parsedData) {
-        console.log("🎵 Generazione prompt per AI");
-
-        let parts = [];
-
-        // Add moods (translated to English)
-        if (parsedData.moods.length > 0) {
-            parsedData.moods.forEach(mood => {
-                const englishMood = cueTranslationsITtoEN.mood[mood] || mood;
-                if (englishMood) parts.push(englishMood);
-            });
-        }
-
-        // Add genre
-        if (parsedData.genres.length > 0) {
-            const genre = parsedData.genres[0];
-            const englishGenre = cueTranslationsITtoEN.genre[genre] || genre;
-            if (englishGenre) parts.push(englishGenre);
-        }
-
-        // Add instrument
-        if (parsedData.instruments.length > 0) {
-            const instrument = parsedData.instruments[0];
-            const englishInstrument = cueTranslationsITtoEN.instrument[instrument] || instrument;
-            if (englishInstrument) parts.push("with " + englishInstrument);
-        }
-
-        // Add BPM
-        parts.push(parsedData.tempoBPM + " BPM");
-
-        // Add quality
-        parts.push("high quality");
-
-        const finalPrompt = parts.join(", ");
-        console.log("🎵 Prompt finale:", finalPrompt);
-
-        return finalPrompt;
-    }
-
-    // Update AI display and prompt
-    async function updateAIDisplayAndStablePrompt() {
-        if (!currentImage || !imageAnalysisResults) return;
-
-        // Get user selections
-        const selectedMoods = getSelectedCheckboxValues('mood');
-        const selectedGenres = getSelectedCheckboxValues('genre');
-        const selectedInstruments = getSelectedCheckboxValues('instrument');
-        const selectedRhythms = getSelectedCheckboxValues('rhythm');
-        const selectedBPM = domElements.bpmSlider?.value || 120;
-
-        const userInputs = {
-            selectedMoods,
-            selectedGenres,
-            selectedInstruments,
-            selectedRhythms,
-            selectedBPM
-        };
-
-        // Get musical cues
-        const tempParsedCues = getMusicalCues(
-            imageAnalysisResults.colors,
-            imageAnalysisResults.objects,
-            imageAnalysisResults.emotions,
-            CREATIVITY_LEVEL,
-            userInputs
-        );
-
-        // Generate prompt
-        stableAudioPromptForMusic = generateStableAudioPrompt(tempParsedCues);
-
-        // Update display
-        generateAIDisplayContent(
-            imageAnalysisResults.colors,
-            imageAnalysisResults.objects,
-            imageAnalysisResults.emotions,
-            userInputs,
-            stableAudioPromptForMusic
-        );
-
-        // Show AI insights section
-        domElements.aiInsightsSection.style.display = 'block';
     }
 
     async function detectObjectsInImage(imageElement) {
@@ -703,7 +446,464 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Event Listeners
+    // ========== AI SUGGESTIONS ==========
+    function applyAISuggestionsToUI() {
+        console.log("🤖 DEBUG: Inizio applicazione suggerimenti AI");
+        console.log("🤖 DEBUG: initialPreselectionDoneForCurrentImage =", initialPreselectionDoneForCurrentImage);
+        console.log("🤖 DEBUG: imageAnalysisResults =", imageAnalysisResults);
+
+        if (!imageAnalysisResults) {
+            console.log("❌ DEBUG: Nessun risultato analisi disponibile");
+            return;
+        }
+
+        // RESET di tutte le pill
+        document.querySelectorAll('.checkbox-pill input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            cb.closest('.checkbox-pill').classList.remove('selected');
+        });
+        console.log("🧹 DEBUG: Reset di tutte le pill completato");
+
+        const aiSuggestions = {
+            moods: [],
+            genres: [],
+            instruments: [],
+            rhythms: [],
+            bpm: 120
+        };
+
+        // LOGICA MOOD basata su emozioni
+        if (imageAnalysisResults.emotions && imageAnalysisResults.emotions.length > 0) {
+            const primaryEmotion = imageAnalysisResults.emotions.find(e => e !== "neutrale") || imageAnalysisResults.emotions[0];
+            console.log("😊 DEBUG: Emozione primaria rilevata:", primaryEmotion);
+
+            if (primaryEmotion === "felice") {
+                aiSuggestions.moods.push("energico");
+                aiSuggestions.bpm = 140;
+            } else if (primaryEmotion === "triste") {
+                aiSuggestions.moods.push("malinconico");
+                aiSuggestions.bpm = 80;
+            } else if (primaryEmotion === "arrabbiato/a") {
+                aiSuggestions.moods.push("drammatico");
+                aiSuggestions.bpm = 160;
+            } else {
+                aiSuggestions.moods.push("rilassante");
+                aiSuggestions.bpm = 100;
+            }
+        } else {
+            if (imageAnalysisResults.colors) {
+                if (imageAnalysisResults.colors.averageBrightness > 170) {
+                    aiSuggestions.moods.push("energico");
+                    aiSuggestions.bpm = 130;
+                } else if (imageAnalysisResults.colors.averageBrightness < 80) {
+                    aiSuggestions.moods.push("misterioso");
+                    aiSuggestions.bpm = 90;
+                } else {
+                    aiSuggestions.moods.push("rilassante");
+                    aiSuggestions.bpm = 110;
+                }
+            } else {
+                aiSuggestions.moods.push("rilassante");
+            }
+        }
+
+        // LOGICA GENERE basata su oggetti
+        if (imageAnalysisResults.objects && imageAnalysisResults.objects.length > 0) {
+            console.log("🔍 DEBUG: Oggetti rilevati:", imageAnalysisResults.objects);
+
+            if (imageAnalysisResults.objects.includes("persona")) {
+                aiSuggestions.genres.push("folk");
+            } else if (imageAnalysisResults.objects.some(o => ["auto", "città", "strada"].includes(o))) {
+                aiSuggestions.genres.push("elettronica");
+            } else if (imageAnalysisResults.objects.some(o => ["albero", "natura", "animale", "uccello"].includes(o))) {
+                aiSuggestions.genres.push("ambient");
+            } else {
+                aiSuggestions.genres.push("pop");
+            }
+        } else {
+            aiSuggestions.genres.push("ambient");
+        }
+
+        // LOGICA STRUMENTI basata su genere
+        if (aiSuggestions.genres.includes("folk")) {
+            aiSuggestions.instruments.push("chitarra acustica");
+        } else if (aiSuggestions.genres.includes("elettronica")) {
+            aiSuggestions.instruments.push("sintetizzatore");
+        } else if (aiSuggestions.genres.includes("ambient")) {
+            aiSuggestions.instruments.push("sintetizzatore");
+        } else {
+            aiSuggestions.instruments.push("pianoforte");
+        }
+
+        // LOGICA RITMO basata su BPM
+        if (aiSuggestions.bpm >= 140) {
+            aiSuggestions.rhythms.push("upbeat_energetic");
+        } else if (aiSuggestions.bpm <= 90) {
+            aiSuggestions.rhythms.push("slow_rhythm");
+        } else {
+            aiSuggestions.rhythms.push("moderate_groove");
+        }
+
+        console.log("✨ DEBUG: Suggerimenti AI generati:", aiSuggestions);
+
+        // APPLICA I SUGGERIMENTI ALLE PILL
+        let appliedCount = 0;
+
+        aiSuggestions.moods.forEach(mood => {
+            const checkbox = document.querySelector(`input[name="mood"][value="${mood}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+                checkbox.closest('.checkbox-pill').classList.add('selected');
+                appliedCount++;
+                console.log(`✅ DEBUG: Applicato mood: ${mood}`);
+            }
+        });
+
+        aiSuggestions.genres.forEach(genre => {
+            const checkbox = document.querySelector(`input[name="genre"][value="${genre}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+                checkbox.closest('.checkbox-pill').classList.add('selected');
+                appliedCount++;
+                console.log(`✅ DEBUG: Applicato genere: ${genre}`);
+            }
+        });
+
+        aiSuggestions.instruments.forEach(instrument => {
+            const checkbox = document.querySelector(`input[name="instrument"][value="${instrument}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+                checkbox.closest('.checkbox-pill').classList.add('selected');
+                appliedCount++;
+                console.log(`✅ DEBUG: Applicato strumento: ${instrument}`);
+            }
+        });
+
+        aiSuggestions.rhythms.forEach(rhythm => {
+            const checkbox = document.querySelector(`input[name="rhythm"][value="${rhythm}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+                checkbox.closest('.checkbox-pill').classList.add('selected');
+                appliedCount++;
+                console.log(`✅ DEBUG: Applicato ritmo: ${rhythm}`);
+            }
+        });
+
+        // Applica BPM
+        if (domElements.bpmSlider && aiSuggestions.bpm !== 120) {
+            domElements.bpmSlider.value = aiSuggestions.bpm;
+            if (domElements.bpmValueDisplay) {
+                domElements.bpmValueDisplay.textContent = aiSuggestions.bpm;
+            }
+            console.log(`✅ DEBUG: Applicato BPM: ${aiSuggestions.bpm}`);
+        }
+
+        initialPreselectionDoneForCurrentImage = true;
+        console.log(`🎯 DEBUG: Applicati ${appliedCount} suggerimenti in totale`);
+        console.log("✅ DEBUG: Pre-selezioni AI completate");
+    }
+
+    // ========== PROMPT GENERATION FUNCTIONS ==========
+    function generateStableAudioPrompt(parsedData) {
+        console.log("🎵 Generazione prompt per AI con selezioni multiple");
+        console.log("📊 DEBUG: Dati ricevuti:", parsedData);
+
+        let parts = [];
+
+        // ✅ GESTIONE MULTIPLE MOODS
+        if (parsedData.moods && parsedData.moods.length > 0) {
+            console.log("😊 DEBUG: Moods selezionati:", parsedData.moods);
+            parsedData.moods.forEach(mood => {
+                const englishMood = cueTranslationsITtoEN.mood[mood] || mood;
+                if (englishMood) {
+                    parts.push(englishMood);
+                    console.log(`  ✅ Aggiunto mood: ${mood} -> ${englishMood}`);
+                }
+            });
+        }
+
+        // ✅ GESTIONE MULTIPLE GENRES  
+        if (parsedData.genres && parsedData.genres.length > 0) {
+            console.log("🎼 DEBUG: Generi selezionati:", parsedData.genres);
+            const englishGenres = [];
+            parsedData.genres.forEach(genre => {
+                const englishGenre = cueTranslationsITtoEN.genre[genre] || genre;
+                if (englishGenre) {
+                    englishGenres.push(englishGenre);
+                    console.log(`  ✅ Aggiunto genere: ${genre} -> ${englishGenre}`);
+                }
+            });
+
+            if (englishGenres.length === 1) {
+                parts.push(englishGenres[0]);
+            } else if (englishGenres.length === 2) {
+                parts.push(englishGenres.join("-") + " fusion");
+            } else if (englishGenres.length > 2) {
+                parts.push("multi-genre featuring " + englishGenres.slice(0, 3).join(", "));
+            }
+        }
+
+        // ✅ GESTIONE MULTIPLE INSTRUMENTS
+        if (parsedData.instruments && parsedData.instruments.length > 0) {
+            console.log("🎸 DEBUG: Strumenti selezionati:", parsedData.instruments);
+            const englishInstruments = [];
+            parsedData.instruments.forEach(instrument => {
+                const englishInstrument = cueTranslationsITtoEN.instrument[instrument] || instrument;
+                if (englishInstrument) {
+                    englishInstruments.push(englishInstrument);
+                    console.log(`  ✅ Aggiunto strumento: ${instrument} -> ${englishInstrument}`);
+                }
+            });
+
+            if (englishInstruments.length === 1) {
+                parts.push("with " + englishInstruments[0]);
+            } else if (englishInstruments.length === 2) {
+                parts.push("featuring " + englishInstruments.join(" and "));
+            } else if (englishInstruments.length >= 3) {
+                const lastInstrument = englishInstruments.pop();
+                parts.push("featuring " + englishInstruments.join(", ") + " and " + lastInstrument);
+            }
+        }
+
+        // ✅ GESTIONE MULTIPLE RHYTHMS
+        if (parsedData.rhythms && parsedData.rhythms.length > 0) {
+            console.log("🥁 DEBUG: Ritmi selezionati:", parsedData.rhythms);
+            const rhythm = parsedData.rhythms[parsedData.rhythms.length - 1];
+            const englishRhythm = cueTranslationsITtoEN.rhythm[rhythm] || rhythm;
+            if (englishRhythm) {
+                parts.push(englishRhythm);
+                console.log(`  ✅ Aggiunto ritmo: ${rhythm} -> ${englishRhythm}`);
+            }
+        }
+
+        // ✅ BPM
+        if (parsedData.tempoBPM) {
+            parts.push(parsedData.tempoBPM + " BPM");
+            console.log(`  ✅ Aggiunto BPM: ${parsedData.tempoBPM}`);
+        }
+
+        parts.push("high quality");
+
+        const finalPrompt = parts.join(", ");
+        console.log("🎵 DEBUG: Prompt finale completo:", finalPrompt);
+
+        return finalPrompt;
+    }
+
+    function getMusicalCues(analysis, detectedObjects, detectedEmotions, creativityLevel, userInputs) {
+        const cues = {
+            moods: [...userInputs.selectedMoods],
+            genres: [...userInputs.selectedGenres],
+            instruments: [...userInputs.selectedInstruments],
+            rhythms: [...userInputs.selectedRhythms],
+            tempoBPM: userInputs.selectedBPM,
+            tempoDescription: userInputs.selectedBPM <= 76 ? "lento" : userInputs.selectedBPM <= 120 ? "moderato" : "veloce",
+            energy: "medium",
+            tonality: "misto",
+            keywords: []
+        };
+
+        // Auto-suggestion if no user input
+        if (!initialPreselectionDoneForCurrentImage) {
+            console.log("🔍 Auto-suggestion attiva");
+
+            if (cues.moods.length === 0 && detectedEmotions && detectedEmotions.length > 0) {
+                const primaryEmotion = detectedEmotions.find(e => e !== "neutrale") || detectedEmotions[0];
+                if (primaryEmotion === "felice") cues.moods.push("energico");
+                else if (primaryEmotion === "triste") cues.moods.push("malinconico");
+                else if (primaryEmotion === "arrabbiato/a") cues.moods.push("drammatico");
+                else cues.moods.push("rilassante");
+            }
+
+            if (cues.genres.length === 0 && detectedObjects && detectedObjects.length > 0) {
+                if (detectedObjects.includes("persona")) cues.genres.push("folk");
+                else if (detectedObjects.some(o => ["albero", "natura", "animale"].includes(o))) cues.genres.push("ambient");
+                else if (detectedObjects.some(o => ["auto", "città", "strada"].includes(o))) cues.genres.push("elettronica");
+                else cues.genres.push("ambient");
+            }
+
+            if (cues.instruments.length === 0) {
+                if (cues.genres.includes("folk")) cues.instruments.push("chitarra acustica");
+                else if (cues.genres.includes("elettronica")) cues.instruments.push("sintetizzatore");
+                else cues.instruments.push("pianoforte");
+            }
+
+            if (cues.rhythms.length === 0) {
+                if (cues.moods.includes("energico")) cues.rhythms.push("upbeat_energetic");
+                else if (cues.moods.includes("rilassante")) cues.rhythms.push("slow_rhythm");
+                else cues.rhythms.push("moderate_groove");
+            }
+        }
+
+        return cues;
+    }
+
+    function generateAIDisplayContent(analysis, detectedObjectsList, detectedEmotionsList, userInputs, finalStablePrompt) {
+        console.log("🔄 DEBUG: Aggiornamento contenuto AI con prompt:", finalStablePrompt);
+
+        const aiProcessingSimDiv = domElements.aiInsightsContent.querySelector('#aiProcessingSimulation');
+        domElements.aiInsightsContent.innerHTML = '';
+        if (aiProcessingSimDiv) {
+            domElements.aiInsightsContent.appendChild(aiProcessingSimDiv);
+        }
+
+        let analysisContentHTML = "<h4>Analisi Immagine:</h4><ul>";
+        analysisContentHTML += `<li><strong>Oggetti Rilevati:</strong> ${detectedObjectsList && detectedObjectsList.length > 0 ? detectedObjectsList.join(", ") : "Nessuno"}</li>`;
+        analysisContentHTML += `<li><strong>Emozioni Percepite:</strong> ${detectedEmotionsList && detectedEmotionsList.length > 0 ? detectedEmotionsList.join(", ") : "Nessuna"}</li>`;
+
+        if (analysis) {
+            let brightnessDesc = "Media";
+            if (analysis.averageBrightness < 80) brightnessDesc = "Bassa (scena scura)";
+            else if (analysis.averageBrightness > 170) brightnessDesc = "Alta (scena luminosa)";
+            analysisContentHTML += `<li><strong>Luminosità:</strong> ${brightnessDesc}</li>`;
+
+            let contrastDesc = "Medio";
+            if (analysis.contrast < 30) contrastDesc = "Basso";
+            else if (analysis.contrast > 70) contrastDesc = "Alto";
+            analysisContentHTML += `<li><strong>Contrasto:</strong> ${contrastDesc}</li>`;
+
+            if (analysis.dominantColors && analysis.dominantColors.length > 0) {
+                analysisContentHTML += "<li><strong>Colori Dominanti:</strong><ul>";
+                analysis.dominantColors.forEach(c => {
+                    analysisContentHTML += `<li><span class="color-swatch-inline" style="background-color: rgb(${c.r},${c.g},${c.b});"></span>RGB(${c.r},${c.g},${c.b}) - ${c.percentage.toFixed(0)}%</li>`;
+                });
+                analysisContentHTML += "</ul></li>";
+            }
+        }
+        analysisContentHTML += "</ul>";
+
+        let interpretationHtml = "<h4>Interpretazione Musicale:</h4><ul>";
+
+        if (userInputs.selectedMoods && userInputs.selectedMoods.length > 0) {
+            interpretationHtml += `<li><strong>Mood (${userInputs.selectedMoods.length}):</strong> ${userInputs.selectedMoods.join(", ")}</li>`;
+        }
+        if (userInputs.selectedGenres && userInputs.selectedGenres.length > 0) {
+            interpretationHtml += `<li><strong>Generi (${userInputs.selectedGenres.length}):</strong> ${userInputs.selectedGenres.join(", ")}</li>`;
+        }
+        if (userInputs.selectedInstruments && userInputs.selectedInstruments.length > 0) {
+            interpretationHtml += `<li><strong>Strumenti (${userInputs.selectedInstruments.length}):</strong> ${userInputs.selectedInstruments.join(", ")}</li>`;
+        }
+        if (userInputs.selectedRhythms && userInputs.selectedRhythms.length > 0) {
+            interpretationHtml += `<li><strong>Ritmi (${userInputs.selectedRhythms.length}):</strong> ${userInputs.selectedRhythms.join(", ")}</li>`;
+        }
+
+        interpretationHtml += `<li><strong>Tempo:</strong> ${userInputs.selectedBPM} BPM</li>`;
+        interpretationHtml += "</ul>";
+
+        interpretationHtml += `<div id="finalPromptForAI" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; font-family: monospace;">
+        <strong style="color: #495057; font-size: 14px;">🤖 Prompt finale per AI:</strong><br>
+        <span style="color: #28a745; font-weight: 500; font-size: 13px; line-height: 1.4; display: block; margin-top: 8px;">${finalStablePrompt}</span>
+    </div>`;
+
+        domElements.aiInsightsContent.innerHTML += analysisContentHTML + interpretationHtml;
+        console.log("✅ DEBUG: Contenuto AI aggiornato con selezioni multiple");
+    }
+
+    async function updateAIDisplayAndStablePrompt() {
+        if (!currentImage || !imageAnalysisResults) return;
+
+        const selectedMoods = getSelectedCheckboxValues('mood');
+        const selectedGenres = getSelectedCheckboxValues('genre');
+        const selectedInstruments = getSelectedCheckboxValues('instrument');
+        const selectedRhythms = getSelectedCheckboxValues('rhythm');
+        const selectedBPM = domElements.bpmSlider?.value || 120;
+
+        const userInputs = {
+            selectedMoods,
+            selectedGenres,
+            selectedInstruments,
+            selectedRhythms,
+            selectedBPM
+        };
+
+        const tempParsedCues = getMusicalCues(
+            imageAnalysisResults.colors,
+            imageAnalysisResults.objects,
+            imageAnalysisResults.emotions,
+            CREATIVITY_LEVEL,
+            userInputs
+        );
+
+        stableAudioPromptForMusic = generateStableAudioPrompt(tempParsedCues);
+
+        generateAIDisplayContent(
+            imageAnalysisResults.colors,
+            imageAnalysisResults.objects,
+            imageAnalysisResults.emotions,
+            userInputs,
+            stableAudioPromptForMusic
+        );
+
+        domElements.aiInsightsSection.style.display = 'block';
+    }
+
+    // ========== IMAGE PROCESSING ==========
+    function processImage(imageSrc) {
+        console.log("LOG: Inizio processImage");
+        domElements.imagePreview.src = imageSrc;
+        currentImageSrc = imageSrc;
+        domElements.imagePreview.style.display = 'block';
+        imageAnalysisResults = null;
+        initialPreselectionDoneForCurrentImage = false;
+
+        domElements.generateMusicButton.disabled = true;
+        domElements.aiInsightsSection.style.display = 'none';
+        if (domElements.detailsAccordionHeader) domElements.detailsAccordionHeader.classList.remove('open');
+        if (domElements.aiInsightsContent) domElements.aiInsightsContent.style.display = 'none';
+
+        document.querySelectorAll('.checkbox-pill input[type="checkbox"]:checked').forEach(cb => {
+            cb.checked = false;
+            cb.closest('.checkbox-pill').classList.remove('selected');
+        });
+
+        currentImage = new Image();
+        currentImage.onload = async () => {
+            console.log("LOG: Immagine caricata, inizio analisi completa");
+
+            setStatusMessage(domElements.statusDiv, "Analisi immagine in corso...", "info");
+            updateProgressMessage("Analisi immagine in corso...", true);
+            startAISimulationText();
+
+            try {
+                const colorAnalysis = analyzeImageAdvanced(currentImage);
+                const objects = await detectObjectsInImage(currentImage);
+                const emotions = await analyzeFacesInImage(currentImage);
+
+                imageAnalysisResults = {
+                    colors: colorAnalysis,
+                    objects: objects,
+                    emotions: emotions
+                };
+
+                console.log("LOG: Analisi completata", imageAnalysisResults);
+
+                applyAISuggestionsToUI();
+                await updateAIDisplayAndStablePrompt();
+
+                stopAISimulationText();
+                updateProgressMessage("", false);
+                setStatusMessage(domElements.statusDiv, "Analisi completata! Personalizza e genera.", "success");
+                domElements.generateMusicButton.disabled = false;
+
+            } catch (error) {
+                console.error("Errore analisi:", error);
+                stopAISimulationText();
+                updateProgressMessage("", false);
+                setStatusMessage(domElements.statusDiv, "Errore analisi. Puoi comunque generare.", "warn");
+                domElements.generateMusicButton.disabled = false;
+            }
+        };
+
+        currentImage.onerror = () => {
+            console.error("ERRORE: Errore caricamento immagine");
+            setStatusMessage(domElements.statusDiv, "Errore caricamento immagine.", "error");
+            domElements.generateMusicButton.disabled = true;
+        };
+
+        currentImage.src = imageSrc;
+    }
+
+    // ========== EVENT LISTENERS ==========
     domElements.imageUpload.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file) {
@@ -713,7 +913,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Generate Music Button
     domElements.generateMusicButton.addEventListener('click', async () => {
         console.log("LOG: Click genera musica");
 
@@ -722,8 +921,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Se il prompt non è pronto, generalo ora
         if (!stableAudioPromptForMusic || stableAudioPromptForMusic === "") {
+            applyAISuggestionsToUI();
             await updateAIDisplayAndStablePrompt();
         }
 
@@ -737,7 +936,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             console.log("LOG: Invio richiesta con prompt:", stableAudioPromptForMusic);
 
-            // Chiamata AJAX WordPress
             const response = await jQuery.ajax({
                 url: pictosound_vars.ajax_url,
                 type: 'POST',
@@ -753,22 +951,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log("LOG: Risposta ricevuta:", response);
 
             if (response.success && response.data.audioUrl) {
-                // Successo!
                 updateProgressMessage("", false);
                 setStatusMessage(domElements.statusDiv, "Musica generata con successo!", "success");
 
-                // Mostra player audio
                 domElements.audioPlayer.src = response.data.audioUrl;
                 domElements.audioPlayerContainer.style.display = 'block';
                 domElements.progressAndPlayerContainer.style.display = 'block';
 
-                // Setup download
                 if (domElements.downloadAudioLink) {
                     domElements.downloadAudioLink.href = response.data.downloadUrl || response.data.audioUrl;
                     domElements.downloadAudioLink.style.display = 'inline-flex';
                 }
 
-                // Nascondi status dopo 3 secondi
                 setTimeout(() => {
                     domElements.statusDiv.style.display = 'none';
                     domElements.dynamicFeedbackArea.style.display = 'none';
@@ -787,7 +981,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // BPM Slider
     if (domElements.bpmSlider && domElements.bpmValueDisplay) {
         domElements.bpmSlider.addEventListener('input', () => {
             domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
@@ -798,7 +991,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Accordion for details
     if (domElements.detailsAccordionHeader && domElements.aiInsightsContent) {
         domElements.detailsAccordionHeader.addEventListener('click', () => {
             const isOpen = domElements.detailsAccordionHeader.classList.toggle('open');
@@ -806,7 +998,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Accordion for cue groups (Mood, Genere, etc.)
     document.querySelectorAll('.cues-selection-container label.group-label.collapsible-cue-header').forEach(header => {
         header.addEventListener('click', () => {
             header.classList.toggle('open');
@@ -821,21 +1012,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Initialize pills
+    // ========== INITIALIZATION ==========
     populateCheckboxPills(domElements.moodPillsContainer, moodItems, 'mood');
     populateCheckboxPills(domElements.genrePillsContainer, genreItems, 'genre');
     populateCheckboxPills(domElements.instrumentPillsContainer, instrumentItems, 'instrument');
     populateCheckboxPills(domElements.rhythmPillsContainer, rhythmItems, 'rhythm');
 
-    // ========== NUOVA SEZIONE: INIZIALIZZAZIONE CAMERA HANDLER ==========
-    // Inizializza il modulo camera (se disponibile)
     if (window.CameraHandler) {
         console.log("LOG: Inizializzazione CameraHandler...");
-
         const cameraInitSuccess = CameraHandler.init(
-            domElements,           // Elementi DOM
-            processImage,          // Callback per processare immagine  
-            (message, type = "info") => setStatusMessage(domElements.statusDiv, message, type) // Callback status
+            domElements,
+            processImage,
+            (message, type = "info") => setStatusMessage(domElements.statusDiv, message, type)
         );
 
         if (cameraInitSuccess) {
@@ -847,20 +1035,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.warn("WARN: ⚠️ CameraHandler non trovato - verifica che camera-handler.js sia caricato");
     }
 
-    // Cleanup quando si chiude la pagina
     window.addEventListener('beforeunload', () => {
         if (window.CameraHandler) {
             CameraHandler.cleanup();
         }
     });
-    // ========== FINE SEZIONE CAMERA HANDLER ==========
 
-    // Inizializza subito i modelli
     loadModels();
 
-    // Popola le opzioni di durata/crediti se disponibili
     if (typeof pictosound_vars !== 'undefined') {
         console.log("LOG: pictosound_vars disponibile:", pictosound_vars);
-        // Qui puoi aggiungere la logica per i crediti se necessaria
     }
 });
