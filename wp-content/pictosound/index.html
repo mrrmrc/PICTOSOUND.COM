@@ -1,4 +1,3 @@
-</div>
 <div class="container">
     <div class="options-section">
         <h3>1. Scegli la tua Immagine</h3>
@@ -162,42 +161,45 @@
             </div>
         </div>
 
-        <!-- SEZIONE PERSONALIZZAZIONI RIDISEGNATA A 4 COLONNE -->
+        <!-- SEZIONE PERSONALIZZAZIONI MOBILE-FRIENDLY -->
         <div class="options-section" id="descriptiveCuesSection">
             <h3>FAI LE TUE PERSONALIZZAZIONI <span
                     style="font-weight:normal; font-size:0.8em; color:var(--light-text);">(opzionale)</span></h3>
             <p class="info-text-cues-main">L'IA genererà la musica anche senza selezioni, basandosi sull'immagine. Le
                 tue scelte aiuteranno a guidare l'interpretazione.</p>
 
-            <!-- GRID A 4 COLONNE -->
-            <div class="cues-grid-container">
-                <!-- COLONNA 1: MOOD -->
-                <div class="cues-column">
+            <!-- BPM SLIDER SEPARATO -->
+            <div class="bpm-slider-container"
+                style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <label for="bpmSlider" style="font-weight: 600; margin-bottom: 10px; display: block;">🎵 Tempo (BPM):
+                    <span id="bpmValue">120</span></label>
+                <input type="range" id="bpmSlider" name="bpm" min="40" max="200" value="120" step="5"
+                    style="width: 100%;">
+            </div>
+
+            <!-- VERSIONE MOBILE-FRIENDLY -->
+            <div class="cues-mobile-container">
+
+                <!-- MOOD -->
+                <div class="cues-mobile-section">
                     <div class="cues-selection-container">
                         <label class="group-label collapsible-cue-header" for="moodPills">
                             <div class="cue-header-content">
-                                <img src="/wp-content/pictosound/icone/mood_icon.jpg" alt="Mood" class="cue-icon-small"
-                                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjY2NjIiBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptLTIgMTVsLTUtNSAxLjQxLTEuNDFMMTAgMTQuMTdsNy41OS03LjU5TDE5IDhsLTkgOXoiLz48L3N2Zz4='; this.onerror=null;">
+                                <span style="font-size: 1.5em;">😊</span>
                                 <span class="cue-title">Mood</span>
                             </div>
                             <span class="toggle-icon-cues"></span>
                         </label>
                         <div class="checkbox-pills-group" id="moodPills"></div>
-                        <div class="bpm-slider-container">
-                            <label for="bpmSlider">BPM: <span id="bpmValue">120</span></label>
-                            <input type="range" id="bpmSlider" name="bpm" min="40" max="200" value="120" step="5">
-                        </div>
                     </div>
                 </div>
 
-                <!-- COLONNA 2: GENERE -->
-                <div class="cues-column">
+                <!-- GENERE -->
+                <div class="cues-mobile-section">
                     <div class="cues-selection-container">
                         <label class="group-label collapsible-cue-header" for="genrePills">
                             <div class="cue-header-content">
-                                <img src="/wp-content/pictosound/icone/genere_icon.jpg" alt="Genere"
-                                    class="cue-icon-small"
-                                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjY2NjIiBkPSJNMTIgM3Y5LjI4Yy0uNDctLjE3LTEtLjI4LTEuNTQtLjI4QzguMDEgMTIgNiAxNC4wMSA2IDE2LjVTOC4wMSAyMSAxMC40NiAyMXMyLjU0LTIuMDEgMi41NC00LjVWN2g0VjNIMTJ6Ii8+PC9zdmc+'; this.onerror=null;">
+                                <span style="font-size: 1.5em;">🎵</span>
                                 <span class="cue-title">Genere</span>
                             </div>
                             <span class="toggle-icon-cues"></span>
@@ -206,14 +208,12 @@
                     </div>
                 </div>
 
-                <!-- COLONNA 3: STRUMENTI -->
-                <div class="cues-column">
+                <!-- STRUMENTI -->
+                <div class="cues-mobile-section">
                     <div class="cues-selection-container">
                         <label class="group-label collapsible-cue-header" for="instrumentPills">
                             <div class="cue-header-content">
-                                <img src="/wp-content/pictosound/icone/strumenti_icon.jpg" alt="Strumenti"
-                                    class="cue-icon-small"
-                                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjY2NjIiBkPSJtMTIgM2w0IDR2NGgtM3Y4aC0ydi04SDh2LTRsMTIgMyA0IDR2NGgtM3Y4aC0ydi04SDh2LTRsNC00eiIvPjwvc3ZnPg=='; this.onerror=null;">
+                                <span style="font-size: 1.5em;">🎹</span>
                                 <span class="cue-title">Strumenti</span>
                             </div>
                             <span class="toggle-icon-cues"></span>
@@ -222,14 +222,12 @@
                     </div>
                 </div>
 
-                <!-- COLONNA 4: RITMO -->
-                <div class="cues-column">
+                <!-- RITMO -->
+                <div class="cues-mobile-section">
                     <div class="cues-selection-container">
                         <label class="group-label collapsible-cue-header" for="rhythmPills">
                             <div class="cue-header-content">
-                                <img src="/wp-content/pictosound/icone/ritmo_icon.jpg" alt="Ritmo"
-                                    class="cue-icon-small"
-                                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjY2NjIiBkPSJNOCAzdjJIOXY2aDJWNWgxVjNIOHptNiAwaC0ydjJoMXY2aDJWNWgxVjNoLTJ6bS02IDEwdjJoMXY2aDJWMTVoMXYtMkg4em02IDBoLTJ2MmgxdjZoMlYxNWgxdi0yaC0yeiIvPjwvc3ZnPg=='; this.onerror=null;">
+                                <span style="font-size: 1.5em;">🥁</span>
                                 <span class="cue-title">Ritmo</span>
                             </div>
                             <span class="toggle-icon-cues"></span>
@@ -237,6 +235,7 @@
                         <div class="checkbox-pills-group" id="rhythmPills"></div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -250,3 +249,59 @@
 <!-- Caricamento delle librerie e stili necessari -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/wp-content/pictosound/css/style.css">
+
+<!-- CSS AGGIUNTIVO SOLO PER MOBILE-FIX -->
+<style>
+    /* Mobile fix per le personalizzazioni */
+    .cues-mobile-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .cues-mobile-section {
+        width: 100%;
+    }
+
+    /* Emoji al posto delle icone brutte */
+    .cue-header-content {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Responsive migliorato */
+    @media (min-width: 768px) {
+        .cues-mobile-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .cues-mobile-container {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    /* Migliore spacing su mobile */
+    @media (max-width: 767px) {
+        .checkbox-pills-group {
+            margin-top: 15px;
+        }
+
+        .bpm-slider-container {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .info-text-cues-main {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+    }
+</style>
