@@ -44,7 +44,67 @@ document.addEventListener('DOMContentLoaded', async () => {
         fullscreenImage: document.getElementById('fullscreenImage'),
         closeFullscreenButton: document.getElementById('closeFullscreenButton')
     };
+    // =======================================================================
+    // ⚡ INIZIO BLOCCO LOGICA UX PER UTENTI NON AUTENTICATI
+    // =======================================================================
 
+    // DEFINIZIONE DELLA FUNZIONE DI GESTIONE INTERFACCIA
+    // ========== VERSIONE MODIFICATA - SEMPRE LOGIN RICHIESTO ==========
+    function updateUserAccessUI() {
+        const loginOrRegisterPrompt = document.getElementById('loginOrRegisterPrompt');
+        if (!loginOrRegisterPrompt) {
+            console.error("Elemento 'loginOrRegisterPrompt' non trovato nel DOM.");
+            return;
+        }
+
+        const isUserLoggedIn = pictosound_vars.is_user_logged_in;
+        const generateButton = document.getElementById('generateMusicButton');
+
+        // ⚡ NUOVO: Se l'utente NON è autenticato, SEMPRE blocca
+        if (!isUserLoggedIn) {
+            const promptHTML = `
+            <strong style="font-size: 16px; color: #0056b3;">🔒 Accesso Richiesto</strong>
+            <p style="margin: 8px 0 0;">Per utilizzare Pictosound devi essere registrato.</p>
+            <p style="margin: 8px 0 0;">La registrazione è <strong>gratuita</strong> e ti premia con <strong>6 crediti in omaggio</strong>!</p>
+            <div style="margin-top: 15px;">
+                <a href="/login/" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; margin-right: 10px; font-weight: 600;">Accedi Ora</a>
+                <a href="/registrazione/" style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 600;">Registrati Gratis</a>
+            </div>
+        `;
+
+            loginOrRegisterPrompt.innerHTML = promptHTML;
+            loginOrRegisterPrompt.style.display = 'block';
+
+            if (generateButton) {
+                generateButton.disabled = true; // ⚡ SEMPRE disabilitato se non loggati
+            }
+
+            return;
+        }
+
+        // CASO: L'utente È autenticato - nasconde il prompt e abilita il pulsante
+        loginOrRegisterPrompt.style.display = 'none';
+        if (generateButton) {
+            const currentImage = document.getElementById('imagePreview');
+            generateButton.disabled = !currentImage || currentImage.src.includes("#");
+        }
+    }
+
+    // ATTIVAZIONE DELLA LOGICA
+    // Si assicuri che queste righe siano presenti nel suo script, preferibilmente verso la fine 
+    // del listener 'DOMContentLoaded', per garantire che tutti gli elementi siano caricati.
+
+    document.querySelectorAll('input[name="musicDuration"]').forEach(radio => {
+        radio.addEventListener('change', updateUserAccessUI);
+    });
+
+    // Eseguiamo un controllo iniziale al caricamento della pagina per impostare lo stato corretto.
+    // Lo eseguiamo con un piccolo ritardo per assicurarci che tutte le variabili siano pronte.
+    setTimeout(updateUserAccessUI, 100);
+
+    // =======================================================================
+    // ⚡ FINE BLOCCO LOGICA UX
+    // =======================================================================
     // Debug - verifica elementi accordion
     console.log("LOG: Accordion header trovato:", !!domElements.detailsAccordionHeader);
     console.log("LOG: AI insights content trovato:", !!domElements.aiInsightsContent);
@@ -928,14 +988,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const duration = document.querySelector('input[name="musicDuration"]:checked')?.value || "40";
-
-            // ✅ ================== ECCO LA RIGA MANCANTE ==================
-            // Leggiamo il valore dal campo di testo PRIMA di usarlo.
             const trackTitle = document.getElementById('trackName')?.value || '';
-            // =============================================================
 
             console.log("LOG: Invio richiesta con prompt:", stableAudioPromptForMusic);
-            console.log("LOG: Invio titolo brano:", trackTitle); // Log per debug
+            console.log("LOG: Invio titolo brano:", trackTitle);
 
             const response = await jQuery.ajax({
                 url: pictosound_vars.ajax_url,
@@ -946,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     duration: duration,
                     image_data: currentImageSrc,
                     nonce: pictosound_vars.nonce_generate || '',
-                    title: trackTitle // Ora la variabile 'trackTitle' esiste e viene inviata correttamente
+                    title: trackTitle
                 }
             });
 
@@ -969,36 +1025,52 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log("✅ Musica generata e player attivato");
 
             } else {
-                // Se la risposta non ha successo ma non è un errore AJAX, lancia un errore.
                 throw new Error(response.data?.error || 'Errore nella generazione musicale.');
             }
 
         } catch (error) {
-            // La parte per la gestione degli errori rimane invariata
             console.error("ERRORE generazione:", error);
             updateProgressMessage("", false);
 
-            let errorMessage = error.message || 'Errore sconosciuto.';
-            // Controlla se è un errore AJAX con responseText (come i nostri vecchi errori di DB)
-            if (error.responseText) {
-                errorMessage = "Errore del server. Controlla la console del browser per i dettagli.";
-            }
+            // ⚡ GESTIONE SPECIFICA PER ERRORE 403 (NON LOGGATO)
+            if (error.status === 403 || (error.responseJSON && error.responseJSON.data && error.responseJSON.data.error && error.responseJSON.data.error.includes('registrato'))) {
 
-            setStatusMessage(domElements.statusDiv, `Errore: ${errorMessage}`, "error");
+                // Nascondi tutti i messaggi di errore
+                setStatusMessage(domElements.statusDiv, "", "info");
+                domElements.dynamicFeedbackArea.style.display = 'none';
 
-            setTimeout(() => {
-                if (domElements.statusDiv.textContent.includes("Errore:")) {
-                    setStatusMessage(domElements.statusDiv, "", "info");
-                    domElements.dynamicFeedbackArea.style.display = 'none';
+                // Forza la visualizzazione del prompt di login
+                console.log("👤 Utente non loggato rilevato, mostro prompt di registrazione");
+                updateUserAccessUI(); // Questa funzione mostrerà il prompt
+
+                // Scroll verso il prompt per assicurarsi che sia visibile
+                setTimeout(() => {
+                    const loginPrompt = document.getElementById('loginOrRegisterPrompt');
+                    if (loginPrompt && loginPrompt.style.display !== 'none') {
+                        loginPrompt.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 500);
+
+            } else {
+                // Gestione errori normali
+                let errorMessage = error.message || 'Errore sconosciuto.';
+                if (error.responseText) {
+                    errorMessage = "Errore del server. Controlla la console del browser per i dettagli.";
                 }
-            }, 5000);
+
+                setStatusMessage(domElements.statusDiv, `Errore: ${errorMessage}`, "error");
+
+                setTimeout(() => {
+                    if (domElements.statusDiv.textContent.includes("Errore:")) {
+                        setStatusMessage(domElements.statusDiv, "", "info");
+                        domElements.dynamicFeedbackArea.style.display = 'none';
+                    }
+                }, 5000);
+            }
         } finally {
-            // La parte finally rimane invariata
             domElements.generateMusicButton.disabled = false;
             domElements.musicSpinner.style.display = 'none';
         }
-
-        // ... fine dell'event listener
     });
 
     if (domElements.bpmSlider && domElements.bpmValueDisplay) {
@@ -1065,5 +1137,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (typeof pictosound_vars !== 'undefined') {
         console.log("LOG: pictosound_vars disponibile:", pictosound_vars);
+    }
+    if (typeof pictosound_vars !== 'undefined' && !pictosound_vars.is_user_logged_in) {
+        console.log("👤 Utente non loggato rilevato al caricamento pagina");
+
+        // Forza la visualizzazione del prompt immediatamente
+        setTimeout(() => {
+            updateUserAccessUI();
+
+            // Disabilita il pulsante genera musica
+            const generateButton = document.getElementById('generateMusicButton');
+            if (generateButton) {
+                generateButton.disabled = true;
+            }
+
+            // Aggiungi event listener per mostrare sempre il prompt quando cambia durata
+            document.querySelectorAll('input[name="musicDuration"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    console.log("👤 Utente non loggato ha cambiato durata, mostro prompt");
+                    updateUserAccessUI();
+                });
+            });
+
+        }, 200);
     }
 });

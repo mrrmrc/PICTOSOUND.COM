@@ -1790,9 +1790,42 @@ function pictosound_ajax_generate_music() {
     }
 
     // Validazione input
-    if (empty($_POST['prompt']) || empty($_POST['duration'])) {
+    if (empty($_POST['prompt']) || !isset($_POST['duration'])) {
         wp_send_json_error(['error' => 'Richiesta malformata.'], 400);
+        return; // Aggiunto return per coerenza
     }
+
+    // Recupero dati essenziali
+    $duration_seconds = intval($_POST['duration']);
+    $user_id = get_current_user_id(); // Recuperato prima per i log
+
+    // =======================================================================
+    // ⚡ INIZIO PATCH DI SICUREZZA OBBLIGATORIA ⚡
+    // Questo blocco viene eseguito prima di qualsiasi altra operazione.
+    // =======================================================================
+
+    $duration_costs = pictosound_cm_get_duration_costs();
+    $required_credits = 0;
+    
+    // Controlla se la chiave esiste prima di accedervi per evitare errori
+    if (isset($duration_costs[(string)$duration_seconds])) {
+        $required_credits = $duration_costs[(string)$duration_seconds];
+    }
+
+    // CONDIZIONE CRITICA: Se la durata ha un costo E l'utente non è loggato, blocca tutto.
+    if ($required_credits > 0 && !is_user_logged_in()) {
+        write_log_cm("BLOCCATO: Tentativo di accesso a funzione a pagamento da utente non loggato (User ID: " . $user_id . ").");
+        wp_send_json_error(['error' => 'Autenticazione richiesta per questa operazione.'], 403); // 403 Forbidden
+        return; // Termina l'esecuzione della funzione immediatamente.
+    }
+
+    // NOTA: Qui si potrebbe implementare anche il controllo e l'addebito dei crediti per l'utente loggato.
+    // Per ora, la patch si concentra sulla falla di sicurezza principale.
+
+    // =======================================================================
+    // ⚡ FINE PATCH DI SICUREZZA ⚡
+    // =======================================================================
+
 
     // Salvataggio immagine
     $image_url_to_save = '';
@@ -1813,13 +1846,10 @@ function pictosound_ajax_generate_music() {
 
     // Recupero dati e sanificazione
     $prompt_text = sanitize_textarea_field(stripslashes($_POST['prompt']));
-    $duration_seconds = intval($_POST['duration']);
     
     // ✅ RECUPERA E SANIFICA IL TITOLO DEL BRANO
-    // Se il titolo è vuoto, usa un valore di default "Senza Titolo"
     $track_title = isset($_POST['title']) && !empty(trim($_POST['title'])) ? sanitize_text_field($_POST['title']) : 'Senza Titolo';
 
-    $user_id = get_current_user_id();
     write_log_cm("Inizio generazione musica per User ID: " . $user_id . " con titolo: " . $track_title);
 
     // Chiamata API Stability.AI
@@ -1858,7 +1888,7 @@ function pictosound_ajax_generate_music() {
                 
                 $insert_result = $wpdb->insert($table_name, [
                     'user_id'        => $user_id,
-                    'title'          => $track_title, // ✅ NUOVO CAMPO AGGIUNTO ALL'INSERIMENTO
+                    'title'          => $track_title,
                     'duration'       => $duration_seconds, 
                     'prompt'         => $prompt_text, 
                     'audio_filename' => $audio_filename, 
