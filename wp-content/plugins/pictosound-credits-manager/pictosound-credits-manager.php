@@ -399,7 +399,7 @@ function pictosound_cm_create_transactions_table() {
         status varchar(20) NOT NULL,
         method varchar(20) DEFAULT 'stripe',
         created_at datetime DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
+        PRIMARY KEY (id), 
         UNIQUE KEY transaction_id (transaction_id)
     ) $charset_collate;";
     
