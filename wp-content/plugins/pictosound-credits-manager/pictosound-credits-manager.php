@@ -524,7 +524,14 @@ add_action( 'personal_options_update', 'pictosound_cm_save_user_profile_credits_
 add_action( 'edit_user_profile_update', 'pictosound_cm_save_user_profile_credits_field' );
 
 function pictosound_cm_get_duration_costs() {
-    return [ '40' => 0, '60' => 1, '120' => 2, '180' => 3, '240' => 4, '360' => 5 ];
+    return [ 
+        '40' => 2,   // 40÷20 = 2 crediti
+        '60' => 3,   // 60÷20 = 3 crediti
+        '120' => 6,  // 120÷20 = 6 crediti
+        '180' => 9,  // 180÷20 = 9 crediti
+        '240' => 12, // 240÷20 = 12 crediti
+        '360' => 18  // 360÷20 = 18 crediti
+    ];
 }
 
 function pictosound_cm_get_credit_recharge_packages() {
