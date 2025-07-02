@@ -840,85 +840,82 @@ button:disabled {
     padding: 0 clamp(5px, 1vw, 10px);
 }
 
-/* Gruppi durata radio - Layout responsive */
+/* GRUPPI DURATA RADIO - FORZATI SULLA STESSA RIGA SU MOBILE */
 .radio-duration-group {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-    gap: clamp(8px, 1.5vw, 12px);
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: clamp(3px, 1vw, 8px) !important;
     margin: 0 0 15px 0;
-    width: 100%;
-}
-
-@media (min-width: 480px) {
-    .radio-duration-group {
-        grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
-    }
-}
-
-@media (min-width: 768px) {
-    .radio-duration-group {
-        grid-template-columns: repeat(6, 1fr);
-    }
+    width: 100% !important;
+    justify-content: center !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
 }
 
 .radio-duration-item {
-    width: 100%;
-    position: relative;
+    flex-shrink: 0 !important;
+    position: relative !important;
+    width: auto !important;
 }
 
 .radio-duration-item input[type="radio"] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    cursor: pointer !important;
 }
 
 .radio-duration-item label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: clamp(8px, 1.5vw, 12px);
-    font-size: clamp(0.7rem, 1.5vw, 0.8rem);
-    text-align: center;
-    background-color: var(--card-bg);
-    border: 2px solid var(--border-color);
-    color: var(--medium-text);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.06);
-    transition: all 0.25s ease-in-out;
-    border-radius: var(--border-radius-responsive);
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
-    min-height: clamp(55px, 10vw, 75px);
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: clamp(6px, 1.2vw, 10px) clamp(4px, 1vw, 8px) !important;
+    font-size: clamp(0.6rem, 1.3vw, 0.75rem) !important;
+    text-align: center !important;
+    background-color: var(--card-bg) !important;
+    border: 2px solid var(--border-color) !important;
+    color: var(--medium-text) !important;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.06) !important;
+    transition: all 0.25s ease-in-out !important;
+    border-radius: var(--border-radius-responsive) !important;
+    cursor: pointer !important;
+    min-width: clamp(45px, 8vw, 65px) !important;
+    max-width: clamp(55px, 10vw, 75px) !important;
+    height: clamp(45px, 8vw, 65px) !important;
+    box-sizing: border-box !important;
 }
 
 .radio-duration-item label:hover {
-    border-color: var(--accent-color);
-    color: var(--accent-color-darker);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+    border-color: var(--accent-color) !important;
+    color: var(--accent-color-darker) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
 .radio-duration-item input[type="radio"]:checked+label {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-gradient-end));
-    border-color: transparent;
-    color: white;
-    box-shadow: 0 4px 12px rgba(var(--primary-color-rgb), 0.3);
-    transform: translateY(-1px) scale(1.02);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-gradient-end)) !important;
+    border-color: transparent !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(var(--primary-color-rgb), 0.3) !important;
+    transform: translateY(-1px) scale(1.05) !important;
 }
 
 .radio-duration-item label .duration-value {
-    font-size: clamp(0.75rem, 1.8vw, 0.9rem);
-    font-weight: 600;
-    display: block;
+    font-size: clamp(0.65rem, 1.4vw, 0.8rem) !important;
+    font-weight: 600 !important;
+    display: block !important;
+    line-height: 1.1 !important;
 }
 
 .radio-duration-item label .duration-credit {
-    font-size: clamp(0.6rem, 1.3vw, 0.7rem);
-    display: block;
-    margin-top: 2px;
-    opacity: 0.8;
+    font-size: clamp(0.5rem, 1.1vw, 0.65rem) !important;
+    display: block !important;
+    margin-top: 1px !important;
+    opacity: 0.8 !important;
+    line-height: 1 !important;
 }
 
 /* LAYOUT A 4 COLONNE PER PERSONALIZZAZIONI */
@@ -1069,7 +1066,7 @@ button:disabled {
     width: 100%;
 }
 
-.cues-column .cues-selection-container label.group-label.open+.checkbox-pills-group+.bpm-slider-container,
+.cues-column .cues-selection-container label.group-label.open+.checkbox-pills-group+.bmp-slider-container,
 .cues-column .cues-selection-container label.group-label.open+.bmp-slider-container {
     display: block;
 }
