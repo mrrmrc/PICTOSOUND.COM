@@ -44,10 +44,71 @@ document.addEventListener('DOMContentLoaded', async () => {
         fullscreenImage: document.getElementById('fullscreenImage'),
         closeFullscreenButton: document.getElementById('closeFullscreenButton')
     };
+    // =======================================================================
+    // ⚡ INIZIO BLOCCO LOGICA UX PER UTENTI NON AUTENTICATI
+    // =======================================================================
 
+    // DEFINIZIONE DELLA FUNZIONE DI GESTIONE INTERFACCIA
+    // ========== VERSIONE MODIFICATA - SEMPRE LOGIN RICHIESTO ==========
+    function updateUserAccessUI() {
+        const loginOrRegisterPrompt = document.getElementById('loginOrRegisterPrompt');
+        if (!loginOrRegisterPrompt) {
+            console.error("Elemento 'loginOrRegisterPrompt' non trovato nel DOM.");
+            return;
+        }
+
+        const isUserLoggedIn = pictosound_vars.is_user_logged_in;
+        const generateButton = document.getElementById('generateMusicButton');
+
+        // ⚡ NUOVO: Se l'utente NON è autenticato, SEMPRE blocca
+        if (!isUserLoggedIn) {
+            const promptHTML = `
+            <strong style="font-size: 16px; color: #0056b3;">🔒 Accesso Richiesto</strong>
+            <p style="margin: 8px 0 0;">Per utilizzare Pictosound devi essere registrato.</p>
+            <p style="margin: 8px 0 0;">La registrazione è <strong>gratuita</strong> e ti premia con <strong>6 crediti in omaggio</strong>!</p>
+            <div style="margin-top: 15px;">
+                <a href="/login/" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; margin-right: 10px; font-weight: 600;">Accedi Ora</a>
+                <a href="/registrazione/" style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 600;">Registrati Gratis</a>
+            </div>
+        `;
+
+            loginOrRegisterPrompt.innerHTML = promptHTML;
+            loginOrRegisterPrompt.style.display = 'block';
+
+            if (generateButton) {
+                generateButton.disabled = true; // ⚡ SEMPRE disabilitato se non loggati
+            }
+
+            return;
+        }
+
+        // CASO: L'utente È autenticato - nasconde il prompt e abilita il pulsante
+        loginOrRegisterPrompt.style.display = 'none';
+        if (generateButton) {
+            const currentImage = document.getElementById('imagePreview');
+            generateButton.disabled = !currentImage || currentImage.src.includes("#");
+        }
+    }
+
+    // ATTIVAZIONE DELLA LOGICA
+    // Si assicuri che queste righe siano presenti nel suo script, preferibilmente verso la fine 
+    // del listener 'DOMContentLoaded', per garantire che tutti gli elementi siano caricati.
+
+    document.querySelectorAll('input[name="musicDuration"]').forEach(radio => {
+        radio.addEventListener('change', updateUserAccessUI);
+    });
+
+    // Eseguiamo un controllo iniziale al caricamento della pagina per impostare lo stato corretto.
+    // Lo eseguiamo con un piccolo ritardo per assicurarci che tutte le variabili siano pronte.
+    setTimeout(updateUserAccessUI, 100);
+
+    // =======================================================================
+    // ⚡ FINE BLOCCO LOGICA UX
+    // =======================================================================
     // Debug - verifica elementi accordion
     console.log("LOG: Accordion header trovato:", !!domElements.detailsAccordionHeader);
     console.log("LOG: AI insights content trovato:", !!domElements.aiInsightsContent);
+    console.log("LOG: AI processing simulation trovato:", !!domElements.aiProcessingSimulationDiv);
 
     // State variables
     let currentImage = null;
@@ -119,6 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             "chitarra elettrica": "electric guitar", "basso": "bass", "batteria": "drums",
             "violino": "violin", "archi": "strings", "sintetizzatore": "synthesizer"
         },
+
         rhythm: {
             "no_rhythm": "no distinct rhythm", "slow_rhythm": "slow rhythm",
             "moderate_groove": "moderate groove", "upbeat_energetic": "upbeat energetic rhythm"
@@ -127,19 +189,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Pills data
     const moodItems = [
-        { value: "felice", label: "Felice / Gioioso" },
-        { value: "triste", label: "Triste / Malinconico" },
+        { value: "felice", label: "Felice" },
+        { value: "triste", label: "Triste" },
         { value: "riflessivo", label: "Riflessivo" },
-        { value: "epico", label: "Epico / Grandioso" },
-        { value: "rilassante", label: "Rilassante / Calmo" },
-        { value: "energico", label: "Energico / Vivace" },
-        { value: "misterioso", label: "Misterioso / Inquietante" },
-        { value: "sognante", label: "Sognante / Etereo" },
+        { value: "epico", label: "Epico" },
+        { value: "rilassante", label: "Rilassante" },
+        { value: "energico", label: "Energico" },
+        { value: "misterioso", label: "Misterioso" },
+        { value: "sognante", label: "Sognante" },
         { value: "romantico", label: "Romantico" },
         { value: "drammatico", label: "Drammatico" },
-        { value: "futuristico", label: "Futuristico / Sci-Fi" },
+        { value: "futuristico", label: "Futuristico" },
         { value: "nostalgico", label: "Nostalgico" },
-        { value: "potente", label: "Potente / Intenso" }
+        { value: "potente", label: "Potente" }
     ];
 
     const genreItems = [
@@ -149,39 +211,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         { value: "jazz", label: "Jazz" },
         { value: "classica", label: "Classica" },
         { value: "ambient", label: "Ambient" },
-        { value: "soundtrack", label: "Soundtrack / Cinematografica" },
-        { value: "folk", label: "Folk / Acustica" },
-        { value: "lo-fi", label: "Lo-fi / Chillhop" },
+        { value: "soundtrack", label: "Soundtrack" },
+        { value: "folk", label: "Folk" },
+        { value: "lo-fi", label: "Lo-fi" },
         { value: "hip-hop", label: "Hip Hop" }
     ];
 
     const instrumentItems = [
         { value: "pianoforte", label: "Pianoforte" },
-        { value: "chitarra acustica", label: "Chitarra Acustica" },
+        { value: "chitarra acustica", label: "Chitarra" },
         { value: "chitarra elettrica", label: "Chitarra Elettrica" },
         { value: "basso", label: "Basso" },
-        { value: "batteria", label: "Batteria / Percussioni" },
-        { value: "violino", label: "Violino / Archi" },
-        { value: "sintetizzatore", label: "Sintetizzatore / Tastiere" }
+        { value: "batteria", label: "Batteria" },
+        { value: "violino", label: "Violino" },
+        { value: "sintetizzatore", label: "Sintetizzatore" }
     ];
 
     const rhythmItems = [
-        { value: "no_rhythm", label: "Nessun ritmo evidente (Ambientale)" },
-        { value: "slow_rhythm", label: "Ritmo Lento e Rilassato" },
-        { value: "moderate_groove", label: "Groove Moderato e Orecchiabile" },
-        { value: "upbeat_energetic", label: "Ritmo Incalzante ed Energico" }
+        { value: "no_rhythm", label: "Nessun ritmo" },
+        { value: "slow_rhythm", label: "Ritmo Lento" },
+        { value: "moderate_groove", label: "Ritmo Moderato" },
+        { value: "upbeat_energetic", label: "Ritmo Energico" }
     ];
-
-    // AI Processing messages
-    const simulatedProcessingMessages = [
-        "Analisi contorni e forme...", "Estrazione pattern visivi...",
-        "Valutazione composizione cromatica...", "Identificazione elementi chiave...",
-        "Interpretazione atmosfera generale...", "Ricerca corrispondenze emotive...",
-        "Elaborazione palette sonora...", "Definizione struttura armonica...",
-        "Sviluppo linea melodica...", "Costruzione del paesaggio sonoro..."
-    ];
-    let simulatedProcessingInterval;
-    let currentMessageIndex = 0;
 
     // ========== HELPER FUNCTIONS ==========
     function setStatusMessage(element, message, type = "info") {
@@ -245,43 +296,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Start AI simulation animation
+    // ========== FUNZIONI MODIFICATE PER SEPARARE I CONTENUTI ==========
+
+    // Start AI simulation animation - SEMPLIFICATA
     function startAISimulationText() {
-        const simulationDiv = domElements.aiInsightsContent.querySelector('.ai-processing-simulation');
-        if (!simulationDiv && domElements.aiInsightsContent) {
-            const newSimDiv = document.createElement('div');
-            newSimDiv.classList.add('ai-processing-simulation');
-            newSimDiv.id = 'aiProcessingSimulation';
-            domElements.aiInsightsContent.prepend(newSimDiv);
-            domElements.aiProcessingSimulationDiv = newSimDiv;
-        } else if (simulationDiv) {
-            simulationDiv.innerHTML = '';
-        }
-
         if (domElements.aiProcessingSimulationDiv) {
+            domElements.aiProcessingSimulationDiv.innerHTML = '<p style="margin: 10px 0; color: #666; font-style: italic;">🔍 Analisi immagine in corso...</p>';
             domElements.aiProcessingSimulationDiv.style.display = 'block';
-            let line1 = document.createElement('p');
-            let line2 = document.createElement('p');
-            domElements.aiProcessingSimulationDiv.appendChild(line1);
-            domElements.aiProcessingSimulationDiv.appendChild(line2);
-
-            currentMessageIndex = 0;
-            line1.textContent = simulatedProcessingMessages[currentMessageIndex % simulatedProcessingMessages.length];
-            line2.textContent = simulatedProcessingMessages[(currentMessageIndex + 1) % simulatedProcessingMessages.length];
-
-            simulatedProcessingInterval = setInterval(() => {
-                currentMessageIndex++;
-                line1.textContent = simulatedProcessingMessages[currentMessageIndex % simulatedProcessingMessages.length];
-                line2.textContent = simulatedProcessingMessages[(currentMessageIndex + 1) % simulatedProcessingMessages.length];
-            }, 1500);
+            console.log("✅ DEBUG: Messaggio di attesa impostato nell'elemento sempre visibile");
         }
     }
 
     function stopAISimulationText() {
-        clearInterval(simulatedProcessingInterval);
-        if (domElements.aiProcessingSimulationDiv) {
-            domElements.aiProcessingSimulationDiv.style.display = 'none';
-        }
+        // Non nascondere più l'elemento, sarà sostituito dall'interpretazione
+        console.log("✅ DEBUG: Stop simulazione - l'elemento rimarrà visibile per l'interpretazione");
     }
 
     function updateProgressMessage(message, isLoading = false) {
@@ -738,16 +766,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         return cues;
     }
 
+    // ========== FUNZIONE CHIAVE MODIFICATA ==========
     function generateAIDisplayContent(analysis, detectedObjectsList, detectedEmotionsList, userInputs, finalStablePrompt) {
-        console.log("🔄 DEBUG: Aggiornamento contenuto AI con prompt:", finalStablePrompt);
+        console.log("🔄 DEBUG: Aggiornamento contenuto AI separato");
 
-        const aiProcessingSimDiv = domElements.aiInsightsContent.querySelector('#aiProcessingSimulation');
-        domElements.aiInsightsContent.innerHTML = '';
-        if (aiProcessingSimDiv) {
-            domElements.aiInsightsContent.appendChild(aiProcessingSimDiv);
+        // ========== PARTE 1: INTERPRETAZIONE MUSICALE (SEMPRE VISIBILE) ==========
+        let interpretationHtml = `
+        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+                    border-radius: 12px; 
+                    padding: 20px; 
+                    margin: 15px 0; 
+                    border-left: 5px solid #007cba;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h4 style="color: #007cba; margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">
+                🎵 <span>Interpretazione Musicale</span>
+            </h4>
+            <div style="display: grid; gap: 10px;">`;
+
+        if (userInputs.selectedMoods && userInputs.selectedMoods.length > 0) {
+            interpretationHtml += `<div><strong>🎭 Mood:</strong> <span style="color: #6c757d;">${userInputs.selectedMoods.join(", ")}</span></div>`;
+        }
+        if (userInputs.selectedGenres && userInputs.selectedGenres.length > 0) {
+            interpretationHtml += `<div><strong>🎼 Generi:</strong> <span style="color: #6c757d;">${userInputs.selectedGenres.join(", ")}</span></div>`;
+        }
+        if (userInputs.selectedInstruments && userInputs.selectedInstruments.length > 0) {
+            interpretationHtml += `<div><strong>🎸 Strumenti:</strong> <span style="color: #6c757d;">${userInputs.selectedInstruments.join(", ")}</span></div>`;
+        }
+        if (userInputs.selectedRhythms && userInputs.selectedRhythms.length > 0) {
+            interpretationHtml += `<div><strong>🥁 Ritmo:</strong> <span style="color: #6c757d;">${userInputs.selectedRhythms.join(", ")}</span></div>`;
         }
 
-        let analysisContentHTML = "<h4>Analisi Immagine:</h4><ul>";
+        interpretationHtml += `<div><strong>⏱️ Tempo:</strong> <span style="color: #6c757d;">${userInputs.selectedBPM} BPM</span></div>`;
+        interpretationHtml += `</div></div>`;
+
+        // INSERISCI L'INTERPRETAZIONE NELL'ELEMENTO SEMPRE VISIBILE
+        if (domElements.aiProcessingSimulationDiv) {
+            domElements.aiProcessingSimulationDiv.innerHTML = interpretationHtml;
+            domElements.aiProcessingSimulationDiv.style.display = 'block';
+            console.log("✅ DEBUG: Interpretazione musicale inserita (sempre visibile)");
+        }
+
+        // ========== PARTE 2: DETTAGLI TECNICI (NELL'ACCORDION) ==========
+        let analysisContentHTML = "<h4>Analisi Tecnica Immagine:</h4><ul>";
         analysisContentHTML += `<li><strong>Oggetti Rilevati:</strong> ${detectedObjectsList && detectedObjectsList.length > 0 ? detectedObjectsList.join(", ") : "Nessuno"}</li>`;
         analysisContentHTML += `<li><strong>Emozioni Percepite:</strong> ${detectedEmotionsList && detectedEmotionsList.length > 0 ? detectedEmotionsList.join(", ") : "Nessuna"}</li>`;
 
@@ -772,31 +832,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         analysisContentHTML += "</ul>";
 
-        let interpretationHtml = "<h4>Interpretazione Musicale:</h4><ul>";
-
-        if (userInputs.selectedMoods && userInputs.selectedMoods.length > 0) {
-            interpretationHtml += `<li><strong>Mood (${userInputs.selectedMoods.length}):</strong> ${userInputs.selectedMoods.join(", ")}</li>`;
-        }
-        if (userInputs.selectedGenres && userInputs.selectedGenres.length > 0) {
-            interpretationHtml += `<li><strong>Generi (${userInputs.selectedGenres.length}):</strong> ${userInputs.selectedGenres.join(", ")}</li>`;
-        }
-        if (userInputs.selectedInstruments && userInputs.selectedInstruments.length > 0) {
-            interpretationHtml += `<li><strong>Strumenti (${userInputs.selectedInstruments.length}):</strong> ${userInputs.selectedInstruments.join(", ")}</li>`;
-        }
-        if (userInputs.selectedRhythms && userInputs.selectedRhythms.length > 0) {
-            interpretationHtml += `<li><strong>Ritmi (${userInputs.selectedRhythms.length}):</strong> ${userInputs.selectedRhythms.join(", ")}</li>`;
-        }
-
-        interpretationHtml += `<li><strong>Tempo:</strong> ${userInputs.selectedBPM} BPM</li>`;
-        interpretationHtml += "</ul>";
-
-        interpretationHtml += `<div id="finalPromptForAI" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; font-family: monospace;">
+        analysisContentHTML += `<div id="finalPromptForAI" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; font-family: monospace;">
         <strong style="color: #495057; font-size: 14px;">🤖 Prompt finale per AI:</strong><br>
         <span style="color: #28a745; font-weight: 500; font-size: 13px; line-height: 1.4; display: block; margin-top: 8px;">${finalStablePrompt}</span>
-    </div>`;
+        </div>`;
 
-        domElements.aiInsightsContent.innerHTML += analysisContentHTML + interpretationHtml;
-        console.log("✅ DEBUG: Contenuto AI aggiornato con selezioni multiple");
+        // INSERISCI I DETTAGLI TECNICI NELL'ACCORDION
+        domElements.aiInsightsContent.innerHTML = analysisContentHTML;
+        console.log("✅ DEBUG: Dettagli tecnici inseriti (accordion)");
     }
 
     async function updateAIDisplayAndStablePrompt() {
@@ -913,6 +956,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // ========== MODIFICA ALLA FUNZIONE DEL PULSANTE GENERA MUSICA ==========
+    // Sostituisci la parte del click del generateMusicButton con questa:
+
     domElements.generateMusicButton.addEventListener('click', async () => {
         console.log("LOG: Click genera musica");
 
@@ -926,15 +972,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             await updateAIDisplayAndStablePrompt();
         }
 
+        // ========== PULIZIA MESSAGGI E PLAYER PRECEDENTI ==========
         domElements.generateMusicButton.disabled = true;
         domElements.musicSpinner.style.display = 'inline-block';
+
+        // NASCONDI AUDIO PLAYER E DOWNLOAD PRECEDENTI
+        if (domElements.audioPlayerContainer) domElements.audioPlayerContainer.style.display = 'none';
+        if (domElements.downloadAudioLink) domElements.downloadAudioLink.style.display = 'none';
+        if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
+        if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
+
+        // MOSTRA SOLO IL MESSAGGIO DI STATO DELLA GENERAZIONE
         setStatusMessage(domElements.statusDiv, "Generazione musica in corso...", "info");
         updateProgressMessage("Generazione traccia audio in corso...", true);
+        domElements.dynamicFeedbackArea.style.display = 'block';
 
         try {
             const duration = document.querySelector('input[name="musicDuration"]:checked')?.value || "40";
+            const trackTitle = document.getElementById('trackName')?.value || '';
 
             console.log("LOG: Invio richiesta con prompt:", stableAudioPromptForMusic);
+            console.log("LOG: Invio titolo brano:", trackTitle);
 
             const response = await jQuery.ajax({
                 url: pictosound_vars.ajax_url,
@@ -944,7 +1002,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     prompt: stableAudioPromptForMusic,
                     duration: duration,
                     image_data: currentImageSrc,
-                    nonce: pictosound_vars.nonce_generate || ''
+                    nonce: pictosound_vars.nonce_generate || '',
+                    title: trackTitle
                 }
             });
 
@@ -952,7 +1011,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (response.success && response.data.audioUrl) {
                 updateProgressMessage("", false);
-                setStatusMessage(domElements.statusDiv, "Musica generata con successo!", "success");
+                setStatusMessage(domElements.statusDiv, "", "info");
+                domElements.dynamicFeedbackArea.style.display = 'none';
 
                 domElements.audioPlayer.src = response.data.audioUrl;
                 domElements.audioPlayerContainer.style.display = 'block';
@@ -963,18 +1023,51 @@ document.addEventListener('DOMContentLoaded', async () => {
                     domElements.downloadAudioLink.style.display = 'inline-flex';
                 }
 
-                setTimeout(() => {
-                    domElements.statusDiv.style.display = 'none';
-                    domElements.dynamicFeedbackArea.style.display = 'none';
-                }, 3000);
+                console.log("✅ Musica generata e player attivato");
+
             } else {
-                throw new Error(response.data?.error || 'Errore generazione');
+                throw new Error(response.data?.error || 'Errore nella generazione musicale.');
             }
 
         } catch (error) {
             console.error("ERRORE generazione:", error);
             updateProgressMessage("", false);
-            setStatusMessage(domElements.statusDiv, `Errore: ${error.message}`, "error");
+
+            // ⚡ GESTIONE SPECIFICA PER ERRORE 403 (NON LOGGATO)
+            if (error.status === 403 || (error.responseJSON && error.responseJSON.data && error.responseJSON.data.error && error.responseJSON.data.error.includes('registrato'))) {
+
+                // Nascondi tutti i messaggi di errore
+                setStatusMessage(domElements.statusDiv, "", "info");
+                domElements.dynamicFeedbackArea.style.display = 'none';
+
+                // Forza la visualizzazione del prompt di login
+                console.log("👤 Utente non loggato rilevato, mostro prompt di registrazione");
+                updateUserAccessUI(); // Questa funzione mostrerà il prompt
+
+                // Scroll verso il prompt per assicurarsi che sia visibile
+                setTimeout(() => {
+                    const loginPrompt = document.getElementById('loginOrRegisterPrompt');
+                    if (loginPrompt && loginPrompt.style.display !== 'none') {
+                        loginPrompt.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 500);
+
+            } else {
+                // Gestione errori normali
+                let errorMessage = error.message || 'Errore sconosciuto.';
+                if (error.responseText) {
+                    errorMessage = "Errore del server. Controlla la console del browser per i dettagli.";
+                }
+
+                setStatusMessage(domElements.statusDiv, `Errore: ${errorMessage}`, "error");
+
+                setTimeout(() => {
+                    if (domElements.statusDiv.textContent.includes("Errore:")) {
+                        setStatusMessage(domElements.statusDiv, "", "info");
+                        domElements.dynamicFeedbackArea.style.display = 'none';
+                    }
+                }, 5000);
+            }
         } finally {
             domElements.generateMusicButton.disabled = false;
             domElements.musicSpinner.style.display = 'none';
@@ -1045,5 +1138,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (typeof pictosound_vars !== 'undefined') {
         console.log("LOG: pictosound_vars disponibile:", pictosound_vars);
+    }
+    if (typeof pictosound_vars !== 'undefined' && !pictosound_vars.is_user_logged_in) {
+        console.log("👤 Utente non loggato rilevato al caricamento pagina");
+
+        // Forza la visualizzazione del prompt immediatamente
+        setTimeout(() => {
+            updateUserAccessUI();
+
+            // Disabilita il pulsante genera musica
+            const generateButton = document.getElementById('generateMusicButton');
+            if (generateButton) {
+                generateButton.disabled = true;
+            }
+
+            // Aggiungi event listener per mostrare sempre il prompt quando cambia durata
+            document.querySelectorAll('input[name="musicDuration"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    console.log("👤 Utente non loggato ha cambiato durata, mostro prompt");
+                    updateUserAccessUI();
+                });
+            });
+
+        }, 200);
     }
 });

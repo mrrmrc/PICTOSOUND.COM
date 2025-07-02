@@ -1785,9 +1785,6 @@ add_action('wp_ajax_pictosound_get_current_credits', 'pictosound_cm_ajax_get_cur
  * FUNZIONE AJAX PER LA GENERAZIONE MUSICALE (FINALE)
  * =============================================================
  */
-/**
- * Funzione AJAX per la generazione di musica e il salvataggio dell'immagine.
- */
 function pictosound_ajax_generate_music() {
     // 1. VERIFICA DI SICUREZZA (NONCE)
     check_ajax_referer('pictosound_generate_nonce', 'nonce');
@@ -1799,42 +1796,60 @@ function pictosound_ajax_generate_music() {
     // Validazione input
     if (empty($_POST['prompt']) || !isset($_POST['duration'])) {
         wp_send_json_error(['error' => 'Richiesta malformata.'], 400);
-        return; // Aggiunto return per coerenza
+        return;
     }
 
     // Recupero dati essenziali
     $duration_seconds = intval($_POST['duration']);
-    $user_id = get_current_user_id(); // Recuperato prima per i log
+    $user_id = get_current_user_id();
 
-    // =======================================================================
-    // ⚡ INIZIO PATCH DI SICUREZZA OBBLIGATORIA ⚡
-    // Questo blocco viene eseguito prima di qualsiasi altra operazione.
-    // =======================================================================
+    // =============================================================
+    // ✅ INIZIO BLOCCO CONTROLLO E ADDEBITO CREDITI (CODICE AGGIUNTO)
+    // =============================================================
 
     $duration_costs = pictosound_cm_get_duration_costs();
     $required_credits = 0;
-    
-    // Controlla se la chiave esiste prima di accedervi per evitare errori
+
+    // Controlla se la chiave esiste prima di accedervi
     if (isset($duration_costs[(string)$duration_seconds])) {
         $required_credits = $duration_costs[(string)$duration_seconds];
     }
 
-    // CONDIZIONE CRITICA: Se la durata ha un costo E l'utente non è loggato, blocca tutto.
-    if ($required_credits > 0 && !is_user_logged_in()) {
-        write_log_cm("BLOCCATO: Tentativo di accesso a funzione a pagamento da utente non loggato (User ID: " . $user_id . ").");
-        wp_send_json_error(['error' => 'Autenticazione richiesta per questa operazione.'], 403); // 403 Forbidden
-        return; // Termina l'esecuzione della funzione immediatamente.
+    // Se la generazione ha un costo, procedi con i controlli
+    if ($required_credits > 0) {
+        // 1. Controlla se l'utente è loggato
+        if (!is_user_logged_in()) {
+            write_log_cm("BLOCCATO: Tentativo di accesso a funzione a pagamento da utente non loggato.");
+            wp_send_json_error(['error' => 'Autenticazione richiesta per questa operazione.'], 403);
+            return;
+        }
+
+        // 2. Controlla se l'utente ha abbastanza crediti
+        $user_current_credits = pictosound_cm_get_user_credits($user_id);
+        if ($user_current_credits < $required_credits) {
+            write_log_cm("BLOCCATO: Crediti insufficienti per User ID $user_id. Richiesti: $required_credits, Disponibili: $user_current_credits");
+            wp_send_json_error([
+                'error' => sprintf('Crediti insufficienti. Hai %d crediti, ma ne servono %d. Per favore, ricarica il tuo saldo.', $user_current_credits, $required_credits)
+            ], 402); // 402 Payment Required
+            return;
+        }
+
+        // 3. Detrai i crediti (l'operazione più importante!)
+        $credits_updated = pictosound_cm_update_user_credits($user_id, $required_credits, 'deduct');
+        if (!$credits_updated) {
+            write_log_cm("ERRORE CRITICO: Impossibile detrarre i crediti per User ID $user_id.");
+            wp_send_json_error(['error' => 'Si è verificato un errore tecnico durante l\'addebito dei crediti. Riprova.'], 500);
+            return;
+        }
+        
+        write_log_cm("SUCCESSO: Addebitati $required_credits crediti a User ID $user_id. Proseguo con la generazione.");
     }
+    
+    // =============================================================
+    // ✅ FINE BLOCCO CONTROLLO E ADDEBITO CREDITI
+    // =============================================================
 
-    // NOTA: Qui si potrebbe implementare anche il controllo e l'addebito dei crediti per l'utente loggato.
-    // Per ora, la patch si concentra sulla falla di sicurezza principale.
-
-    // =======================================================================
-    // ⚡ FINE PATCH DI SICUREZZA ⚡
-    // =======================================================================
-
-
-    // Salvataggio immagine
+    // Salvataggio immagine (logica esistente)
     $image_url_to_save = '';
     if (!empty($_POST['image_data'])) {
         $upload_dir_info = wp_upload_dir();
@@ -1851,15 +1866,13 @@ function pictosound_ajax_generate_music() {
         }
     }
 
-    // Recupero dati e sanificazione
+    // Recupero dati e sanificazione (logica esistente)
     $prompt_text = sanitize_textarea_field(stripslashes($_POST['prompt']));
-    
-    // ✅ RECUPERA E SANIFICA IL TITOLO DEL BRANO
     $track_title = isset($_POST['title']) && !empty(trim($_POST['title'])) ? sanitize_text_field($_POST['title']) : 'Senza Titolo';
 
     write_log_cm("Inizio generazione musica per User ID: " . $user_id . " con titolo: " . $track_title);
 
-    // Chiamata API Stability.AI
+    // Chiamata API Stability.AI (logica esistente)
     $audio_dir = WP_CONTENT_DIR . '/pictosound/audio/';
     if (!file_exists($audio_dir)) { wp_mkdir_p($audio_dir); }
     
