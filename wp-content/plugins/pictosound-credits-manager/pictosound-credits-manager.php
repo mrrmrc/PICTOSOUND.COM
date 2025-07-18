@@ -1876,7 +1876,12 @@ function pictosound_ajax_generate_music() {
     $audio_dir = WP_CONTENT_DIR . '/pictosound/audio/';
     if (!file_exists($audio_dir)) { wp_mkdir_p($audio_dir); }
     
-    $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // ⚠️ USA LA TUA CHIAVE API
+    // Usa la chiave API dal wp-config.php
+if (!defined('PICTOSOUND_STABILITY_API_KEY')) {
+    wp_send_json_error(['error' => 'API key non configurata. Contatta l\'amministratore del sito.'], 500);
+    return;
+}
+$api_key = PICTOSOUND_STABILITY_API_KEY;
     $api_url = 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio';
     
     $fields_to_send = ['prompt' => $prompt_text, 'output_format' => 'mp3', 'duration' => $duration_seconds, 'steps' => 30];

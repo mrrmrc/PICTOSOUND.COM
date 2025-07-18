@@ -946,6 +946,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentImage.src = imageSrc;
     }
 
+    // ========== CAMERA FUNCTIONS (COMPATIBILITÀ CON SISTEMA ESISTENTE) ==========
+    // La gestione della fotocamera è ora integrata direttamente nell'HTML
+    // per evitare conflitti con il sistema esistente
+
     // ========== EVENT LISTENERS ==========
     domElements.imageUpload.addEventListener('change', (event) => {
         const file = event.target.files[0];
@@ -956,9 +960,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // ========== MODIFICA ALLA FUNZIONE DEL PULSANTE GENERA MUSICA ==========
-    // Sostituisci la parte del click del generateMusicButton con questa:
+    // 🔧 FIX BRUTALE: Intercetta OGNI modifica all'immagine preview
+    // Controlla ogni 500ms se c'è una nuova immagine da processare
+    let lastProcessedImage = null;
 
+    function checkForNewImage() {
+        const imagePreview = document.getElementById('imagePreview');
+        if (imagePreview && imagePreview.src && !imagePreview.src.includes('#')) {
+            const currentSrc = imagePreview.src;
+
+            // Se è una nuova immagine diversa dall'ultima processata
+            if (currentSrc !== lastProcessedImage && currentSrc.length > 100) {
+                console.log("📸 NUOVA IMMAGINE RILEVATA! Avvio processImage()");
+                lastProcessedImage = currentSrc;
+
+                // Processa l'immagine
+                processImage(currentSrc);
+            }
+        }
+    }
+
+    // Controlla ogni 500ms
+    setInterval(checkForNewImage, 500);
+
+    // Controlla anche subito
+    setTimeout(checkForNewImage, 1000);
+
+    console.log("📸 Sistema di rilevamento immagini ATTIVATO (controllo ogni 500ms)");
+
+    // ========== GENERATE MUSIC BUTTON ==========
     domElements.generateMusicButton.addEventListener('click', async () => {
         console.log("LOG: Click genera musica");
 
@@ -1074,6 +1104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // BPM slider event listener
     if (domElements.bpmSlider && domElements.bpmValueDisplay) {
         domElements.bpmSlider.addEventListener('input', () => {
             domElements.bpmValueDisplay.textContent = domElements.bpmSlider.value;
@@ -1084,6 +1115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Accordion event listener
     if (domElements.detailsAccordionHeader && domElements.aiInsightsContent) {
         domElements.detailsAccordionHeader.addEventListener('click', () => {
             const isOpen = domElements.detailsAccordionHeader.classList.toggle('open');
@@ -1091,6 +1123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Collapsible sections event listeners
     document.querySelectorAll('.cues-selection-container label.group-label.collapsible-cue-header').forEach(header => {
         header.addEventListener('click', () => {
             header.classList.toggle('open');
@@ -1111,6 +1144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     populateCheckboxPills(domElements.instrumentPillsContainer, instrumentItems, 'instrument');
     populateCheckboxPills(domElements.rhythmPillsContainer, rhythmItems, 'rhythm');
 
+    // Mantieni compatibilità con CameraHandler esistente
     if (window.CameraHandler) {
         console.log("LOG: Inizializzazione CameraHandler...");
         const cameraInitSuccess = CameraHandler.init(
@@ -1125,7 +1159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error("ERRORE: ❌ Inizializzazione CameraHandler fallita");
         }
     } else {
-        console.warn("WARN: ⚠️ CameraHandler non trovato - verifica che camera-handler.js sia caricato");
+        console.warn("WARN: ⚠️ CameraHandler non trovato - usando sistema fotocamera integrato");
     }
 
     window.addEventListener('beforeunload', () => {
@@ -1134,8 +1168,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Load AI models
     loadModels();
 
+    // Check if user is logged in
     if (typeof pictosound_vars !== 'undefined') {
         console.log("LOG: pictosound_vars disponibile:", pictosound_vars);
     }
