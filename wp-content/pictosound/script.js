@@ -946,9 +946,499 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentImage.src = imageSrc;
     }
 
-    // ========== CAMERA FUNCTIONS (COMPATIBILITÀ CON SISTEMA ESISTENTE) ==========
-    // La gestione della fotocamera è ora integrata direttamente nell'HTML
-    // per evitare conflitti con il sistema esistente
+    // ========== SISTEMA DI ATTESA AMICHEVOLE ==========
+    let waitingInterval = null;
+    let waitingStartTime = null;
+    let currentWaitingStep = 0;
+
+    const waitingSteps = [
+        {
+            message: "🎵 Inizializzazione AI musicale...",
+            tip: "L'intelligenza artificiale sta analizzando la tua immagine per capire l'atmosfera perfetta!",
+            duration: 3000
+        },
+        {
+            message: "🎨 Conversione visiva in suoni...",
+            tip: "Stiamo trasformando i colori, le forme e le emozioni in note musicali!",
+            duration: 4000
+        },
+        {
+            message: "🎹 Composizione melodica in corso...",
+            tip: "L'AI sta scegliendo gli strumenti e creando la struttura del brano!",
+            duration: 5000
+        },
+        {
+            message: "🎼 Arrangiamento e produzione...",
+            tip: "Stiamo aggiungendo armonie, ritmi e effetti per rendere unico il tuo brano!",
+            duration: 4000
+        },
+        {
+            message: "🎧 Finalizzazione audio...",
+            tip: "Ultimi ritocchi per garantire la massima qualità audio!",
+            duration: 3000
+        },
+        {
+            message: "✨ Creazione quasi completata...",
+            tip: "Il tuo brano personalizzato è quasi pronto per essere ascoltato!",
+            duration: 2000
+        }
+    ];
+
+    const musicalTips = [
+        "💡 Ogni colore ha una sua 'temperatura' musicale: i colori caldi tendono a generare melodie più energiche!",
+        "🎯 L'AI analizza anche le forme: linee curve creano melodie fluide, forme geometriche ritmi più definiti!",
+        "🌈 La saturazione dei colori influenza l'intensità degli strumenti nella tua composizione!",
+        "🎨 Le immagini con molti dettagli spesso producono arrangiamenti più complessi e ricchi!",
+        "🎵 La posizione degli elementi nell'immagine può influenzare la progressione musicale!",
+        "🔊 L'AI può riconoscere oltre 80 oggetti diversi e ognuno contribuisce al mood musicale!",
+        "⏱️ La generazione di musica AI richiede circa 20-40 secondi per creare un brano unico!",
+        "🎼 Ogni brano generato è completamente originale e non esiste da nessun'altra parte!"
+    ];
+
+    function startFriendlyWaiting() {
+        waitingStartTime = Date.now();
+        currentWaitingStep = 0;
+
+        // Crea il container dell'attesa amichevole
+        const waitingContainer = document.createElement('div');
+        waitingContainer.id = 'friendly-waiting-container';
+        waitingContainer.style.cssText = `
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin: 20px 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        `;
+
+        // Pattern di sfondo animato
+        const pattern = document.createElement('div');
+        pattern.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="white" opacity="0.1"/><circle cx="20" cy="20" r="1" fill="white" opacity="0.1"/><circle cx="80" cy="30" r="1.5" fill="white" opacity="0.1"/><circle cx="30" cy="80" r="1" fill="white" opacity="0.1"/><circle cx="70" cy="70" r="1.5" fill="white" opacity="0.1"/></svg>') repeat;
+            animation: patternMove 20s linear infinite;
+            opacity: 0.3;
+        `;
+        waitingContainer.appendChild(pattern);
+
+        // Contenuto principale
+        const content = document.createElement('div');
+        content.style.cssText = `
+            position: relative;
+            z-index: 2;
+        `;
+
+        // Icona musicale animata
+        const musicIcon = document.createElement('div');
+        musicIcon.id = 'music-icon';
+        musicIcon.style.cssText = `
+            font-size: 4rem;
+            margin-bottom: 20px;
+            animation: musicBounce 2s ease-in-out infinite;
+        `;
+        musicIcon.textContent = '🎵';
+        content.appendChild(musicIcon);
+
+        // Messaggio principale
+        const mainMessage = document.createElement('div');
+        mainMessage.id = 'waiting-main-message';
+        mainMessage.style.cssText = `
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            min-height: 2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        content.appendChild(mainMessage);
+
+        // Tip educativo
+        const tipMessage = document.createElement('div');
+        tipMessage.id = 'waiting-tip-message';
+        tipMessage.style.cssText = `
+            font-size: 0.95rem;
+            opacity: 0.9;
+            margin-bottom: 25px;
+            line-height: 1.5;
+            min-height: 3em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        `;
+        content.appendChild(tipMessage);
+
+        // Progress bar creativa
+        const progressContainer = document.createElement('div');
+        progressContainer.style.cssText = `
+            background: rgba(255, 255, 255, 0.2);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+        `;
+
+        const progressBar = document.createElement('div');
+        progressBar.id = 'creative-progress-bar';
+        progressBar.style.cssText = `
+            background: linear-gradient(90deg, #ffd700, #ff6b6b, #4ecdc4, #45b7d1);
+            height: 100%;
+            width: 0%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            background-size: 200% 100%;
+            animation: progressGradient 3s ease-in-out infinite;
+        `;
+        progressContainer.appendChild(progressBar);
+        content.appendChild(progressContainer);
+
+        // Timer e stima
+        const timeInfo = document.createElement('div');
+        timeInfo.id = 'waiting-time-info';
+        timeInfo.style.cssText = `
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 15px;
+        `;
+        content.appendChild(timeInfo);
+
+        // Curiosità musicale
+        const musicalCuriosity = document.createElement('div');
+        musicalCuriosity.id = 'musical-curiosity';
+        musicalCuriosity.style.cssText = `
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            border-left: 4px solid #ffd700;
+            margin-top: 20px;
+        `;
+        content.appendChild(musicalCuriosity);
+
+        waitingContainer.appendChild(content);
+
+        // Sostituisci il contenuto del feedback area
+        domElements.dynamicFeedbackArea.innerHTML = '';
+        domElements.dynamicFeedbackArea.appendChild(waitingContainer);
+
+        // Aggiungi CSS per le animazioni
+        addWaitingAnimations();
+
+        // Avvia il ciclo di aggiornamento
+        updateWaitingContent();
+        waitingInterval = setInterval(updateWaitingContent, 1000);
+    }
+
+    function updateWaitingContent() {
+        const elapsedTime = Date.now() - waitingStartTime;
+        const elapsedSeconds = Math.floor(elapsedTime / 1000);
+
+        // Aggiorna il contenuto basato sul tempo trascorso
+        const mainMessage = document.getElementById('waiting-main-message');
+        const tipMessage = document.getElementById('waiting-tip-message');
+        const timeInfo = document.getElementById('waiting-time-info');
+        const progressBar = document.getElementById('creative-progress-bar');
+        const curiosity = document.getElementById('musical-curiosity');
+
+        if (!mainMessage) return;
+
+        // Calcola quale step mostrare
+        let totalDuration = 0;
+        let currentStep = 0;
+
+        for (let i = 0; i < waitingSteps.length; i++) {
+            if (elapsedTime >= totalDuration && elapsedTime < totalDuration + waitingSteps[i].duration) {
+                currentStep = i;
+                break;
+            }
+            totalDuration += waitingSteps[i].duration;
+            if (i === waitingSteps.length - 1) {
+                currentStep = i; // Resta sull'ultimo step
+            }
+        }
+
+        // Aggiorna contenuto
+        const step = waitingSteps[currentStep];
+        mainMessage.textContent = step.message;
+        tipMessage.textContent = step.tip;
+
+        // Aggiorna progress bar (stima 30 secondi totali)
+        const estimatedTotal = 30000; // 30 secondi
+        const progress = Math.min((elapsedTime / estimatedTotal) * 100, 95);
+        progressBar.style.width = progress + '%';
+
+        // Aggiorna timer
+        const estimatedRemaining = Math.max(0, Math.ceil((estimatedTotal - elapsedTime) / 1000));
+        if (estimatedRemaining > 0) {
+            timeInfo.textContent = `⏱️ Tempo trascorso: ${elapsedSeconds}s | Stima completamento: ~${estimatedRemaining}s`;
+        } else {
+            timeInfo.textContent = `⏱️ Tempo trascorso: ${elapsedSeconds}s | Finalizzazione in corso...`;
+        }
+
+        // Mostra curiosità ogni 8 secondi
+        if (elapsedSeconds > 0 && elapsedSeconds % 8 === 0) {
+            const randomTip = musicalTips[Math.floor(Math.random() * musicalTips.length)];
+            curiosity.textContent = randomTip;
+            curiosity.style.animation = 'fadeInUp 0.5s ease-out';
+        }
+    }
+
+    function stopFriendlyWaiting() {
+        if (waitingInterval) {
+            clearInterval(waitingInterval);
+            waitingInterval = null;
+        }
+
+        // Mostra messaggio di completamento
+        const container = document.getElementById('friendly-waiting-container');
+        if (container) {
+            container.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            container.innerHTML = `
+                <div style="position: relative; z-index: 2;">
+                    <div style="font-size: 3rem; margin-bottom: 15px; animation: successPulse 1s ease-out;">🎉</div>
+                    <div style="font-size: 1.4rem; font-weight: 600; margin-bottom: 10px;">🎵 Creazione Completata!</div>
+                    <div style="font-size: 1rem; opacity: 0.9;">Il tuo brano personalizzato è pronto per essere ascoltato!</div>
+                </div>
+            `;
+
+            // Rimuovi dopo 2 secondi
+            setTimeout(() => {
+                if (container.parentNode) {
+                    container.style.animation = 'fadeOut 0.5s ease-out';
+                    setTimeout(() => {
+                        container.remove();
+                    }, 500);
+                }
+            }, 2000);
+        }
+    }
+
+    function addWaitingAnimations() {
+        if (document.getElementById('waiting-animations')) return;
+
+        const style = document.createElement('style');
+        style.id = 'waiting-animations';
+        style.textContent = `
+            @keyframes musicBounce {
+                0%, 100% { transform: translateY(0px) rotate(0deg); }
+                25% { transform: translateY(-10px) rotate(-5deg); }
+                50% { transform: translateY(-5px) rotate(0deg); }
+                75% { transform: translateY(-8px) rotate(5deg); }
+            }
+            
+            @keyframes progressGradient {
+                0%, 100% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+            }
+            
+            @keyframes patternMove {
+                0% { transform: translateX(0px) translateY(0px); }
+                100% { transform: translateX(100px) translateY(100px); }
+            }
+            
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            @keyframes successPulse {
+                0% { transform: scale(0.8); opacity: 0; }
+                50% { transform: scale(1.1); opacity: 1; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+            
+            @keyframes fadeOut {
+                from { opacity: 1; transform: translateY(0); }
+                to { opacity: 0; transform: translateY(-20px); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    function updateGenerationsArchive() {
+        const archiveContainer = document.getElementById('pictosound-archive-container');
+
+        if (!archiveContainer) {
+            console.log("📁 Archivio non trovato in questa pagina, reindirizzo alla home");
+
+            // Se non c'è l'archivio, reindirizza alla home
+            const archiveUrl = '/'; // Home page
+
+            // Mostra notifica di successo prima del reindirizzamento
+            showSuccessNotification("🎵 Musica generata con successo! Ti stiamo portando alla home...");
+
+            setTimeout(() => {
+                window.location.href = archiveUrl;
+            }, 2000);
+
+            return;
+        }
+
+        console.log("📁 Archivio trovato, aggiorno dinamicamente...");
+
+        // Mostra notifica di aggiornamento
+        showSuccessNotification("🎵 Musica generata! Aggiornamento archivio in corso...");
+
+        // Trova il wrapper dell'archivio
+        const archiveWrapper = archiveContainer.querySelector('.pictosound-generations-archive-wrapper');
+        if (!archiveWrapper) {
+            console.warn("⚠️ Wrapper archivio non trovato, ricarico la pagina");
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+            return;
+        }
+
+        // Aggiungi indicatore di caricamento
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'ps-loading-update';
+        loadingIndicator.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            text-align: center;
+            font-family: system-ui, sans-serif;
+            font-size: 1rem;
+            color: #667eea;
+            font-weight: 500;
+        `;
+        loadingIndicator.innerHTML = `
+            <div style="margin-bottom: 10px;">
+                <div class="spinner" style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            </div>
+            <div>📁 Aggiornamento archivio...</div>
+        `;
+        document.body.appendChild(loadingIndicator);
+
+        // Ricarica il contenuto dell'archivio via AJAX
+        const currentUrl = window.location.href;
+
+        fetch(currentUrl, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.text())
+            .then(html => {
+                // Crea un elemento temporaneo per parsare l'HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+
+                // Trova il nuovo contenuto dell'archivio
+                const newArchiveContainer = tempDiv.querySelector('#pictosound-archive-container');
+
+                if (newArchiveContainer) {
+                    // Sostituisci il contenuto dell'archivio
+                    archiveContainer.innerHTML = newArchiveContainer.innerHTML;
+
+                    console.log("✅ Archivio aggiornato con successo!");
+
+                    // Rimuovi indicatore di caricamento
+                    setTimeout(() => {
+                        const loader = document.getElementById('ps-loading-update');
+                        if (loader) loader.remove();
+                    }, 500);
+
+                    // Mostra notifica di successo
+                    setTimeout(() => {
+                        showSuccessNotification("🎵 Nuovo brano aggiunto al tuo archivio!");
+                    }, 800);
+
+                    // Scorri verso l'archivio per mostrare il nuovo brano
+                    setTimeout(() => {
+                        archiveContainer.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }, 1000);
+
+                } else {
+                    console.error("❌ Nuovo contenuto archivio non trovato, ricarico la pagina");
+                    // Fallback: ricarica la pagina
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
+            })
+            .catch(error => {
+                console.error("❌ Errore aggiornamento archivio:", error);
+
+                // Rimuovi indicatore di caricamento
+                const loader = document.getElementById('ps-loading-update');
+                if (loader) loader.remove();
+
+                // Fallback: ricarica la pagina
+                showSuccessNotification("🎵 Musica generata! Ricaricamento pagina...");
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            });
+    }
+
+    // Funzione per mostrare notifiche di successo
+    function showSuccessNotification(message) {
+        // Rimuovi notifiche esistenti
+        const existingNotification = document.querySelector('.ps-success-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+
+        const notification = document.createElement('div');
+        notification.className = 'ps-success-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+            z-index: 10000;
+            font-family: system-ui, sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            max-width: 350px;
+            animation: ps-notification-slide 0.4s ease-out;
+        `;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        // Rimuovi dopo 4 secondi
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'ps-notification-slide 0.3s ease-in reverse';
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }
+        }, 4000);
+    }
 
     // ========== EVENT LISTENERS ==========
     domElements.imageUpload.addEventListener('change', (event) => {
@@ -1012,9 +1502,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (domElements.downloadCompositeImageLink) domElements.downloadCompositeImageLink.style.display = 'none';
         if (domElements.downloadQrOnlyLink) domElements.downloadQrOnlyLink.style.display = 'none';
 
-        // MOSTRA SOLO IL MESSAGGIO DI STATO DELLA GENERAZIONE
-        setStatusMessage(domElements.statusDiv, "Generazione musica in corso...", "info");
-        updateProgressMessage("Generazione traccia audio in corso...", true);
+        // 🎵 NUOVO: Sistema di attesa amichevole
+        startFriendlyWaiting();
         domElements.dynamicFeedbackArea.style.display = 'block';
 
         try {
@@ -1040,9 +1529,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log("LOG: Risposta ricevuta:", response);
 
             if (response.success && response.data.audioUrl) {
-                updateProgressMessage("", false);
-                setStatusMessage(domElements.statusDiv, "", "info");
-                domElements.dynamicFeedbackArea.style.display = 'none';
+                // 🎵 Stop sistema di attesa amichevole
+                stopFriendlyWaiting();
 
                 domElements.audioPlayer.src = response.data.audioUrl;
                 domElements.audioPlayerContainer.style.display = 'block';
@@ -1054,6 +1542,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 console.log("✅ Musica generata e player attivato");
+
+                // 🎵 NUOVO: Aggiorna archivio generazioni dopo successo
+                setTimeout(() => {
+                    updateGenerationsArchive();
+                }, 2000); // Aspetta 2 secondi per dare tempo al server di salvare
 
             } else {
                 throw new Error(response.data?.error || 'Errore nella generazione musicale.');
