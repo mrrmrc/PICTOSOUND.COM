@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updateUserAccessUI() {
         const loginOrRegisterPrompt = document.getElementById('loginOrRegisterPrompt');
         if (!loginOrRegisterPrompt) {
-            console.error("Elemento 'loginOrRegisterPrompt' non trovato nel DOM.");
+            console.warn("Elemento 'loginOrRegisterPrompt' non trovato - skip function");
             return;
         }
 

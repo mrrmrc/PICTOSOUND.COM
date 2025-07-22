@@ -240,9 +240,10 @@ function pictosound_cm_create_stripe_session($package_key, $user_id) {
         return $session->url;
         
     } catch (\Exception $e) {
-        write_log_cm("Errore Stripe Session: " . $e->getMessage());
-        return false;
-    }
+    error_log("STRIPE ERROR: " . $e->getMessage());
+    write_log_cm("Errore Stripe Session: " . $e->getMessage());
+    return false;
+}
 }
 
 /**
@@ -1687,6 +1688,7 @@ add_action( 'wp_ajax_nopriv_pictosound_check_credits', 'pictosound_cm_ajax_check
 * ⚡ Gestisce la richiesta AJAX per la ricarica dei crediti - OTTIMIZZATA
 */
 function pictosound_cm_handle_ajax_recharge_credits() {
+
    $user_id = get_current_user_id();
    
    // Rate limiting per ricarica
@@ -1876,12 +1878,7 @@ function pictosound_ajax_generate_music() {
     $audio_dir = WP_CONTENT_DIR . '/pictosound/audio/';
     if (!file_exists($audio_dir)) { wp_mkdir_p($audio_dir); }
     
-    // Usa la chiave API dal wp-config.php
-if (!defined('PICTOSOUND_STABILITY_API_KEY')) {
-    wp_send_json_error(['error' => 'API key non configurata. Contatta l\'amministratore del sito.'], 500);
-    return;
-}
-$api_key = PICTOSOUND_STABILITY_API_KEY;
+    $api_key = 'sk-EQyuyCbTzRuI9InYbQZtsCVPLSNAy202c5veU8iXOoY9KcTA'; // ⚠️ USA LA TUA CHIAVE API
     $api_url = 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio';
     
     $fields_to_send = ['prompt' => $prompt_text, 'output_format' => 'mp3', 'duration' => $duration_seconds, 'steps' => 30];
