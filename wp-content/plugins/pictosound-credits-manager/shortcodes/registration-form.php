@@ -111,7 +111,7 @@ function pictosound_cm_registration_form_shortcode() {
                 update_user_meta($user_id, 'pec', $pec);
 
                 // 🎯 INTEGRAZIONE PICTOSOUND - Inizializza crediti
-                pictosound_cm_update_user_credits($user_id, 0, 'set');
+                pictosound_cm_update_user_credits($user_id, 6, 'set');
                 update_user_meta($user_id, PICTOSOUND_PRIVACY_OPTIN_META_KEY, 'accepted');
 
                 // ============================================

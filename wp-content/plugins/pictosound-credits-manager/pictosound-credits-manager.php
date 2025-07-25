@@ -240,10 +240,9 @@ function pictosound_cm_create_stripe_session($package_key, $user_id) {
         return $session->url;
         
     } catch (\Exception $e) {
-    error_log("STRIPE ERROR: " . $e->getMessage());
-    write_log_cm("Errore Stripe Session: " . $e->getMessage());
-    return false;
-}
+        write_log_cm("Errore Stripe Session: " . $e->getMessage());
+        return false;
+    }
 }
 
 /**
@@ -526,21 +525,21 @@ add_action( 'edit_user_profile_update', 'pictosound_cm_save_user_profile_credits
 
 function pictosound_cm_get_duration_costs() {
     return [ 
-        '40' => 2,   // 40÷20 = 2 crediti
-        '60' => 3,   // 60÷20 = 3 crediti
-        '120' => 6,  // 120÷20 = 6 crediti
-        '180' => 9,  // 180÷20 = 9 crediti
-        '240' => 12, // 240÷20 = 12 crediti
-        '360' => 18  // 360÷20 = 18 crediti
+        '30' => 2,   // 40÷20 = 2 crediti
+        '45' => 3,   // 60÷20 = 3 crediti
+        '60' => 6,  // 120÷20 = 6 crediti
+        '90' => 9,  // 180÷20 = 9 crediti
+        '120' => 12, // 240÷20 = 12 crediti
+        '180' => 18  // 360÷20 = 18 crediti
     ];
 }
 
 function pictosound_cm_get_credit_recharge_packages() {
     return [
         '20'  => ['credits' => 20, 'price_simulated' => '2.00€'],
-        '40'  => ['credits' => 40, 'price_simulated' => '3.80€'],
-        '60'  => ['credits' => 60, 'price_simulated' => '5.50€'],
-        '100' => ['credits' => 100, 'price_simulated' => '8.00€'],
+        '60'  => ['credits' => 40, 'price_simulated' => '4.00€'],
+        '100'  => ['credits' => 60, 'price_simulated' => '8.00€'],
+        '200' => ['credits' => 100, 'price_simulated' => '12.00€'],
     ];
 }
 
@@ -1688,7 +1687,6 @@ add_action( 'wp_ajax_nopriv_pictosound_check_credits', 'pictosound_cm_ajax_check
 * ⚡ Gestisce la richiesta AJAX per la ricarica dei crediti - OTTIMIZZATA
 */
 function pictosound_cm_handle_ajax_recharge_credits() {
-
    $user_id = get_current_user_id();
    
    // Rate limiting per ricarica
@@ -1952,5 +1950,4 @@ function pictosound_ms_load_textdomain() {
    load_plugin_textdomain( 'pictosound-mostra-saldo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
 }
 add_action( 'plugins_loaded', 'pictosound_ms_load_textdomain' );
-
 ?>

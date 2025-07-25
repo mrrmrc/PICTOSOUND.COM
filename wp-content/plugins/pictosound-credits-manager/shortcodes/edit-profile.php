@@ -16,6 +16,144 @@ function pictosound_cm_edit_profile_shortcode() {
     $form_data = []; // Per mantenere i dati in caso di errore
     
     // ============================================
+    // GESTIONE ELIMINAZIONE ACCOUNT
+    // ============================================
+    if (isset($_POST['pictosound_delete_account']) && isset($_POST['delete_confirmation_email'])) {
+        
+        // Verifica nonce per eliminazione
+        if (!wp_verify_nonce($_POST['pictosound_delete_nonce_field'], 'pictosound_delete_account_action')) {
+            write_log_cm("DEBUG Delete Account - ERRORE: Nonce non valido");
+            $message = '<div style="background: #f8d7da; padding: 15px; border: 1px solid #dc3545; color: #721c24; margin: 20px 0; border-radius: 8px;">
+                <h4 style="margin-top: 0;">❌ Errore di sicurezza:</h4>
+                <p>Sessione scaduta. Ricarica la pagina e riprova.</p>
+            </div>';
+        } else {
+            $confirmation_email = sanitize_email($_POST['delete_confirmation_email']);
+            
+            // Verifica che l'email di conferma corrisponda
+            if ($confirmation_email !== $current_user->user_email) {
+                write_log_cm("DEBUG Delete Account - Email di conferma non corrisponde: '$confirmation_email' vs '{$current_user->user_email}'");
+                $message = '<div style="background: #f8d7da; padding: 15px; border: 1px solid #dc3545; color: #721c24; margin: 20px 0; border-radius: 8px;">
+                    <h4 style="margin-top: 0;">❌ Errore di verifica:</h4>
+                    <p>L\'email di conferma non corrisponde alla tua email registrata.</p>
+                </div>';
+            } else {
+                // Procedi con l'eliminazione
+                write_log_cm("DEBUG Delete Account - Inizio eliminazione account per user $user_id ({$current_user->user_email})");
+                
+                // 1. Elimina dati personalizzati dalle tabelle del plugin
+                global $wpdb;
+                
+                // Elimina generazioni musicali
+                $wpdb->delete(
+                    $wpdb->prefix . 'ps_generations',
+                    ['user_id' => $user_id],
+                    ['%d']
+                );
+                write_log_cm("DEBUG Delete Account - Eliminate generazioni musicali per user $user_id");
+                
+                // Elimina transazioni
+                $wpdb->delete(
+                    $wpdb->prefix . 'pictosound_transactions',
+                    ['user_id' => $user_id],
+                    ['%d']
+                );
+                write_log_cm("DEBUG Delete Account - Eliminate transazioni per user $user_id");
+                
+                // 2. Salva dati per email di conferma prima dell'eliminazione
+                $user_email = $current_user->user_email;
+                $user_display_name = $current_user->display_name ?: $current_user->user_login;
+                $deletion_date = current_time('mysql');
+                
+                // 3. Elimina l'utente WordPress (questo elimina automaticamente tutti i user_meta)
+                if (!function_exists('wp_delete_user')) {
+                    require_once(ABSPATH . 'wp-admin/includes/user.php');
+                }
+                
+                $deletion_result = wp_delete_user($user_id);
+                
+                if ($deletion_result) {
+                    write_log_cm("DEBUG Delete Account - Account eliminato con successo per user $user_id");
+                    
+                    // 4. Invia email di conferma eliminazione
+                    $email_subject = 'Pictosound.com - Conferma Eliminazione Account';
+                    $email_body = "Ciao " . $user_display_name . ",\n\n";
+                    $email_body .= "Confermiamo che il tuo account Pictosound è stato eliminato con successo.\n\n";
+                    $email_body .= "Dettagli eliminazione:\n";
+                    $email_body .= "• Data: " . $deletion_date . "\n";
+                    $email_body .= "• Email account: " . $user_email . "\n";
+                    $email_body .= "• ID utente: " . $user_id . "\n\n";
+                    $email_body .= "Tutti i tuoi dati sono stati rimossi dai nostri server, inclusi:\n";
+                    $email_body .= "- Informazioni personali e di fatturazione\n";
+                    $email_body .= "- Cronologia generazioni musicali\n";
+                    $email_body .= "- Storico transazioni e crediti\n";
+                    $email_body .= "- Preferenze e impostazioni account\n\n";
+                    $email_body .= "Se hai eliminato l'account per errore, potrai sempre registrarti nuovamente visitando:\n";
+                    $email_body .= "https://pictosound.com/registrazione/\n\n";
+                    $email_body .= "Grazie per aver utilizzato Pictosound!\n\n";
+                    $email_body .= "Il Team Pictosound\n";
+                    $email_body .= "https://pictosound.com";
+                    
+                    $headers = array(
+                        'Content-Type: text/plain; charset=UTF-8',
+                        'From: Pictosound <noreply@pictosound.com>'
+                    );
+                    
+                    wp_mail($user_email, $email_subject, $email_body, $headers);
+                    write_log_cm("DEBUG Delete Account - Email di conferma inviata a: $user_email");
+                    
+                    // 5. Messaggio di conferma con reindirizzamento JavaScript (senza wp_logout per evitare errori header)
+                    $message = '<div style="background: #d4edda; padding: 25px; border: 1px solid #28a745; color: #155724; margin: 20px 0; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <h3 style="margin-top: 0; color: #155724;">✅ ACCOUNT ELIMINATO</h3>
+                        <p style="font-size: 18px; margin: 15px 0;"><strong>Il tuo account è stato eliminato con successo.</strong></p>
+                        <p style="margin: 15px 0;">Tutti i tuoi dati sono stati rimossi dai nostri server.</p>
+                        <p style="margin: 15px 0;">📧 Ti abbiamo inviato una email di conferma a <strong>' . esc_html($user_email) . '</strong></p>
+                        <div style="margin-top: 25px;">
+                            <a href="/wp-login.php?action=logout&redirect_to=" style="background: linear-gradient(45deg, #28a745, #20c997); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px; box-shadow: 0 4px 8px rgba(40,167,69,0.3);">🚪 LOGOUT E TORNA ALLA HOME</a>
+                        </div>
+                        <p style="margin-top: 20px; font-size: 14px; color: #666;">
+                            Clicca il pulsante sopra per disconnetterti e tornare alla homepage.<br>
+                            Potrai sempre registrarti nuovamente se cambi idea.
+                        </p>
+                    </div>';
+                    
+                    // Logout e reindirizzamento automatico dopo 3 secondi
+                    $message .= '<script>
+                        // Reindirizza automaticamente al logout di WordPress dopo 3 secondi
+                        setTimeout(function() {
+                            window.location.href = "/wp-login.php?action=logout&redirect_to=' . urlencode(home_url()) . '";
+                        }, 3000);
+                        
+                        // Mostra countdown
+                        let countdown = 3;
+                        const countdownElement = document.createElement("div");
+                        countdownElement.style.cssText = "margin-top: 15px; font-size: 14px; color: #666; font-style: italic;";
+                        countdownElement.innerHTML = "Reindirizzamento automatico in <span id=\'countdown\'>" + countdown + "</span> secondi...";
+                        document.querySelector("div[style*=\'background: #d4edda\']").appendChild(countdownElement);
+                        
+                        const countdownTimer = setInterval(function() {
+                            countdown--;
+                            document.getElementById("countdown").textContent = countdown;
+                            if (countdown <= 0) {
+                                clearInterval(countdownTimer);
+                            }
+                        }, 1000);
+                    </script>';
+                    
+                    return $message;
+                    
+                } else {
+                    write_log_cm("DEBUG Delete Account - ERRORE: Impossibile eliminare user $user_id");
+                    $message = '<div style="background: #f8d7da; padding: 15px; border: 1px solid #dc3545; color: #721c24; margin: 20px 0; border-radius: 8px;">
+                        <h4 style="margin-top: 0;">❌ Errore nell\'eliminazione:</h4>
+                        <p>Si è verificato un errore tecnico. Riprova più tardi o contatta l\'assistenza.</p>
+                    </div>';
+                }
+            }
+        }
+    }
+    
+    // ============================================
     // CARICA DATI ESISTENTI DELL'UTENTE
     // ============================================
     $existing_data = [
@@ -35,7 +173,7 @@ function pictosound_cm_edit_profile_shortcode() {
     write_log_cm("DEBUG Edit Profile - Dati esistenti per user $user_id: " . print_r($existing_data, true));
     
     // ============================================
-    // ELABORAZIONE FORM QUANDO VIENE INVIATO
+    // ELABORAZIONE FORM QUANDO VIENE INVIATO (MODIFICA PROFILO)
     // ============================================
     if (isset($_POST['pictosound_edit_submit'])) {
         
@@ -96,9 +234,6 @@ function pictosound_cm_edit_profile_shortcode() {
                     $errors[] = __('Le password non coincidono', 'pictosound-credits-manager');
                 }
             }
-            
-            // ⚡ VALIDAZIONE MINIMA per permettere il salvataggio
-            // Rimuovo per ora le validazioni strict per testare
             
             // ⚡ DEBUG: Log errori di validazione
             if (!empty($errors)) {
@@ -182,21 +317,6 @@ function pictosound_cm_edit_profile_shortcode() {
                         write_log_cm("DEBUG Edit Profile - Meta con errori: " . implode(', ', $meta_errors));
                     }
                     
-                    // 3. VERIFICA CHE I DATI SIANO STATI SALVATI
-                    $verification_data = [
-                        'first_name' => get_user_meta($user_id, 'first_name', true),
-                        'last_name' => get_user_meta($user_id, 'last_name', true),
-                        'billing_company' => get_user_meta($user_id, 'billing_company', true),
-                        'billing_address_1' => get_user_meta($user_id, 'billing_address_1', true),
-                        'billing_postcode' => get_user_meta($user_id, 'billing_postcode', true),
-                        'billing_city' => get_user_meta($user_id, 'billing_city', true),
-                        'codice_fiscale_piva' => get_user_meta($user_id, 'codice_fiscale_piva', true),
-                        'codice_destinatario' => get_user_meta($user_id, 'codice_destinatario', true),
-                        'pec' => get_user_meta($user_id, 'pec', true)
-                    ];
-                    
-                    write_log_cm("DEBUG Edit Profile - Verifica dati salvati: " . print_r($verification_data, true));
-                    
                     // Messaggio di successo
                     $display_name = !empty($nome) ? $nome : (!empty($company) ? $company : $current_user->user_login);
                     $message = '<div style="background: #d4edda; padding: 25px; border: 1px solid #28a745; color: #155724; margin: 20px 0; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -206,9 +326,6 @@ function pictosound_cm_edit_profile_shortcode() {
                         ' . (!empty($new_password) ? '<p style="margin: 15px 0; color: #155724;"><strong>Password aggiornata!</strong> Usa la nuova password al prossimo login.</p>' : '') . '
                         <div style="margin-top: 25px;">
                             <a href="/" style="background: linear-gradient(45deg, #28a745, #20c997); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px; box-shadow: 0 4px 8px rgba(40,167,69,0.3);">🏠 TORNA ALLA HOME</a>
-                        </div>
-                        <div style="margin-top: 15px; font-size: 12px; color: #666;">
-                            Debug: Meta aggiornati ' . $meta_success . '/' . count($meta_updates) . ' | User update: ' . ($update_result ? 'OK' : 'FAILED') . '
                         </div>
                     </div>';
                     
@@ -242,7 +359,7 @@ function pictosound_cm_edit_profile_shortcode() {
     write_log_cm("DEBUG Edit Profile - Dati da mostrare nel form: " . print_r($display_data, true));
     
     // ============================================
-    // GENERA IL FORM HTML (identico alla versione precedente)
+    // GENERA IL FORM HTML CON SEZIONE ELIMINAZIONE
     // ============================================
     ob_start();
     
@@ -379,7 +496,62 @@ function pictosound_cm_edit_profile_shortcode() {
                 </div>
             </fieldset>
             
-            <!-- BOTTONE SUBMIT -->
+            <!-- ZONA PERICOLOSA - ELIMINAZIONE ACCOUNT -->
+            <fieldset style="border: 3px solid #e74c3c; padding: 25px; margin: 25px 0; border-radius: 10px; background: linear-gradient(135deg, #fff5f5, #fee); position: relative;">
+                <legend style="background: linear-gradient(45deg, #e74c3c, #c0392b); color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 16px; box-shadow: 0 2px 8px rgba(231,76,60,0.3);">⚠️ ZONA PERICOLOSA</legend>
+                
+                <!-- Warning icon/pattern background -->
+                <div style="position: absolute; top: 10px; right: 10px; opacity: 0.1; font-size: 100px; color: #e74c3c;">⚠️</div>
+                
+                <h4 style="color: #e74c3c; margin: 0 0 15px 0; font-size: 18px;">🗑️ Eliminazione Account Definitiva</h4>
+                
+                <div style="background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #ffeaa7; margin-bottom: 20px;">
+                    <h5 style="color: #d63031; margin: 0 0 10px 0;">⚠️ ATTENZIONE: Questa azione è IRREVERSIBILE</h5>
+                    <p style="margin: 0 0 10px 0; color: #2d3436; line-height: 1.6;">
+                        L'eliminazione del tuo account comporterà la <strong>cancellazione permanente</strong> di:
+                    </p>
+                    <ul style="color: #636e72; margin: 10px 0; padding-left: 20px;">
+                        <li><strong>Tutti i tuoi dati personali</strong> (nome, email, indirizzo, etc.)</li>
+                        <li><strong>Cronologia generazioni musicali</strong> e file audio</li>
+                        <li><strong>Saldo crediti residuo</strong> (non rimborsabile)</li>
+                        <li><strong>Storico transazioni e acquisti</strong></li>
+                        <li><strong>Preferenze e impostazioni</strong> account</li>
+                    </ul>
+                    <p style="margin: 10px 0 0 0; color: #e17055; font-weight: bold; font-size: 14px;">
+                        📧 Riceverai una email di conferma all'eliminazione completata.
+                    </p>
+                </div>
+                
+                <div style="border: 2px dashed #e74c3c; padding: 20px; border-radius: 8px; background: rgba(231,76,60,0.05);">
+                    <p style="margin: 0 0 15px 0; color: #2d3436; font-weight: bold;">
+                        Per procedere con l'eliminazione, <span style="color: #e74c3c;">digita la tua email</span> nel campo sottostante:
+                    </p>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #2d3436;">
+                            Conferma Email: <code style="background: #ddd; padding: 2px 6px; border-radius: 4px;"><?php echo esc_html($current_user->user_email); ?></code>
+                        </label>
+                        <input type="email" name="delete_confirmation_email" id="deleteConfirmationEmail" 
+                               style="width: 100%; padding: 14px; border: 2px solid #e74c3c; border-radius: 8px; font-size: 16px; background: #fff;"
+                               placeholder="Digita <?php echo esc_attr($current_user->user_email); ?> per confermare" 
+                               autocomplete="off" />
+                    </div>
+                    
+                    <?php wp_nonce_field('pictosound_delete_account_action', 'pictosound_delete_nonce_field'); ?>
+                    
+                    <button type="button" id="deleteAccountButton" 
+                            style="background: linear-gradient(45deg, #e74c3c, #c0392b); color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; opacity: 0.5; box-shadow: 0 4px 15px rgba(231,76,60,0.3);" 
+                            disabled>
+                        🗑️ ELIMINA DEFINITIVAMENTE IL MIO ACCOUNT
+                    </button>
+                    
+                    <p style="margin: 15px 0 0 0; font-size: 12px; color: #636e72; text-align: center;">
+                        Il pulsante si attiverà solo quando avrai inserito correttamente la tua email
+                    </p>
+                </div>
+            </fieldset>
+            
+            <!-- BOTTONE SUBMIT PER MODIFICA -->
             <div style="text-align: center; margin-top: 35px;">
                 <?php wp_nonce_field('pictosound_user_edit_profile_action', 'pictosound_edit_nonce_field'); ?>
                 <input type="submit" name="pictosound_edit_submit" value="<?php _e('💾 SALVA MODIFICHE', 'pictosound-credits-manager'); ?>" 
@@ -388,9 +560,16 @@ function pictosound_cm_edit_profile_shortcode() {
                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 20px rgba(0,124,186,0.3)';" />
             </div>
         </form>
+        
+        <!-- FORM SEPARATO PER ELIMINAZIONE ACCOUNT -->
+        <form method="post" action="<?php echo esc_url(get_permalink()); ?>" id="deleteAccountForm" style="display: none;">
+            <?php wp_nonce_field('pictosound_delete_account_action', 'pictosound_delete_nonce_field'); ?>
+            <input type="hidden" name="delete_confirmation_email" id="hiddenDeleteEmail" value="">
+            <input type="hidden" name="pictosound_delete_account" value="1">
+        </form>
     </div>
     
-    <!-- CSS RESPONSIVE (identico alla versione precedente) -->
+    <!-- CSS RESPONSIVE E JAVASCRIPT -->
     <style>
     @media (max-width: 768px) {
         #pictosoundEditProfileForm div[style*="grid-template-columns"] {
@@ -407,6 +586,11 @@ function pictosound_cm_edit_profile_shortcode() {
             padding: 15px 25px !important;
             font-size: 16px !important;
         }
+        
+        #deleteAccountButton {
+            padding: 12px 20px !important;
+            font-size: 14px !important;
+        }
     }
     
     @media (max-width: 480px) {
@@ -417,8 +601,134 @@ function pictosound_cm_edit_profile_shortcode() {
         #pictosoundEditProfileForm h2 {
             font-size: 24px !important;
         }
+        
+        #deleteAccountButton {
+            width: 100% !important;
+        }
+    }
+    
+    /* Animazioni per il pulsante di eliminazione */
+    #deleteAccountButton:enabled {
+        opacity: 1 !important;
+        cursor: pointer !important;
+    }
+    
+    #deleteAccountButton:enabled:hover {
+        background: linear-gradient(45deg, #c0392b, #a93226) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(231,76,60,0.4) !important;
+    }
+    
+    #deleteAccountButton:disabled {
+        cursor: not-allowed !important;
+    }
+    
+    /* Effetto di avviso per il campo email */
+    #deleteConfirmationEmail.warning {
+        border-color: #f39c12 !important;
+        background: #fef5e7 !important;
+    }
+    
+    #deleteConfirmationEmail.correct {
+        border-color: #27ae60 !important;
+        background: #eafaf1 !important;
+    }
+    
+    #deleteConfirmationEmail.incorrect {
+        border-color: #e74c3c !important;
+        background: #fdf2f2 !important;
     }
     </style>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const deleteEmailInput = document.getElementById('deleteConfirmationEmail');
+        const deleteButton = document.getElementById('deleteAccountButton');
+        const correctEmail = '<?php echo esc_js($current_user->user_email); ?>';
+        const deleteForm = document.getElementById('deleteAccountForm');
+        const hiddenEmailInput = document.getElementById('hiddenDeleteEmail');
+        
+        // Verifica email in tempo reale
+        deleteEmailInput.addEventListener('input', function() {
+            const currentValue = this.value.trim();
+            
+            // Reset classi
+            this.classList.remove('warning', 'correct', 'incorrect');
+            
+            if (currentValue === '') {
+                deleteButton.disabled = true;
+                deleteButton.style.opacity = '0.5';
+            } else if (currentValue === correctEmail) {
+                this.classList.add('correct');
+                deleteButton.disabled = false;
+                deleteButton.style.opacity = '1';
+            } else {
+                this.classList.add('incorrect');
+                deleteButton.disabled = true;
+                deleteButton.style.opacity = '0.5';
+            }
+        });
+        
+        // Gestione click pulsante eliminazione
+        deleteButton.addEventListener('click', function() {
+            if (this.disabled) return;
+            
+            const emailValue = deleteEmailInput.value.trim();
+            
+            if (emailValue !== correctEmail) {
+                alert('❌ Email di conferma non corretta!\n\nDevi digitare esattamente: ' + correctEmail);
+                deleteEmailInput.focus();
+                return;
+            }
+            
+            // Doppia conferma
+            const firstConfirm = confirm(
+                '⚠️ ULTIMA POSSIBILITÀ DI ANNULLARE!\n\n' +
+                'Stai per ELIMINARE DEFINITIVAMENTE il tuo account Pictosound.\n\n' +
+                '🗑️ Tutti i tuoi dati verranno cancellati per sempre:\n' +
+                '• Informazioni personali e di fatturazione\n' +
+                '• Cronologia generazioni musicali\n' +
+                '• Saldo crediti residuo (non rimborsabile)\n' +
+                '• Storico transazioni e acquisti\n\n' +
+                '❌ QUESTA AZIONE È IRREVERSIBILE!\n\n' +
+                'Sei ASSOLUTAMENTE SICURO di voler procedere?'
+            );
+            
+            if (!firstConfirm) {
+                return;
+            }
+            
+            // Conferma finale con digitazione
+            const finalConfirm = prompt(
+                '🚨 CONFERMA FINALE 🚨\n\n' +
+                'Per completare l\'eliminazione, digita esattamente:\n\n' +
+                'ELIMINA IL MIO ACCOUNT\n\n' +
+                '(rispetta maiuscole e spazi)'
+            );
+            
+            if (finalConfirm !== 'ELIMINA IL MIO ACCOUNT') {
+                alert('❌ Conferma non corretta. Eliminazione annullata per sicurezza.');
+                return;
+            }
+            
+            // Procedi con l'eliminazione
+            hiddenEmailInput.value = emailValue;
+            deleteForm.submit();
+        });
+        
+        // Previeni invio accidentale del form principale se si preme Invio nel campo email
+        deleteEmailInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!deleteButton.disabled) {
+                    deleteButton.click();
+                }
+            }
+        });
+        
+        console.log('🔧 Script eliminazione account caricato correttamente');
+    });
+    </script>
     
     <?php
     return ob_get_clean();
