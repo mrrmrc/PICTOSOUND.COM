@@ -1,0 +1,507 @@
+/* =================================
+   STILI ARCHIVIO PICTOSOUND - PRIORITÀ MASSIMA ASSOLUTA
+   GARANTITI DI FUNZIONARE OVUNQUE - VERSIONE FORZATA
+   File: snapshotstyle.css
+   ================================= */
+
+/* DEBUG: Assicuriamoci che il CSS venga caricato */
+body div#pictosound-archive-container::before {
+    content: "CSS ARCHIVIO CARICATO" !important;
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+}
+
+div#pictosound-archive-container {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+
+div#pictosound-archive-container div.pictosound-generations-archive-wrapper {
+    width: 100% !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+}
+
+div#pictosound-archive-container div.pictosound-generations-archive-wrapper h3 {
+    text-align: center !important;
+    margin: 0 0 20px 0 !important;
+    color: #2d3748 !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+}
+
+div#pictosound-archive-container div.pictosound-generations-archive-wrapper ul.ps-generation-list {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    width: 100% !important;
+}
+
+/* LAYOUT SCHEDA (Originale) - MASSIMA PRIORITÀ */
+body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list {
+    display: block !important;
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 20px !important;
+    padding: 20px !important;
+    margin: 0 0 15px 0 !important;
+    background: #ffffff !important;
+    border: 1px solid #eef0f3 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04) !important;
+    transition: box-shadow 0.3s ease !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    list-style: none !important;
+    float: none !important;
+    position: relative !important;
+}
+
+body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* THUMBNAIL SCHEDA - FORZATA A SINISTRA */
+body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item div.generation-thumbnail {
+    width: 120px !important;
+    height: 120px !important;
+    flex-shrink: 0 !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    display: block !important;
+    float: none !important;
+    position: relative !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* CONTENUTO SCHEDA - FORZATO A DESTRA */
+body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item div.generation-content {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    min-height: 120px !important;
+    min-width: 0 !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    float: none !important;
+    position: relative !important;
+}
+
+/* LAYOUT GRIGLIA - FORZATO CON SELETTORI ULTRA SPECIFICI */
+body div#pictosound-archive-container.ps-layout-griglia div.pictosound-generations-archive-wrapper ul.ps-generation-list {
+    display: grid !important;
+    gap: 20px !important;
+    width: 100% !important;
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* COLONNE GRIGLIA - FORZATE */
+body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-1 div.pictosound-generations-archive-wrapper ul.ps-generation-list { 
+    grid-template-columns: 1fr !important; 
+    display: grid !important;
+}
+body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-2 div.pictosound-generations-archive-wrapper ul.ps-generation-list { 
+    grid-template-columns: repeat(2, 1fr) !important; 
+    display: grid !important;
+}
+body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-3 div.pictosound-generations-archive-wrapper ul.ps-generation-list { 
+    grid-template-columns: repeat(3, 1fr) !important; 
+    display: grid !important;
+}
+body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-4 div.pictosound-generations-archive-wrapper ul.ps-generation-list { 
+    grid-template-columns: repeat(4, 1fr) !important; 
+    display: grid !important;
+}
+body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-5 div.pictosound-generations-archive-wrapper ul.ps-generation-list { 
+    grid-template-columns: repeat(5, 1fr) !important; 
+    display: grid !important;
+}
+body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-6 div.pictosound-generations-archive-wrapper ul.ps-generation-list { 
+    grid-template-columns: repeat(6, 1fr) !important; 
+    display: grid !important;
+}
+
+body div#pictosound-archive-container.ps-layout-griglia div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item {
+    display: flex !important;
+    flex-direction: column !important;
+    background: #ffffff !important;
+    border: 1px solid #eef0f3 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.3s ease !important;
+    overflow: hidden !important;
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+body div#pictosound-archive-container.ps-layout-griglia div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+    transform: translateY(-2px) !important;
+}
+
+body div#pictosound-archive-container.ps-layout-griglia div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item div.generation-thumbnail {
+    width: 100% !important;
+    height: 200px !important;
+    overflow: hidden !important;
+    display: block !important;
+    border-radius: 0 !important;
+}
+
+body div#pictosound-archive-container.ps-layout-griglia div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item div.generation-content {
+    padding: 15px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    flex: 1 !important;
+}
+
+/* THUMBNAIL COMUNI */
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-thumbnail a,
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-thumbnail img,
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-thumbnail div.ps-no-image-placeholder {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-thumbnail img {
+    object-fit: cover !important;
+    transition: transform 0.3s ease, opacity 0.3s ease !important;
+    border: none !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-thumbnail a:hover img {
+    transform: scale(1.05) !important;
+    opacity: 0.9 !important;
+}
+
+/* CONTENUTO */
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-info {
+    margin-bottom: 15px !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-info strong.generation-prompt {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    color: #1a202c !important;
+    line-height: 1.4 !important;
+    margin: 0 0 8px 0 !important;
+    display: block !important;
+    padding: 0 !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-info div.generation-meta {
+    font-size: 0.85rem !important;
+    color: #64748b !important;
+    display: flex !important;
+    gap: 20px !important;
+    flex-wrap: wrap !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* PLAYER SECTION */
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section {
+    display: flex !important;
+    align-items: center !important;
+    gap: 15px !important;
+    flex-wrap: wrap !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section audio.original-audio-player {
+    flex: 1 !important;
+    min-width: 250px !important;
+    max-width: 350px !important;
+    height: 45px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container {
+    display: flex !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* PULSANTI DOWNLOAD - STILI ORIGINALI BELLI */
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container a.download-button-archive,
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container button.download-button-archive {
+    background: #667eea !important;
+    color: white !important;
+    padding: 8px 12px !important;
+    text-decoration: none !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: background-color 0.3s ease !important;
+    outline: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container a.download-button-archive:hover,
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container button.download-button-archive:hover {
+    background: #5a67d8 !important;
+    color: white !important;
+    text-decoration: none !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container button.download-qr {
+    background: #28a745 !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container button.download-qr:hover {
+    background: #218838 !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container button.download-combo {
+    background: #fd7e14 !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container button.download-combo:hover {
+    background: #e8690b !important;
+}
+
+/* PULSANTE ELIMINA - STILE ROSSO */
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container button.download-delete {
+    background: #dc3545 !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container button.download-delete:hover {
+    background: #c82333 !important;
+}
+
+div#pictosound-archive-container ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section div.download-buttons-container button.download-delete:disabled {
+    background: #adb5bd !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+/* PAGINAZIONE - STILI ORIGINALI BELLI - MASSIMA PRIORITÀ - ALLINEATA A SINISTRA */
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-info {
+    font-size: 0.9rem !important;
+    color: #64748b !important;
+    margin: 0 0 20px 0 !important;
+    text-align: left !important;
+    display: block !important;
+}
+
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin: 30px 0 0 0 !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+}
+
+/* PULSANTI PRECEDENTE/SUCCESSIVO - FORZATI */
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls a.ps-pagination-btn,
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-btn {
+    background: #667eea !important;
+    color: white !important;
+    padding: 10px 16px !important;
+    text-decoration: none !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    transition: background-color 0.3s ease !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: inline-block !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+}
+
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls a.ps-pagination-btn:hover,
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-btn:hover {
+    background: #5a67d8 !important;
+    color: white !important;
+    text-decoration: none !important;
+}
+
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers {
+    display: flex !important;
+    gap: 5px !important;
+    align-items: center !important;
+}
+
+/* NUMERI PAGINAZIONE - FORZATI */
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers a.ps-pagination-number,
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers span.ps-pagination-number,
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers .ps-pagination-number {
+    display: inline-block !important;
+    padding: 8px 12px !important;
+    text-decoration: none !important;
+    border-radius: 4px !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    color: #64748b !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    transition: all 0.3s ease !important;
+    cursor: pointer !important;
+    line-height: 1.2 !important;
+    box-sizing: border-box !important;
+}
+
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers a.ps-pagination-number:hover,
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers .ps-pagination-number:hover {
+    background: #667eea !important;
+    color: white !important;
+    text-decoration: none !important;
+    border-color: #667eea !important;
+}
+
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers span.ps-pagination-number.ps-current-page,
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers .ps-pagination-number.ps-current-page {
+    background: #667eea !important;
+    color: white !important;
+    border-color: #667eea !important;
+}
+
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers span.ps-pagination-dots,
+body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers .ps-pagination-dots {
+    color: #64748b !important;
+    font-weight: bold !important;
+    padding: 8px 4px !important;
+    display: inline-block !important;
+}
+
+/* MESSAGGIO NESSUNA CREAZIONE */
+div#pictosound-archive-container div.pictosound-generations-archive-wrapper div.pictosound-no-generations {
+    text-align: center !important;
+    padding: 40px 20px !important;
+    background: #f8fafc !important;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    margin: 0 !important;
+}
+
+div#pictosound-archive-container div.pictosound-generations-archive-wrapper div.pictosound-no-generations h3 {
+    color: #2d3748 !important;
+    margin: 0 0 10px 0 !important;
+    padding: 0 !important;
+}
+
+div#pictosound-archive-container div.pictosound-generations-archive-wrapper div.pictosound-no-generations p {
+    color: #64748b !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+div#pictosound-archive-container div.pictosound-generations-archive-wrapper div.pictosound-no-generations a {
+    color: #667eea !important;
+    text-decoration: none !important;
+    font-weight: 500 !important;
+}
+
+div#pictosound-archive-container div.pictosound-generations-archive-wrapper div.pictosound-no-generations a:hover {
+    text-decoration: underline !important;
+}
+
+/* RESPONSIVE DESIGN - FORZATO */
+@media (max-width: 768px) {
+    body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item {
+        flex-direction: column !important;
+        gap: 15px !important;
+        padding: 15px !important;
+    }
+    
+    body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item div.generation-thumbnail {
+        width: 100% !important;
+        height: 180px !important;
+        max-width: 180px !important;
+        align-self: center !important;
+    }
+    
+    body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item div.generation-content {
+        min-height: auto !important;
+    }
+    
+    body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+    
+    body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item div.generation-content div.generation-player-section audio.original-audio-player {
+        min-width: auto !important;
+        max-width: none !important;
+    }
+
+    /* Griglia responsive FORZATA */
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-3 div.pictosound-generations-archive-wrapper ul.ps-generation-list,
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-4 div.pictosound-generations-archive-wrapper ul.ps-generation-list,
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-5 div.pictosound-generations-archive-wrapper ul.ps-generation-list,
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-6 div.pictosound-generations-archive-wrapper ul.ps-generation-list {
+        grid-template-columns: repeat(2, 1fr) !important;
+        display: grid !important;
+    }
+
+    body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls {
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+
+    body div#pictosound-archive-container div.pictosound-generations-archive-wrapper .ps-pagination-controls .ps-pagination-numbers {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+}
+
+@media (max-width: 480px) {
+    body div#pictosound-archive-container.ps-layout-scheda div.pictosound-generations-archive-wrapper ul.ps-generation-list li.generation-item div.generation-content div.generation-info div.generation-meta {
+        flex-direction: column !important;
+        gap: 5px !important;
+    }
+
+    /* Griglia diventa 1 colonna su mobile piccolo - FORZATO */
+    body div#pictosound-archive-container.ps-layout-griglia div.pictosound-generations-archive-wrapper ul.ps-generation-list {
+        grid-template-columns: 1fr !important;
+        display: grid !important;
+    }
+
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-1 div.pictosound-generations-archive-wrapper ul.ps-generation-list,
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-2 div.pictosound-generations-archive-wrapper ul.ps-generation-list,
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-3 div.pictosound-generations-archive-wrapper ul.ps-generation-list,
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-4 div.pictosound-generations-archive-wrapper ul.ps-generation-list,
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-5 div.pictosound-generations-archive-wrapper ul.ps-generation-list,
+    body div#pictosound-archive-container.ps-layout-griglia.ps-colonne-6 div.pictosound-generations-archive-wrapper ul.ps-generation-list {
+        grid-template-columns: 1fr !important;
+        display: grid !important;
+    }
+}

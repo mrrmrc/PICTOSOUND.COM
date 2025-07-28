@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updateUserAccessUI() {
         const loginOrRegisterPrompt = document.getElementById('loginOrRegisterPrompt');
         if (!loginOrRegisterPrompt) {
-            console.warn("Elemento 'loginOrRegisterPrompt' non trovato - skip function");
+            console.error("Elemento 'loginOrRegisterPrompt' non trovato nel DOM.");
             return;
         }
 
@@ -94,14 +94,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Si assicuri che queste righe siano presenti nel suo script, preferibilmente verso la fine 
     // del listener 'DOMContentLoaded', per garantire che tutti gli elementi siano caricati.
 
-    const musicDurationInputs = document.querySelectorAll('input[name="musicDuration"]');
-    if (musicDurationInputs.length > 0) {
-        musicDurationInputs.forEach(radio => {
-            radio.addEventListener('change', updateUserAccessUI);
-        });
-    } else {
-        console.log('Elementi musicDuration non trovati, skip listener');
-    }
+    document.querySelectorAll('input[name="musicDuration"]').forEach(radio => {
+        radio.addEventListener('change', updateUserAccessUI);
+    });
 
     // Eseguiamo un controllo iniziale al caricamento della pagina per impostare lo stato corretto.
     // Lo eseguiamo con un piccolo ritardo per assicurarci che tutte le variabili siano pronte.
@@ -1644,8 +1639,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Mantieni compatibilità con CameraHandler esistente
     if (window.CameraHandler) {
-        console.log("LOG: Inizializzazione CameraHandler...");
-        const cameraInitSuccess = CameraHandler.init(
+        console.log("📷 Inizializzazione CameraHandler migliorato...");
+        window.pictosoundCamera = new PictosoundCameraHandler(
             domElements,
             processImage,
             (message, type = "info") => setStatusMessage(domElements.statusDiv, message, type)

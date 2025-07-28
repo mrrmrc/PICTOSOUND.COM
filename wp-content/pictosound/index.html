@@ -6,924 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pictosound - Generatore di Musica da Immagini</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- INCLUDI I FILE CSS ESTERNI -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="auth-styles.css">
+    <link rel="stylesheet" href="snapshotstyle.css">
+
     <style>
-        :root {
-            --primary-color: #007bff;
-            --primary-hover: #0056b3;
-            --success-color: #28a745;
-            --light-bg: #f8f9fa;
-            --border-color: #e1e5e9;
-            --text-color: #333;
-            --light-text: #6c757d;
-            --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            --radius: 8px;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 0;
-            background: #f5f7fa;
-            color: var(--text-color);
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            width: 100%;
-            box-sizing: border-box;
-            overflow-x: hidden;
-            /* Previene scroll orizzontale */
-        }
-
-        .options-section {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border-color);
-            width: 100%;
-            max-width: 100%;
-            overflow: hidden;
-            /* Previene overflow */
-            box-sizing: border-box;
-        }
-
-        .options-section h3 {
-            color: var(--text-color);
-            margin: 0 0 20px 0;
-            font-weight: 600;
-            font-size: 1.2em;
-        }
-
-        /* Assicurati che descriptiveCuesSection contenga tutto */
-        #descriptiveCuesSection {
-            overflow: visible;
-            /* Permette tooltip ma controlla il contenuto */
-        }
-
-        #descriptiveCuesSection .info-text {
-            margin-bottom: 20px;
-        }
-
-        /* Sezione caricamento immagine */
-        .input-actions-container {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        #imageUpload {
-            flex: 1;
-            min-width: 200px;
-            padding: 12px;
-            border: 2px dashed var(--border-color);
-            border-radius: var(--radius);
-            background: var(--light-bg);
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        #imageUpload:hover {
-            border-color: var(--primary-color);
-            background: #e3f2fd;
-        }
-
-        .icon-button {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 20px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: var(--radius);
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-        }
-
-        .icon-button:hover {
-            background: var(--primary-hover);
-            transform: translateY(-2px);
-        }
-
-        .icon-button svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        /* Camera controls */
-        #cameraViewContainer {
-            display: none;
-            margin-top: 20px;
-            background: black;
-            border-radius: var(--radius);
-            overflow: hidden;
-        }
-
+        /* AGGIUNGI SOLO LO STILE PER FORZARE IL NON-SPECCHIO DELLA CAMERA */
         #cameraFeed {
-            width: 100%;
-            height: 300px;
-            object-fit: cover;
-        }
-
-        .camera-controls {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.8);
-        }
-
-        .camera-controls button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: var(--radius);
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        #captureImageButton {
-            background: var(--success-color);
-            color: white;
-        }
-
-        #switchCameraButton {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        #closeCameraButton {
-            background: #dc3545;
-            color: white;
-        }
-
-        /* Image preview */
-        #imagePreviewContainer {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        #imagePreview {
-            max-width: 100%;
-            height: auto;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-        }
-
-        /* Durata musica */
-        .radio-duration-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 12px;
-        }
-
-        .radio-duration-item {
-            position: relative;
-        }
-
-        .radio-duration-item input[type="radio"] {
-            position: absolute;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-        .radio-duration-item label {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 16px 12px;
-            background: var(--light-bg);
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            min-height: 60px;
-            box-sizing: border-box;
-        }
-
-        .radio-duration-item input[type="radio"]:checked+label {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-        }
-
-        .radio-duration-item label:hover {
-            border-color: var(--primary-color);
-            background: #e3f2fd;
-        }
-
-        .radio-duration-item input[type="radio"]:checked+label:hover {
-            background: var(--primary-hover);
-        }
-
-        .duration-value {
-            display: block;
-            font-weight: 600;
-            font-size: 1.1em;
-            margin-bottom: 4px;
-        }
-
-        .duration-credit {
-            display: block;
-            font-size: 0.9em;
-            opacity: 0.8;
-        }
-
-        /* Input testo */
-        .text-input {
-            width: 100%;
-            padding: 14px;
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius);
-            font-size: 16px;
-            transition: all 0.3s ease;
-            background: white;
-        }
-
-        .text-input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-        }
-
-        .info-text {
-            color: var(--light-text);
-            font-size: 14px;
-            margin-bottom: 15px;
-        }
-
-        /* Slider BPM */
-        .bpm-slider-container {
-            margin: 20px 0;
-            padding: 20px;
-            background: var(--light-bg);
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-        }
-
-        .bpm-slider-container label {
-            font-weight: 600;
-            margin-bottom: 10px;
-            display: block;
-            color: var(--text-color);
-        }
-
-        #bpmSlider {
-            width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: #ddd;
-            outline: none;
-            -webkit-appearance: none;
-        }
-
-        #bpmSlider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--primary-color);
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        #bpmSlider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--primary-color);
-            cursor: pointer;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        /* MIGLIORAMENTI PERSONALIZZAZIONI */
-        .cues-mobile-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            margin-top: 20px;
-            width: 100%;
-            max-width: 100%;
-            overflow: hidden;
-        }
-
-        .cues-mobile-section {
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-            /* Previene overflow nei flex items */
-        }
-
-        .cues-selection-container {
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            background: white;
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
-            overflow: hidden;
-            /* Previene overflow del contenuto */
-        }
-
-        .cues-selection-container:hover {
-            border-color: var(--primary-color);
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
-        }
-
-        .cues-selection-container.expanded {
-            border-color: var(--primary-color);
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
-        }
-
-        .collapsible-cue-header {
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            padding: 18px 20px;
-            cursor: pointer;
-            background: var(--light-bg);
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            user-select: none;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .collapsible-cue-header:hover {
-            background: #e9ecef;
-            transform: translateY(-1px);
-        }
-
-        .collapsible-cue-header:active {
-            transform: scale(0.98);
-        }
-
-        .cues-selection-container.expanded .collapsible-cue-header {
-            background: #e3f2fd;
-            border-bottom: 1px solid var(--border-color);
-            border-radius: 10px 10px 0 0;
-        }
-
-        .cue-header-content {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex: 1;
-        }
-
-        .cue-title {
-            font-weight: 600;
-            color: var(--text-color);
-            font-size: 16px;
-            margin: 0;
-            line-height: 1.2;
-        }
-
-        .cue-title-with-arrow {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .dropdown-arrow {
-            font-size: 16px;
-            color: var(--primary-color);
-            transition: transform 0.3s ease;
-            font-weight: bold;
-            line-height: 1;
-        }
-
-        .cues-selection-container.expanded .dropdown-arrow {
-            transform: rotate(180deg);
-        }
-
-        .toggle-icon-cues {
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--primary-color);
-            border-radius: 50%;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-        }
-
-        .toggle-icon-cues::before {
-            content: "▼";
-        }
-
-        .toggle-icon-cues.expanded::before {
-            content: "▲";
-        }
-
-        .toggle-icon-cues.expanded {
-            background: var(--primary-hover);
-            transform: rotate(180deg);
-        }
-
-        .checkbox-pills-group {
-            padding: 0 20px 20px 20px;
-            display: none;
-            animation: slideDown 0.3s ease;
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
-            overflow: hidden;
-            /* Previene overflow dei pills */
-        }
-
-        .checkbox-pills-group.expanded {
-            display: block;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Tooltip al passaggio del mouse */
-        .collapsible-cue-header::after {
-            content: "Clicca per aprire le opzioni";
-            position: absolute;
-            bottom: -35px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 11px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            z-index: 10;
-        }
-
-        .collapsible-cue-header:hover::after {
-            opacity: 1;
-        }
-
-        /* Pills di selezione */
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 16px;
-            margin: 6px;
-            background: var(--light-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-color);
-            text-align: center;
-            white-space: nowrap;
-            min-height: 20px;
-            box-sizing: border-box;
-            line-height: 1.2;
-        }
-
-        .pill:hover {
-            background: var(--primary-color);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
-            border-color: var(--primary-hover);
-        }
-
-        .pill.selected {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-hover);
-            box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
-        }
-
-        /* Bottoni principali */
-        .action-buttons-container {
-            text-align: center;
-            margin: 30px 0;
-        }
-
-        #generateMusicButton {
-            background: var(--success-color);
-            color: white;
-            border: none;
-            padding: 16px 32px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: var(--radius);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 200px;
-        }
-
-        #generateMusicButton:hover:not(:disabled) {
-            background: #218838;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-        }
-
-        #generateMusicButton:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* Indicatore di stato immagine caricata */
-        .image-loaded-indicator {
-            display: inline-block;
-            margin-left: 10px;
-            color: var(--success-color);
-            font-weight: 600;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.5;
-            }
-        }
-
-        /* Login prompt */
-        #loginOrRegisterPrompt {
-            margin-top: 20px;
-            padding: 20px;
-            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-            border: 1px solid var(--primary-color);
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        #loginOrRegisterPrompt a {
-            display: inline-block;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 6px;
-            margin: 5px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        #loginOrRegisterPrompt a:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        /* Feedback e player */
-        .status-message {
-            padding: 15px;
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: var(--radius);
-            color: #856404;
-            text-align: center;
-        }
-
-        .progress-bar-container {
-            width: 100%;
-            height: 8px;
-            background: #e9ecef;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 15px 0;
-        }
-
-        .progress-bar-animated {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary-color), var(--success-color));
-            border-radius: 4px;
-            transition: width 0.3s ease;
-        }
-
-        #audioPlayerContainer {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        #audioPlayer {
-            width: 100%;
-            max-width: 500px;
-            margin: 15px 0;
-        }
-
-        .download-button {
-            display: inline-block;
-            padding: 12px 20px;
-            background: var(--primary-color);
-            color: white;
-            text-decoration: none;
-            border-radius: var(--radius);
-            margin: 5px;
-            transition: all 0.3s ease;
-        }
-
-        .download-button:hover {
-            background: var(--primary-hover);
-            transform: translateY(-2px);
-        }
-
-        /* AI Insights */
-        .ai-processing-simulation {
-            padding: 20px;
-            background: var(--light-bg);
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-            margin: 15px 0;
-        }
-
-        .details-accordion-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            background: var(--light-bg);
-            border-radius: var(--radius);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 20px;
-        }
-
-        .details-accordion-header:hover {
-            background: #e9ecef;
-        }
-
-        .spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid var(--primary-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* RESPONSIVE DESIGN */
-        @media (min-width: 768px) {
-            .container {
-                padding: 30px;
-            }
-
-            .cues-mobile-container {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 16px;
-                width: 100%;
-                max-width: 100%;
-            }
-
-            .cues-mobile-section {
-                min-width: 0;
-                width: 100%;
-            }
-
-            .cues-selection-container {
-                width: 100%;
-            }
-
-            .collapsible-cue-header {
-                padding: 16px 18px;
-            }
-
-            .cue-header-content {
-                gap: 6px;
-            }
-
-            .cue-title {
-                font-size: 15px;
-            }
-
-            .cue-title-with-arrow {
-                gap: 4px;
-            }
-
-            .dropdown-arrow {
-                font-size: 15px;
-            }
-
-            .radio-duration-group {
-                grid-template-columns: repeat(6, 1fr);
-            }
-
-            .input-actions-container {
-                flex-wrap: nowrap;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .cues-mobile-container {
-                grid-template-columns: repeat(4, 1fr);
-                gap: 14px;
-                width: 100%;
-                max-width: 100%;
-            }
-
-            .cues-mobile-section {
-                min-width: 0;
-                width: 100%;
-            }
-
-            .cues-selection-container {
-                width: 100%;
-            }
-
-            .collapsible-cue-header {
-                padding: 14px 16px;
-            }
-
-            .cue-header-content {
-                gap: 6px;
-            }
-
-            .cue-title {
-                font-size: 14px;
-            }
-
-            .cue-title-with-arrow {
-                gap: 4px;
-            }
-
-            .dropdown-arrow {
-                font-size: 14px;
-            }
-
-            .options-section {
-                padding: 30px;
-            }
-        }
-
-        @media (max-width: 767px) {
-            .container {
-                padding: 15px;
-            }
-
-            .options-section {
-                padding: 20px;
-                margin-bottom: 20px;
-            }
-
-            .cues-mobile-container {
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-                width: 100%;
-            }
-
-            .cues-mobile-section {
-                width: 100%;
-            }
-
-            .cues-selection-container {
-                width: 100%;
-            }
-
-            .input-actions-container {
-                flex-direction: column;
-            }
-
-            .icon-button {
-                justify-content: center;
-            }
-
-            .radio-duration-group {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 8px;
-            }
-
-            .radio-duration-item label {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                padding: 12px 8px;
-                min-height: 50px;
-                box-sizing: border-box;
-            }
-
-            .duration-value {
-                font-size: 1em;
-            }
-
-            .duration-credit {
-                font-size: 0.8em;
-            }
-
-            .collapsible-cue-header {
-                padding: 15px;
-                width: 100%;
-                box-sizing: border-box;
-            }
-
-            .cue-header-content {
-                gap: 6px;
-            }
-
-            .cue-title {
-                font-size: 15px;
-            }
-
-            .cue-title-with-arrow {
-                gap: 4px;
-            }
-
-            .dropdown-arrow {
-                font-size: 15px;
-            }
-
-            .checkbox-pills-group {
-                padding: 0 15px 15px 15px;
-            }
-
-            .pill {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                padding: 8px 12px;
-                margin: 4px;
-                font-size: 13px;
-                text-align: center;
-                white-space: nowrap;
-                min-height: 18px;
-                box-sizing: border-box;
-                line-height: 1.2;
-            }
-
-            #generateMusicButton {
-                width: 100%;
-                padding: 14px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .radio-duration-group {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .cue-header-content {
-                gap: 8px;
-            }
-
-            .cue-header-content span:first-child {
-                font-size: 1.2em;
-            }
-        }
-
-        /* Nascondi elementi per default */
-        #imageCanvas,
-        #compositeImageCanvas,
-        #additionalCuesTextarea {
-            display: none;
+            transform: none !important;
+            -webkit-transform: none !important;
+            -moz-transform: none !important;
+            -ms-transform: none !important;
+            -o-transform: none !important;
         }
     </style>
 </head>
@@ -1235,9 +331,75 @@
     <canvas id="compositeImageCanvas" style="display:none;"></canvas>
     <textarea id="additionalCuesTextarea" style="display:none;"></textarea>
 
+    <!-- CARICA CAMERA HANDLER -->
+    <script src="CameraHandler.js"></script>
+
     <script>
-        // Gestione BPM slider
+        // INIZIALIZZAZIONE CAMERA HANDLER
         document.addEventListener('DOMContentLoaded', function () {
+
+            // ===== INIZIALIZZA CAMERA HANDLER =====
+            const domElements = {
+                takePictureButton: document.getElementById('takePictureButton'),
+                captureImageButton: document.getElementById('captureImageButton'),
+                switchCameraButton: document.getElementById('switchCameraButton'),
+                closeCameraButton: document.getElementById('closeCameraButton'),
+                cameraViewContainer: document.getElementById('cameraViewContainer'),
+                cameraFeed: document.getElementById('cameraFeed')
+            };
+
+            const processImage = function (imageDataURL) {
+                const imagePreview = document.getElementById('imagePreview');
+                imagePreview.src = imageDataURL;
+                imagePreview.style.display = 'block';
+
+                // Abilita il pulsante di generazione musica se necessario
+                const generateButton = document.getElementById('generateMusicButton');
+                if (generateButton) {
+                    generateButton.disabled = false;
+                }
+            };
+
+            const setStatusMessage = function (message, type) {
+                const statusElement = document.getElementById('status');
+                if (statusElement && message) {
+                    statusElement.textContent = message;
+                    statusElement.className = `status-message ${type}`;
+                }
+            };
+
+            // Inizializza CameraHandler
+            if (window.CameraHandler) {
+                CameraHandler.init(domElements, processImage, setStatusMessage);
+            } else {
+                console.error('CameraHandler non trovato!');
+            }
+
+            // ===== GESTIONE FILE UPLOAD (rimane qui perché non usa CameraHandler) =====
+            const imageUpload = document.getElementById('imageUpload');
+            const imagePreview = document.getElementById('imagePreview');
+
+            if (imageUpload) {
+                imageUpload.addEventListener('change', function (event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            imagePreview.src = e.target.result;
+                            imagePreview.style.display = 'block';
+
+                            // Abilita il pulsante di generazione musica
+                            const generateButton = document.getElementById('generateMusicButton');
+                            if (generateButton) {
+                                generateButton.disabled = false;
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            // ===== GESTIONE BPM SLIDER =====
             const bpmSlider = document.getElementById('bpmSlider');
             const bpmValue = document.getElementById('bpmValue');
 
@@ -1247,7 +409,7 @@
                 });
             }
 
-            // Gestione espansione sezioni personalizzazioni
+            // ===== GESTIONE ESPANSIONE SEZIONI PERSONALIZZAZIONI =====
             const headers = document.querySelectorAll('.collapsible-cue-header');
 
             headers.forEach(header => {
@@ -1271,7 +433,7 @@
                 });
             });
 
-            // Gestione selezione pills
+            // ===== GESTIONE SELEZIONE PILLS =====
             const pills = document.querySelectorAll('.pill');
             pills.forEach(pill => {
                 pill.addEventListener('click', function () {
@@ -1288,115 +450,6 @@
                     }
                 });
             });
-
-            // Gestione file upload
-            const imageUpload = document.getElementById('imageUpload');
-            const imagePreview = document.getElementById('imagePreview');
-            const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-
-            if (imageUpload) {
-                imageUpload.addEventListener('change', function (event) {
-                    const file = event.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = function (e) {
-                            imagePreview.src = e.target.result;
-                            imagePreview.style.display = 'block';
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            }
-
-            // Gestione fotocamera
-            const takePictureButton = document.getElementById('takePictureButton');
-            const cameraViewContainer = document.getElementById('cameraViewContainer');
-            const cameraFeed = document.getElementById('cameraFeed');
-            const closeCameraButton = document.getElementById('closeCameraButton');
-
-            if (takePictureButton) {
-                takePictureButton.addEventListener('click', async function () {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                        cameraFeed.srcObject = stream;
-                        cameraViewContainer.style.display = 'block';
-                    } catch (error) {
-                        console.error('Errore nell\'accesso alla fotocamera:', error);
-                        alert('Impossibile accedere alla fotocamera. Assicurati di aver dato i permessi necessari.');
-                    }
-                });
-            }
-
-            if (closeCameraButton) {
-                closeCameraButton.addEventListener('click', function () {
-                    const stream = cameraFeed.srcObject;
-                    if (stream) {
-                        const tracks = stream.getTracks();
-                        tracks.forEach(track => track.stop());
-                        cameraFeed.srcObject = null;
-                    }
-                    cameraViewContainer.style.display = 'none';
-                });
-            }
-
-            // Gestione cattura immagine
-            const captureImageButton = document.getElementById('captureImageButton');
-            const imageCanvas = document.getElementById('imageCanvas');
-
-            if (captureImageButton) {
-                captureImageButton.addEventListener('click', function () {
-                    const canvas = imageCanvas;
-                    const context = canvas.getContext('2d');
-
-                    canvas.width = cameraFeed.videoWidth;
-                    canvas.height = cameraFeed.videoHeight;
-
-                    context.drawImage(cameraFeed, 0, 0);
-
-                    // Converti in immagine
-                    const dataURL = canvas.toDataURL('image/png');
-                    imagePreview.src = dataURL;
-                    imagePreview.style.display = 'block';
-
-                    // Chiudi fotocamera
-                    closeCameraButton.click();
-                });
-            }
-
-            // Gestione cambio fotocamera
-            const switchCameraButton = document.getElementById('switchCameraButton');
-            let currentFacingMode = 'environment';
-
-            if (switchCameraButton) {
-                switchCameraButton.addEventListener('click', async function () {
-                    try {
-                        // Ferma lo stream corrente
-                        const stream = cameraFeed.srcObject;
-                        if (stream) {
-                            const tracks = stream.getTracks();
-                            tracks.forEach(track => track.stop());
-                        }
-
-                        // Cambia modalità
-                        currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-
-                        // Avvia nuovo stream
-                        const newStream = await navigator.mediaDevices.getUserMedia({
-                            video: { facingMode: currentFacingMode }
-                        });
-                        cameraFeed.srcObject = newStream;
-                    } catch (error) {
-                        console.error('Errore nel cambio fotocamera:', error);
-                        // Fallback alla fotocamera predefinita
-                        try {
-                            const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                            cameraFeed.srcObject = fallbackStream;
-                        } catch (fallbackError) {
-                            console.error('Errore fallback fotocamera:', fallbackError);
-                        }
-                    }
-                });
-            }
         });
     </script>
 </body>
